@@ -9,8 +9,8 @@
     const R = () => window.Rhythm;
     const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'text') n.textContent = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k !== '' && k != null)); return n; };
     const KEY = 'agiRhythm';
-    const load = () => { try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); return { marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), best: s.best && typeof s.best === 'object' ? s.best : {}, track: +s.track || 0, level: Math.max(0, Math.min(3, Math.floor(+s.level || 0))), own: !!s.own, field: !!s.field, boards: s.boards && typeof s.boards === 'object' ? s.boards : {} }; } catch { return { marks: 0, runs: 0, stage: 1, best: {}, track: 0, level: 0, own: false, field: false, boards: {} }; } };
-    const keep = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch { /* private mode */ } };
+    const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), best: s.best && typeof s.best === 'object' ? s.best : {}, track: +s.track || 0, level: Math.max(0, Math.min(3, Math.floor(+s.level || 0))), own: !!s.own, field: !!s.field, boards: s.boards && typeof s.boards === 'object' ? s.boards : {} }; } catch { return { marks: 0, runs: 0, stage: 1, best: {}, track: 0, level: 0, own: false, field: false, boards: {} }; } };
+    const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
     const skills = () => (location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
     const masteryNow = () => R().mastery(save.runs, location.hash === '#playground' ? 0 : Math.min(skills(), 20));
     const LANES = ['Kick', 'Bass', 'Melody'], SOUND = ['compute', 'data', 'research'];
@@ -82,6 +82,7 @@
         for (let s = 0; s < board.len; s += 8) {
             const cols = Math.min(8, board.len - s), band = el('div', { class: 'rhythm-band', style: `--cols:${cols}` }, el('span', {}), ...Array.from({ length: cols }, (_, i) => el('span', { class: 'rhythm-barno', text: String(s + i + 1) })));
             for (const row of B.rows) {
+                if ((row === 'bass' || row === 'chords') && !window.CourseUnlocks.can(row)) continue;
                 band.append(el('span', { class: 'rhythm-rowname', text: ROWNAME[row] }));
                 for (let b = s; b < s + cols; b++) {
                     const id = board[row][b], on = cellAt && cellAt.row === row && cellAt.b === b;
@@ -91,12 +92,12 @@
             bands.push(band);
         }
         const tools = el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'The board' },
-            ...B.lengths.map(n => el('button', { type: 'button', class: 'maze-tool' + (n === board.len ? ' on' : ''), 'aria-pressed': String(n === board.len), text: n + ' bars', onclick: () => { if (n === board.len) return; const next = { len: n }; for (const row of B.rows) next[row] = board[row].slice(0, n); save.boards[palKey(tr)] = next; cellAt = null; edited(); } })),
+            ...B.lengths.map(n => (n > 4 && !window.CourseUnlocks.can('bars' + n)) ? null : el('button', { type: 'button', class: 'maze-tool' + (n === board.len ? ' on' : ''), 'aria-pressed': String(n === board.len), text: n + ' bars', onclick: () => { if (n === board.len) return; const next = { len: n }; for (const row of B.rows) next[row] = board[row].slice(0, n); save.boards[palKey(tr)] = next; cellAt = null; edited(); } })),
             el('button', { type: 'button', class: 'maze-tool' + (listening ? ' on' : ''), 'aria-pressed': String(listening), text: listening ? 'Stop listening' : 'Listen', onclick: () => listen(!listening) }),
             el('button', { type: 'button', class: 'maze-tool', text: 'Start over', 'aria-label': 'Start over from the song\'s own bars', onclick: () => { save.boards[palKey(tr)] = R().boardFrom(tr.song, board.len); cellAt = null; edited(); } }));
         const picker = cellAt && cellAt.b < board.len ? el('div', { class: 'rhythm-row rhythm-blocks', role: 'group', 'aria-label': `${ROWNAME[cellAt.row]} blocks for bar ${cellAt.b + 1}` },
             el('span', { class: 'rhythm-rowname', text: `${ROWNAME[cellAt.row]}, bar ${cellAt.b + 1}` }),
-            ...box[cellAt.row].map(x => { const cur = board[cellAt.row][cellAt.b] === x.id; return el('button', { type: 'button', class: `maze-tool rhythm-block rhythm-cell-${cellAt.row}` + (cur ? ' on' : ''), 'aria-pressed': String(cur), text: x.id === 'free' ? 'Freestyle' : x.name, onclick: () => { board[cellAt.row][cellAt.b] = x.id; edited(); } }); }))
+            ...box[cellAt.row].filter(x => x.id !== 'free' || window.CourseUnlocks.can('free')).map(x => { const cur = board[cellAt.row][cellAt.b] === x.id; return el('button', { type: 'button', class: `maze-tool rhythm-block rhythm-cell-${cellAt.row}` + (cur ? ' on' : ''), 'aria-pressed': String(cur), text: x.id === 'free' ? 'Freestyle' : x.name, onclick: () => { board[cellAt.row][cellAt.b] = x.id; edited(); } }); }))
             : el('p', { class: 'rhythm-hint', text: 'Tap a bar to change what plays in it.' });
         return el('div', { class: 'rhythm-board' }, tools, ...bands, picker);
     }
@@ -114,7 +115,7 @@
         actionsEl = el('div', { class: 'course-actions' });
         dlg = el('dialog', { class: 'evals-screen course-screen rhythm-screen', 'aria-label': 'Evals: the rhythm run' },
             el('div', { class: 'evals-bar' }, el('span', { class: 'evals-title', text: 'Evals' }),
-                el('button', { type: 'button', class: 'ghost-button course-switch', text: 'Puck', 'aria-label': 'Switch to the puck course', onclick: () => { close(); try { localStorage.setItem('agiCourseKind', 'puck'); } catch { /* private mode */ } window.PuckUI?.open(); } }),
+                window.CourseUnlocks.switchButton('rhythm'),
                 marksEl, el('button', { type: 'button', class: 'ghost-button evals-close', 'aria-label': 'Close Evals', text: '×', onclick: close })),
             el('div', { class: 'course-body rhythm-body' }, sayEl, pickEl, canvas, padEl, actionsEl));
         dlg.addEventListener('close', () => { stop(); listening = false; cancelAnimationFrame(headRaf); headRaf = 0; restore(null); music = { area: 'lab', level: 0.4 }; });
@@ -143,7 +144,7 @@
     const tally = r => `${r.hits - r.freeTaps} of ${r.total} notes${r.freeTaps ? ` and ${r.freeTaps} freestyle ${r.freeTaps === 1 ? 'tap' : 'taps'}` : ''}`;
     const button = (text, action, main) => el('button', { type: 'button', class: main ? 'evals-go' : 'ghost-button evals-extra', text, onclick: action });
     const actions = (...list) => actionsEl.replaceChildren(...list);
-    function header() { marksEl.textContent = '◈ ' + save.marks.toLocaleString('en-US'); marksEl.setAttribute('aria-label', save.marks + ' Marks'); }
+    function header() { marksEl.textContent = '◈ ' + save.marks.toLocaleString('en-US'); marksEl.setAttribute('aria-label', save.marks + ' Marks'); window.CourseUnlocks.refresh(dlg, 'rhythm'); }
 
     // Pick: the track and how much of it is notes.
     function toPick(text) {
@@ -152,22 +153,26 @@
         if (!tr) { say('There is no music to play. The game\'s tracks did not load.'); actions(); return; }
         if (!save.own) listening = false;
         if (!listening) { restore(tr); music = { area: tr.area, level: 0.4 }; }
+        const can = window.CourseUnlocks.can;
+        if (save.own && !can('board')) save.own = false;
+        if (save.field && !can('field')) save.field = false;
+        while (save.level > 0 && !can(R().MODES[save.level].key)) save.level--;
         pickSel();
         const notes = lvl => chartNow(lvl).filter(n => !n.free).length;
         const whose = (own, label) => el('button', { type: 'button', class: 'maze-tool' + (save.own === own ? ' on' : ''), 'aria-pressed': String(save.own === own), text: label, onclick: () => { if (save.own === own) return; save.own = own; yours = null; cellAt = null; keep(); toPick(); } });
         pickEl.replaceChildren(
             el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'Track' }, ...all.map((t, i) => el('button', { type: 'button', class: 'maze-tool' + (i === save.track ? ' on' : ''), 'aria-pressed': String(i === save.track), text: t.name, onclick: () => { save.track = i; yours = null; cellAt = null; listening = false; keep(); toPick(); } }))),
-            el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'Whose arrangement' }, whose(false, 'The song as written'), whose(true, 'Your board')),
-            el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'How the notes arrive' }, ...[[false, 'Lanes'], [true, 'Whole field']].map(([f, label]) => el('button', { type: 'button', class: 'maze-tool' + (save.field === f ? ' on' : ''), 'aria-pressed': String(save.field === f), text: label, onclick: () => { if (save.field === f) return; save.field = f; yours = null; keep(); toPick(); } }))),
+            ...(can('board') ? [el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'Whose arrangement' }, whose(false, 'The song as written'), whose(true, 'Your board'))] : []),
+            ...(!can('field') ? [] : [el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'How the notes arrive' }, ...[[false, 'Lanes'], [true, 'Whole field']].map(([f, label]) => el('button', { type: 'button', class: 'maze-tool' + (save.field === f ? ' on' : ''), 'aria-pressed': String(save.field === f), text: label, onclick: () => { if (save.field === f) return; save.field = f; yours = null; keep(); toPick(); } })))]),
             ...(save.own ? [boardView(tr)] : []),
-            el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'How hard' }, ...R().MODES.map((l, i) => el('button', { type: 'button', class: 'maze-tool' + (i === save.level ? ' on' : ''), 'aria-pressed': String(i === save.level), text: `${l.name} · ${notes(i)}`, onclick: () => { save.level = i; yours = null; keep(); toPick(); } }))));
+            el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'How hard' }, ...R().MODES.map((l, i) => !can(l.key) ? null : el('button', { type: 'button', class: 'maze-tool' + (i === save.level ? ' on' : ''), 'aria-pressed': String(i === save.level), text: `${l.name} · ${notes(i)}`, onclick: () => { save.level = i; yours = null; keep(); toPick(); } }))));
         const n = notes(save.level), ms = save.own ? R().measure(chartNow(), sel.bars, sel.song.steps) : null;
         if (text) say(text);
         else if (!save.own) say(`${tr.name} on ${R().modeOf(save.level).name}: ${n} notes over ${sel.bars} bars. Keep the song together to the end and I will try it after you. Let it fall apart and it scores nothing.`);
         else if (!ms.playable && !ms.free) say(`Your track has no notes on ${R().modeOf(save.level).name}. Give a bar a beat, a bass line or a melody.`);
         else say(`Your track on ${R().modeOf(save.level).name}: ${n} notes over ${sel.bars} bars, ${ms.least} to ${ms.most} a bar, ${ms.kinds} different ${ms.kinds === 1 ? 'bar' : 'bars'}${ms.free ? `, ${ms.free} freestyle` : ''}.`);
-        const can = !save.own || ms.playable || ms.free > 0;
-        actions(...(can ? [button('Play it yourself', () => begin('you'), true)] : []), ...(yours ? [button(yours.finished ? 'Hand it to the AI' : 'Let the AI try', toAi)] : []));
+        const ok = !save.own || ms.playable || ms.free > 0;
+        actions(...(ok ? [button('Play it yourself', () => begin('you'), true)] : []), ...(yours ? [button(yours.finished ? 'Hand it to the AI' : 'Let the AI try', toAi)] : []));
         header();
         headBar = -2; if (listening && !headRaf) headRaf = requestAnimationFrame(head);
     }
@@ -312,6 +317,7 @@
         else if (yours.finished) say(`Played through: ${tally(top)}, ${pct(top)} on the beat against your ${pct(yours)}, a combo of ${top.combo} against your ${yours.combo}${top.score > yours.score + 0.01 ? '. I was tighter' : top.score < yours.score - 0.01 ? '. You were tighter' : ''}. ${marks} Marks.`);
         else say(`Played the one you could not: ${tally(top)}, ${pct(top)} on the beat. ${marks} Marks.`);
         if (grew) sayEl.textContent += st === 2 ? ' I think I can play a track through now even if it falls apart on you. Play it once, as far as you get.' : ' I do not need to hear the hard parts first any more. Play it once anyway.';
+        if (top) { const news = window.CourseUnlocks.cleared('rhythm', window.CourseUnlocks.rhythmNames); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'rhythm'); }
         actions(button('Change the track', () => toPick(), true), button('Hand it over again', toAi));
         music.level = 0.4; draw();
     }

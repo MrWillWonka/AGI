@@ -168,6 +168,36 @@ Maze, Rhythm, Puck, Rooms.
 to keep unlocking; ideas: one-way gates, breakable blocks, targets that must be hit in order, moving walls, magnets,
 a second hole); racing the AI's ghost; cheating; sound.
 
+## The unlocks: the owner's calls (four cards, 2026-11-17)
+
+- **A kind's parts open with the AI's clears in that kind.** Each kind has its own ladder; playing a kind deepens it.
+- **The kinds open one at a time, in this order: Rhythm, Maze, Puck, Rooms** (the owner's order; it replaces "track,
+  maze, rooms" above). Clears by the AI in the newest kind open the next.
+- **A switch in the playground**, off by default (everything open, as before), with a way to start over.
+- **The orders inside each kind are my proposals**, built as placeholders for the owner to change after playing.
+
+**Built (playground only; `course-unlocks.js`, `tests/course-unlocks.test.js`):** a padlock in each course's bar opens
+the Unlocks card: the switch, where each kind stands, *Start the unlocks over*. With it on, each kind keeps a second
+save (`agiRhythm.u`, `agiMaze.u`, `agiPuck.u`, `agiRooms.u`), so nothing built with it off is touched, and Marks start
+at 0. After a hand-over the AI clears, it says what opened or how many clears are left. The switch button in the bar
+goes round the open kinds only, and with unlocks off it now goes Rhythm, Maze, Puck, Rooms.
+
+**The ladders (mine, placeholders, in `UNLOCKS` at the top of `course-unlocks.js`): a step every 2 clears; the next
+kind after 3 clears in the newest.**
+- **Rhythm** starts with the songs as written, in lanes, on Easy and Medium. Then: Hard; your board (Beat and Melody
+  rows, 4 bars); the Bass row; the Chords row; the freestyle bar; 8 bars; the whole field; Extreme; 16 bars.
+- **Maze** starts with walls and traps. Then: the patrol; the key and the door.
+- **Puck** starts with walls, bumpers and targets. Then: moving targets and sticky ground; slick ground and the pit;
+  boosters; portals.
+- **Rooms** starts with blocks and spikes. Then: the pit; the saw; the spring and the booster.
+
+**For the owner to judge:** any course the AI clears counts, an empty one too, so a clear can be farmed with a course
+that has nothing in it. I have not added a rule against it. The Maze and the Rooms ladders are short (2 and 3 steps),
+so those kinds need more parts to keep unlocking.
+
+**Not built:** the unlocks anywhere but the playground; a notice or a NEW tag when something opens (the AI only says
+it on the result); the Marks tree.
+
 ## Proposed (open, for the owner)
 
 - **The loop of one course.** Build (place obstacles on a short course, within a budget) → Test (you run it; it must

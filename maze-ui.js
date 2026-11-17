@@ -7,9 +7,9 @@
     const M = () => window.Maze;
     const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'text') n.textContent = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k !== '' && k != null)); return n; };
     const KEY = 'agiMaze';
-    const load = () => { try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); return { maze: M().cleanMaze(s.maze), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), times: s.times && typeof s.times === 'object' ? s.times : {} }; } catch { return { maze: M().emptyMaze(), marks: 0, runs: 0, stage: 1, times: {} }; } };
-    const keep = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch { /* private mode */ } };
-    const skills = () => (location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
+    const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { maze: M().cleanMaze(s.maze), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), times: s.times && typeof s.times === 'object' ? s.times : {} }; } catch { return { maze: M().emptyMaze(), marks: 0, runs: 0, stage: 1, times: {} }; } };
+    const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
+    const skills = () => (window.CourseUnlocks.on ? window.CourseUnlocks.levelOf('maze') : location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
     const masteryNow = () => M().mastery(save.runs, location.hash === '#playground' ? 0 : Math.min(skills(), 20));
     const secs = t => t.toFixed(1) + ' s';
     const mazeKey = () => save.maze.map(k => (k ? k[0] : '-')).join('');
@@ -29,7 +29,7 @@
         canvas.addEventListener('pointerdown', e => { if (mode !== 'build') return; e.preventDefault(); const r = canvas.getBoundingClientRect(), o = M().MAZE, x = Math.floor((e.clientX - r.left) / (r.width / o.cols)), y = Math.floor((e.clientY - r.top) / (r.height / o.rows)); place(y * o.cols + x); });
         dlg = el('dialog', { class: 'evals-screen course-screen maze-screen', 'aria-label': 'Evals: the maze' },
             el('div', { class: 'evals-bar' }, el('span', { class: 'evals-title', text: 'Evals' }),
-                el('button', { type: 'button', class: 'ghost-button course-switch', text: 'Rhythm', 'aria-label': 'Switch to the rhythm run', onclick: () => { close(); try { localStorage.setItem('agiCourseKind', 'rhythm'); } catch { /* private mode */ } window.RhythmUI?.open(); } }),
+                window.CourseUnlocks.switchButton('maze'),
                 marksEl, el('button', { type: 'button', class: 'ghost-button evals-close', 'aria-label': 'Close Evals', text: '×', onclick: close })),
             el('div', { class: 'course-body maze-body' }, sayEl, canvas, toolsEl, padEl, actionsEl));
         dlg.addEventListener('close', stop);
@@ -42,7 +42,7 @@
     const say = text => { sayEl.textContent = '> ' + text; };
     const button = (text, action, main) => el('button', { type: 'button', class: main ? 'evals-go' : 'ghost-button evals-extra', text, onclick: action });
     const actions = (...list) => actionsEl.replaceChildren(...list);
-    function header() { marksEl.textContent = '◈ ' + save.marks.toLocaleString('en-US'); marksEl.setAttribute('aria-label', save.marks + ' Marks'); }
+    function header() { marksEl.textContent = '◈ ' + save.marks.toLocaleString('en-US'); marksEl.setAttribute('aria-label', save.marks + ' Marks'); window.CourseUnlocks.refresh(dlg, 'maze'); }
 
     function place(i) {
         const o = M().MAZE;
@@ -110,6 +110,7 @@
         else if (yours.finished) { const d = yours.time - top.time; say(`Out: ${top.points} ${top.points === 1 ? 'point' : 'points'}, ${secs(top.time)} against your ${secs(yours.time)}${d > 0.05 ? '. I was faster' : d < -0.05 ? '. You were faster' : ''}. ${marks} Marks.`); }
         else { const d = ref - top.time; say(`Out of the one you could not finish: ${top.points} ${top.points === 1 ? 'point' : 'points'} in ${secs(top.time)}${ref ? (d > 0.05 ? `, ${secs(d)} under my best` : `. My best here is ${secs(ref)}`) : ''}. ${marks} Marks.`); }
         if (grew) sayEl.textContent += st === 2 ? ' I think I can finish a maze now even if you are caught in it. Walk it once, as far as you get.' : ' I do not need to be shown the hard parts any more. Walk it once anyway.';
+        if (top) { const news = window.CourseUnlocks.cleared('maze', lvl => M().palette(lvl).map(k => M().TILES[k].name)); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'maze'); }
         actions(button('Change the maze', () => toBuild(), true), button('Hand it over again', toAi));
         run = null; tick();
     }

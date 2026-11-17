@@ -4761,6 +4761,16 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 .course-switch { min-height: 36px; padding: 4px 12px; font-size: 0.82rem; }
 .maze-canvas { display: block; align-self: center; width: min(100%, calc((100dvh / var(--zoom, 1) - 330px) * 7 / 9)); aspect-ratio: 7 / 9; min-width: 210px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); touch-action: none; user-select: none; -webkit-user-select: none; }
 .puck-canvas { width: min(100%, calc((100dvh / var(--zoom, 1) - 380px) * 7 / 9)); cursor: crosshair; }
+.course-lock { padding: 4px 8px; }
+.course-switch[hidden] { display: none; }
+.course-unlocks { width: min(92vw, 440px); padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); color: var(--text); }
+.course-unlocks::backdrop { background: rgb(0 0 0 / 0.55); }
+.course-unlocks h2 { margin: 0 0 6px; font-family: var(--font-display); font-size: 1.1rem; }
+.course-unlocks p { margin: 0 0 10px; font-size: 0.9rem; }
+.course-unlocks ul { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 6px; }
+.course-unlocks li { display: grid; grid-template-columns: 5.5em 1fr; gap: 8px; font-size: 0.86rem; }
+.course-unlocks li span { color: var(--muted); }
+.course-unlocks li.locked strong { color: var(--muted); }
 .maze-tools { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .maze-tools[hidden], .maze-pad[hidden] { display: none; }
 .maze-tool { min-height: 40px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; font-size: 0.86rem; cursor: pointer; }

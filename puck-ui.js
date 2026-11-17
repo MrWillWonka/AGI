@@ -8,9 +8,9 @@
     const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'text') n.textContent = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k !== '' && k != null)); return n; };
     const KEY = 'agiPuck';
     const blank = () => ({ course: P().emptyCourse(), marks: 0, runs: 0, stage: 1, best: {} });
-    const load = () => { try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); return { course: P().cleanCourse(s.course), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), best: s.best && typeof s.best === 'object' ? s.best : {} }; } catch { return blank(); } };
-    const keep = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch { /* private mode */ } };
-    const skills = () => (location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
+    const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { course: P().cleanCourse(s.course), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), best: s.best && typeof s.best === 'object' ? s.best : {} }; } catch { return blank(); } };
+    const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
+    const skills = () => (window.CourseUnlocks.on ? window.CourseUnlocks.levelOf('puck') : location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
     const masteryNow = () => P().mastery(save.runs, location.hash === '#playground' ? 0 : Math.min(skills(), 20));
     const courseKey = () => save.course.map(t => (t ? t[0] + (/\d$/.test(t) ? t.slice(-1) : '') : '-')).join('');
     const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -34,7 +34,7 @@
         canvas.addEventListener('pointercancel', () => { pull = null; });
         dlg = el('dialog', { class: 'evals-screen course-screen maze-screen puck-screen', 'aria-label': 'Evals: the puck course' },
             el('div', { class: 'evals-bar' }, el('span', { class: 'evals-title', text: 'Evals' }),
-                el('button', { type: 'button', class: 'ghost-button course-switch', text: 'Rooms', 'aria-label': 'Switch to the room course', onclick: () => { close(); try { localStorage.setItem('agiCourseKind', 'rooms'); } catch { /* private mode */ } window.RoomsUI?.open(); } }),
+                window.CourseUnlocks.switchButton('puck'),
                 marksEl, el('button', { type: 'button', class: 'ghost-button evals-close', 'aria-label': 'Close Evals', text: '×', onclick: close })),
             el('div', { class: 'course-body maze-body' }, sayEl, canvas, toolsEl, actionsEl));
         dlg.addEventListener('close', stop);
@@ -44,7 +44,7 @@
     const say = text => { sayEl.textContent = '> ' + text; };
     const button = (text, action, main) => el('button', { type: 'button', class: main ? 'evals-go' : 'ghost-button evals-extra', text, onclick: action });
     const actions = (...list) => actionsEl.replaceChildren(...list);
-    function header() { marksEl.textContent = '◈ ' + save.marks.toLocaleString('en-US'); marksEl.setAttribute('aria-label', save.marks + ' Marks'); }
+    function header() { marksEl.textContent = '◈ ' + save.marks.toLocaleString('en-US'); marksEl.setAttribute('aria-label', save.marks + ' Marks'); window.CourseUnlocks.refresh(dlg, 'puck'); }
     function stop() { clearTimeout(timer); timer = 0; anim = null; pull = null; aim = null; }
     function reset() { const w = P().world(save.course); seen = {}; at = { x: w.tee.x, y: w.tee.y }; shotsShown = 0; pointsShown = 0; paths = []; endKind = null; }
 
@@ -126,6 +126,7 @@
         else if (yours.finished) { const d = yours.shots - top.shots, more = top.points - yours.points; say(`In: ${plural(top.points, 'point')} in ${plural(top.shots, 'shot')}, against your ${yours.points} in ${yours.shots}${d > 0 ? '. I needed fewer' : d < 0 ? '. You needed fewer' : ''}${more > 0 ? '. I found more to hit' : ''}. ${marks} Marks.`); }
         else say(`In, on the one you could not finish: ${plural(top.points, 'point')} in ${plural(top.shots, 'shot')}${par ? `. My best here was ${par}` : ''}. ${marks} Marks.`);
         if (grew) sayEl.textContent += st === 2 ? ' I think I can finish a course now even if you run out of shots. Play it once, as far as you get.' : ' I do not need to be shown the way any more. Play it once anyway.';
+        if (top) { const news = window.CourseUnlocks.cleared('puck', lvl => P().palette(lvl).map(k => P().TILES[k].name)); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'puck'); }
         actions(button('Change the course', () => toBuild(), true), button('Hand it over again', toAi));
         // Leave its best attempt (or its last) on the field.
         const show = hand.attempts.find(a => a.result === top) || hand.attempts[tries - 1], last = show.traces[show.traces.length - 1];

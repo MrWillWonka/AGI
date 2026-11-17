@@ -7,9 +7,9 @@
     const R = () => window.Rooms;
     const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'text') n.textContent = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k !== '' && k != null)); return n; };
     const KEY = 'agiRooms';
-    const load = () => { try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); return { room: R().cleanRoom(s.room), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), times: s.times && typeof s.times === 'object' ? s.times : {} }; } catch { return { room: R().emptyRoom(), marks: 0, runs: 0, stage: 1, times: {} }; } };
-    const keep = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch { /* private mode */ } };
-    const skills = () => (location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
+    const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { room: R().cleanRoom(s.room), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), times: s.times && typeof s.times === 'object' ? s.times : {} }; } catch { return { room: R().emptyRoom(), marks: 0, runs: 0, stage: 1, times: {} }; } };
+    const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
+    const skills = () => (window.CourseUnlocks.on ? window.CourseUnlocks.levelOf('rooms') : location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
     const masteryNow = () => R().mastery(save.runs, location.hash === '#playground' ? 0 : Math.min(skills(), 20));
     const secs = t => t.toFixed(1) + ' s';
     const roomKey = () => save.room.map(k => (k ? k[0] + k[1] : '-')).join('');
@@ -30,7 +30,7 @@
         canvas.addEventListener('pointerdown', e => { if (mode !== 'build') return; e.preventDefault(); const r = canvas.getBoundingClientRect(), o = R().ROOM; place(R().id(Math.floor((e.clientX - r.left) / (r.width / o.cols)), Math.floor((e.clientY - r.top) / (r.height / o.rows)))); });
         dlg = el('dialog', { class: 'evals-screen course-screen rooms-screen', 'aria-label': 'Evals: the room' },
             el('div', { class: 'evals-bar' }, el('span', { class: 'evals-title', text: 'Evals' }),
-                el('button', { type: 'button', class: 'ghost-button course-switch', text: 'Maze', 'aria-label': 'Switch to the maze course', onclick: () => { close(); try { localStorage.setItem('agiCourseKind', 'maze'); } catch { /* private mode */ } window.MazeUI?.open(); } }),
+                window.CourseUnlocks.switchButton('rooms'),
                 marksEl, el('button', { type: 'button', class: 'ghost-button evals-close', 'aria-label': 'Close Evals', text: '×', onclick: close })),
             el('div', { class: 'course-body rooms-body' }, sayEl, canvas, toolsEl, padEl, actionsEl));
         dlg.addEventListener('close', stop);
@@ -43,7 +43,7 @@
     const say = text => { sayEl.textContent = '> ' + text; };
     const button = (text, action, main) => el('button', { type: 'button', class: main ? 'evals-go' : 'ghost-button evals-extra', text, onclick: action });
     const actions = (...list) => actionsEl.replaceChildren(...list);
-    function header() { marksEl.textContent = '◈ ' + save.marks.toLocaleString('en-US'); marksEl.setAttribute('aria-label', save.marks + ' Marks'); }
+    function header() { marksEl.textContent = '◈ ' + save.marks.toLocaleString('en-US'); marksEl.setAttribute('aria-label', save.marks + ' Marks'); window.CourseUnlocks.refresh(dlg, 'rooms'); }
 
     function place(i) {
         const next = save.room.slice(), want = tool === 'erase' || next[i] === tool ? null : tool;
@@ -109,6 +109,7 @@
         else if (yours.finished) { const d = yours.time - top.time; say(`At the flag: ${top.points} ${top.points === 1 ? 'point' : 'points'}, ${secs(top.time)} against your ${secs(yours.time)}${d > 0.05 ? '. I was faster' : d < -0.05 ? '. You were faster' : ''}. ${marks} Marks.`); }
         else { const d = ref - top.time; say(`Finished the one you could not: ${top.points} ${top.points === 1 ? 'point' : 'points'} in ${secs(top.time)}${ref ? (d > 0.05 ? `, ${secs(d)} under my best` : `. My best here is ${secs(ref)}`) : ''}. ${marks} Marks.`); }
         if (grew) sayEl.textContent += st === 2 ? ' I think I can finish a room now even if you are stopped in it. Run it once, as far as you get.' : ' I do not need to be shown the hard parts any more. Run it once anyway.';
+        if (top) { const news = window.CourseUnlocks.cleared('rooms', lvl => R().palette(lvl).map(k => R().TILES[k].name)); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'rooms'); }
         actions(button('Change the room', () => toBuild(), true), button('Hand it over again', toAi));
         run = null; go();
     }

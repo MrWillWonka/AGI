@@ -1162,3 +1162,9 @@ under a shot limit, free bounces, one screen; walls, bumpers, still and moving t
 boosters and portals. `puck.js` decides a whole shot at once and hands the screen its path to play back;
 `tests/puck.test.js`. Mine and not on a card: the AI's shot limit on a course you cleared is your shots plus 2.
 Not built: longer courses, the unlocks, sound.
+
+**The unlocks, all four kinds (2026-11-17, playground only).** The owner's four calls, the ladders and what was built
+are in `design/evals-course.md` -> The unlocks. In short: behind a padlock in each course's bar, off by default;
+on, a kind's parts open every 2 clears by the AI in that kind, and the kinds open in the owner's order (Rhythm, Maze,
+Puck, Rooms) after 3 clears in the newest. `course-unlocks.js` (rules on top, the browser's part below),
+`tests/course-unlocks.test.js`. With the switch on each kind uses a second save (`.u`). All numbers mine.

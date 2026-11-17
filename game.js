@@ -2665,11 +2665,10 @@ window.AGI = (function () {
     const evalsUp = () => !!(window.EvalsUI?.isOpen || window.CourseUI?.isOpen || window.MazeUI?.isOpen || window.RoomsUI?.isOpen || window.RhythmUI?.isOpen || window.PuckUI?.isOpen);
     function openEvalsApp() {
         state.intro['ring:seen:evals'] = true;
-        // (Four kinds of course: the room, the maze, the rhythm run and the puck course, a button in each to the next; the last one used opens. The track
+        // (Four kinds of course: the room, the maze, the rhythm run and the puck course, a button in each to the next open one; the last one used opens. The track
         // was folded into the room, the owner's call, 2026-11-16: the two did not feel distinct. A third kind is being chosen.)
-        const kind = (() => { try { return localStorage.getItem('agiCourseKind'); } catch { return null; } })();
-        const ui = kind === 'maze' ? window.MazeUI : kind === 'rhythm' ? window.RhythmUI : kind === 'puck' ? window.PuckUI : window.RoomsUI;
-        if (RING_PLAY && ui) ui.open(); else window.EvalsUI?.open();
+        // course-unlocks.js decides which: the kind last used if it is open, else the first (the rhythm run).
+        if (!(RING_PLAY && window.CourseUnlocks?.open())) window.EvalsUI?.open();
     }
     function openTrainingApp() {
         state.intro['ring:seen:training'] = true;
