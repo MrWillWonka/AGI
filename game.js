@@ -2662,13 +2662,13 @@ window.AGI = (function () {
     }
     // The obstacle course (design/evals-course.md, a prototype) is Evals in the playground; the playtest keeps the
     // captcha Evals until the course is ready.
-    const evalsUp = () => !!(window.EvalsUI?.isOpen || window.CourseUI?.isOpen || window.MazeUI?.isOpen || window.RoomsUI?.isOpen || window.RhythmUI?.isOpen);
+    const evalsUp = () => !!(window.EvalsUI?.isOpen || window.CourseUI?.isOpen || window.MazeUI?.isOpen || window.RoomsUI?.isOpen || window.RhythmUI?.isOpen || window.PuckUI?.isOpen);
     function openEvalsApp() {
         state.intro['ring:seen:evals'] = true;
-        // (Two kinds of course: the room and the maze, a button in each to the other; the last one used opens. The track
+        // (Four kinds of course: the room, the maze, the rhythm run and the puck course, a button in each to the next; the last one used opens. The track
         // was folded into the room, the owner's call, 2026-11-16: the two did not feel distinct. A third kind is being chosen.)
         const kind = (() => { try { return localStorage.getItem('agiCourseKind'); } catch { return null; } })();
-        const ui = kind === 'maze' ? window.MazeUI : kind === 'rhythm' ? window.RhythmUI : window.RoomsUI;
+        const ui = kind === 'maze' ? window.MazeUI : kind === 'rhythm' ? window.RhythmUI : kind === 'puck' ? window.PuckUI : window.RoomsUI;
         if (RING_PLAY && ui) ui.open(); else window.EvalsUI?.open();
     }
     function openTrainingApp() {
@@ -2907,6 +2907,7 @@ window.AGI = (function () {
         if (window.MazeUI?.isOpen) window.MazeUI.close();
         if (window.RoomsUI?.isOpen) window.RoomsUI.close();
         if (window.RhythmUI?.isOpen) window.RhythmUI.close();
+        if (window.PuckUI?.isOpen) window.PuckUI.close();
     }
     // The assistant's own button (the owner's call, 2026-11-14: "the phone's assistant with its own button … so that you
     // can 'chat' with the ai or revisit tutorials missed"): a round dot that floats over every app once the Lab is

@@ -121,8 +121,52 @@ with two thumbs); the reach of each mode; how far a held note slides (up to 22% 
 ## The third kind: the owner's call (2026-11-16)
 
 "A version of the puck physics we have where it's a mix of mini golf and target practice": Packet Snare's flung mine
-(a puck that flies the way it is slung and bounces off the edges, air-hockey style) as its own course. Not designed
-further yet; the rhythm run is built first.
+(a puck that flies the way it is slung and bounces off the edges, air-hockey style) as its own course.
+
+### The puck course: the owner's calls (eight cards, 2026-11-17)
+
+1. **Targets, then the hole.** A course has targets to hit on the way and a hole that ends it. Targets are the
+   "obstacles cleared" score; sinking the puck is the clear.
+2. **Sling only.** Pull back and release, an aim line shown. A phone: one thumb. A desktop: a mouse drag.
+3. **Fewest shots, with a shot limit.** Score = what was hit x a bonus for shots under par; your own clear sets par.
+   Out of shots before the hole is a fail. No clock.
+4. **The first parts, all four groups:** walls and angled bumpers; still and moving targets; sticky and slick ground
+   and a pit that returns the puck with the shot lost; boosters and a pair of portals.
+5. **One screen now, longer courses later** as an unlock (not built).
+6. **Targets are optional and worth score.** The hole always clears; the builder sets the risk.
+7. **The AI copies your shots, then finds its own lines.** Shaky aim and power at first; with practice the wobble
+   shrinks, then it tries its own bank shots for more targets in fewer shots.
+8. **Free bounces; the puck rolls to a stop** and you shoot again from there.
+
+**Built (playground only; `puck.js` the rules, `puck-ui.js` the screen, `tests/puck.test.js`):** a 7 x 9 grid, the tee
+bottom middle, the hole top middle. Tap a cell to place the part picked, again to turn it (a bumper two ways, a booster
+four), again to remove it. *Play it yourself*: pull back anywhere on the field and let go. The hand-over plays the AI's
+attempts shot by shot, its aim shown before each, your own paths dashed underneath. The switch buttons now go Rooms,
+Maze, Rhythm, Puck, Rooms.
+
+**For the owner to judge (my choices, all placeholders, in `PUCK` at the top of `puck.js`):**
+- **The clock only runs while the puck moves**, so a moving target stands still while you aim and moves during the shot.
+- **The hole is worth 1 point** and each still target 1, a moving target 2; surfaces, boosters and portals are worth
+  nothing themselves.
+- **You get 8 shots. On a course you cleared, the AI gets your shots plus 2** (`over`). With 8 for it too, it almost
+  never failed, and "a course it can only just complete" had no teeth. This was not on a card.
+- **The bonus:** +25% a shot under par, -25% a shot over, between x0.5 and x2. On a course you could not clear, par is
+  the AI's own best there.
+- **The hole refuses a puck going faster than three quarters of a full shot** (it skips over).
+- **The aim line shows the first 0.35 s of the shot**, bounces included; a full pull is 40% of the field's width.
+- **A full shot crosses the field about one and a half times.** Sticky ground stops it in about a cell; slick ground
+  barely slows it.
+- **The AI's stages** as in the maze: stage 1 needs your clear and copies it (your own shot where it stands where you
+  stood, else the shot that lands where yours did); stage 2 takes a course you ran out of shots on, copies the first
+  half of your shots and finds the rest; stage 3 plays its own line from the tee (most targets a shot, the hole once
+  nothing more is in reach or par is near). Its aim is off by about 14 degrees and its power by about 20% at first,
+  less with each run and each try.
+- **Unlock order (in the playground everything is open):** walls, bumpers, targets -> moving targets and sticky ->
+  slick and the pit -> boosters -> portals.
+
+**Not built:** longer courses; the unlocks themselves; parts beyond the first box (the owner's rule: a deep enough box
+to keep unlocking; ideas: one-way gates, breakable blocks, targets that must be hit in order, moving walls, magnets,
+a second hole); racing the AI's ghost; cheating; sound.
 
 ## Proposed (open, for the owner)
 

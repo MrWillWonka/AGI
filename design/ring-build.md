@@ -1155,3 +1155,10 @@ Not built: step editing, the unlocks themselves (everything is open), whole-fiel
 `design/evals-course.md` → The whole field. Notes land anywhere across the line by pitch (`fieldFor`), a press takes the
 note within reach (`press(hand, t, kind, x)`, `move`), held notes slide and are followed. Lanes are unchanged.
 `tests/rhythm-field.test.js`. Also fixed: the AI's replay now slashes where its attempt did (the replay tapped them).
+
+**The puck course, the third kind (2026-11-17, playground only).** The owner's eight calls, what was built and my
+choices are in `design/evals-course.md` -> The puck course. In short: targets then the hole, a sling, fewest shots
+under a shot limit, free bounces, one screen; walls, bumpers, still and moving targets, sticky and slick ground, a pit,
+boosters and portals. `puck.js` decides a whole shot at once and hands the screen its path to play back;
+`tests/puck.test.js`. Mine and not on a card: the AI's shot limit on a course you cleared is your shots plus 2.
+Not built: longer courses, the unlocks, sound.

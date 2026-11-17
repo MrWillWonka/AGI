@@ -9,7 +9,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const root = path.join(__dirname, '..', '..');
-const FILES = ['course-art.js', 'course-ui.js', 'course.js', 'debug-panel.js', 'engine.js', 'evals-ui.js', 'evals.js', 'feed-ui.js', 'feed.js', 'game.js', 'maze-ui.js', 'maze.js', 'music/classic.js', 'music/dark.js', 'music/ominous.js', 'music/retro.js', 'music/soft.js', 'packet-snare.js', 'playtest.js', 'rhythm-ui.js', 'rhythm.js', 'rooms-ui.js', 'rooms.js', 'sfx.js', 'snare-demos.js', 'styles.css',
+const FILES = ['course-art.js', 'course-ui.js', 'course.js', 'debug-panel.js', 'engine.js', 'evals-ui.js', 'evals.js', 'feed-ui.js', 'feed.js', 'game.js', 'maze-ui.js', 'maze.js', 'music/classic.js', 'music/dark.js', 'music/ominous.js', 'music/retro.js', 'music/soft.js', 'packet-snare.js', 'playtest.js', 'puck-ui.js', 'puck.js', 'rhythm-ui.js', 'rhythm.js', 'rooms-ui.js', 'rooms.js', 'sfx.js', 'snare-demos.js', 'styles.css',
     'training-path.js', 'tools/review/scenarios.json'];
 
 const index = process.argv[2];

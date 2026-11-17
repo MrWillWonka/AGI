@@ -114,7 +114,7 @@
         actionsEl = el('div', { class: 'course-actions' });
         dlg = el('dialog', { class: 'evals-screen course-screen rhythm-screen', 'aria-label': 'Evals: the rhythm run' },
             el('div', { class: 'evals-bar' }, el('span', { class: 'evals-title', text: 'Evals' }),
-                el('button', { type: 'button', class: 'ghost-button course-switch', text: 'Rooms', 'aria-label': 'Switch to the room course', onclick: () => { close(); try { localStorage.setItem('agiCourseKind', 'rooms'); } catch { /* private mode */ } window.RoomsUI?.open(); } }),
+                el('button', { type: 'button', class: 'ghost-button course-switch', text: 'Puck', 'aria-label': 'Switch to the puck course', onclick: () => { close(); try { localStorage.setItem('agiCourseKind', 'puck'); } catch { /* private mode */ } window.PuckUI?.open(); } }),
                 marksEl, el('button', { type: 'button', class: 'ghost-button evals-close', 'aria-label': 'Close Evals', text: '×', onclick: close })),
             el('div', { class: 'course-body rhythm-body' }, sayEl, pickEl, canvas, padEl, actionsEl));
         dlg.addEventListener('close', () => { stop(); listening = false; cancelAnimationFrame(headRaf); headRaf = 0; restore(null); music = { area: 'lab', level: 0.4 }; });
