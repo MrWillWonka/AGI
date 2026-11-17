@@ -1130,34 +1130,14 @@ options; the owner's picks:
 - Also: a split pauses a walkthrough step instead of ending it; the dials' kept values moved to `agiFeedDials3` (the old
   pace's would have held), eating's dial goes down to 0.25.
 
-## 2026-11-17: the PC's unpushed work rebuilt from its session's history and merged here
-
-The owner's internet stayed out, so the PC's 37 commits since `8e0d67d` (15 Nov 12:04 CST: ring polish, the orb, Build
-3's Evals app, funding rounds and agents, the Evals courses) could not be pushed. With the owner's go-ahead they were
-**rebuilt here from the PC session's recorded tool calls** and merged with the Feed branch.
-
-- **How** (scripts in this session's scratchpad, not kept): the session's history holds every file it wrote and every
-  command it ran. Of 573 recorded actions, the 344 that write, edit or run were replayed in their true order (each
-  record's own timestamp: the coarse one ties within a message) on a clean checkout of `8e0d67d`, with the PC's paths
-  mapped to local ones. Skipped: pushes and fetches, a command the PC's safety check refused, two its shell could not
-  parse (the PC redid each another way), and the browser navigation tour (`ring-nav.js`, checks only; it hangs here).
-- **Checked against the PC's own record:** 37 commits with the same messages in the same order; the test count at each
-  commit as the PC printed it (609 … 657 at the last); command outputs compared step by step (the patch scripts refuse
-  to apply unless their anchor is found exactly once). What differed was only what lives outside git on the PC: its
-  playtest snapshots (`playtests/inbox`), a reviewer's script in `review-out`, its branch names.
-- **Not the PC's bytes:** `design/orb/unbound.png` is a **stand-in** (a copy of `final.png`: the owner sent four of the
-  five pictures here), so `art/orb-free.webp` is too; `calm` and `strong` came out 4 and 156 bytes off the PC's art
-  (`talk` and `final` are byte-identical). The last commit (the rhythm run's second visual pass) is included; on the PC
-  its command's result was never recorded, so it may be uncommitted there.
-- **The merge** (four conflicts): **save v45** (the agents and The Feed's tanks were each v44 on their own branch; both
-  are read by their own `clean`, so a save from either loads); the exports joined; the two tails of styles.css and of
-  this file kept, the PC's first. The **Feed agent** needed no change: it works a stockpile only outside a session, and
-  a tank's leftovers go back to the stockpile when a session ends. 668 tests (the Feed's 620 and the PC's 48).
-- **When the PC is back online:** its own branch has the same work under different commit ids. Don't merge the two
-  histories blindly: compare the PC's tree with `pc-rebuild`'s (they should differ only in the pictures above and in
-  anything done on the PC after 16 Nov 08:03 CST), then keep one.
-- **For the owner:** the Feed agent eats 1 packet a second, which was a quarter of a led mite and is now equal to one
-  (the Feed's pace was slowed four times); the *unbound* picture.
-
 **The Feed agent slowed to match** (the owner's call, 2026-11-17): `AGENT_FEED_RATE` 1 → 0.25 packets a second, a
 quarter of a led mite as it was before The Feed's pace was slowed; what a packet pays is unchanged.
+
+**The PC's work, checked against a rebuild of it (2026-11-17).** While the owner's PC was offline its 37 unpushed commits
+were rebuilt in the cloud session from the PC session's recorded tool calls (every write, edit and command replayed in
+order on a clean checkout of `8e0d67d`) so the test build could carry them. When the PC pushed (`346bc2e`, with The
+Feed's overhaul merged in), the rebuild was compared with the PC's own tip (`bfccc14`): **37 commits with the same
+messages, and every text file byte for byte the same**; only the pictures differed (the *unbound* orb picture, which the
+rebuild stood in for, and two `.webp` files a few bytes apart from a different encoder build). The rebuilt copy was then
+dropped: this branch was restarted from `main` (the PC's real history) and only the Feed agent's slowdown carried over.
+Both merges had chosen save v45 on their own.

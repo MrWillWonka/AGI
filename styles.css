@@ -4785,6 +4785,7 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 .rhythm-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .rhythm-pad { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-self: center; width: min(100%, 520px); }
 .rhythm-lane { min-height: 84px; font: 700 0.95rem var(--font-display); }
+
 /* The Feed's walkthrough (2026-11-16): the line over the first cards, and the meter a step is about, pulsing. */
 .feed-cards-hint { margin: 2px 0 0; font: 600 0.9rem/1.35 var(--font-mono); color: var(--text); text-align: center; }
 .feed-frenzy.coached, .feed-hunger.coached { animation: feed-coached 0.9s ease-in-out infinite alternate; }
