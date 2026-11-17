@@ -99,6 +99,25 @@ editing a block's steps → blocks from other songs of the same track.
 **Not built:** step editing; blocks from other songs; the rules of 11 as a pass or fail (they are only shown); saving
 more than one board a song; the AI writing a board.
 
+### The whole field: the owner's calls (four cards, 2026-11-17)
+
+- **Notes fall anywhere across the line**, no lanes; "appearing anywhere" stays the step after.
+- **A note lands by its pitch**: low notes left, high notes right, so a melody draws its own shape.
+- **On a desktop the mouse aims and a click hits** (the spacebar hits too; W or a flick slashes; A S D are not used).
+  On a phone you tap the line where the note lands.
+- **Held notes slide** and you follow them; a hand left behind drops the hold.
+
+**Built (playground only):** *Lanes* or *Whole field* on the pick card, for the game's tracks and for your board.
+`rhythm.js` `fieldFor` gives each note its place (the kick far left, the bass left of the middle by its place in the
+chord, the melody across the right by its scale degree) and a held note the place it slides to, toward the note after
+it. A press takes the note due within reach of it, the reach set by the mode (Easy 16% of the width each side, Extreme
+9%). A hand further than 1.6 reaches from a sliding note for 0.2 s drops it. The AI aims a little off at first and
+closes in with mastery, and follows slides.
+
+**For the owner to judge (my choices, all placeholders):** a mouse is one hand, so on a desktop the whole field leaves
+out notes that are two at once or too far across to reach in time (Extreme on Night Survey: 28 notes with a mouse, 56
+with two thumbs); the reach of each mode; how far a held note slides (up to 22% of the width).
+
 ## The third kind: the owner's call (2026-11-16)
 
 "A version of the puck physics we have where it's a mix of mini golf and target practice": Packet Snare's flung mine

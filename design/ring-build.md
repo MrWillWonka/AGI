@@ -1150,3 +1150,8 @@ from the picked song's one-bar blocks (beat, bass, chords, melody, a freestyle b
 (`SFX.songCmd({ custom })`, a song played on its own until the area's songs are asked back); the notes are placed by
 `chartFor` as before. `tests/rhythm-board.test.js` plays a composed song of every track through the real engine.
 Not built: step editing, the unlocks themselves (everything is open), whole-field notes.
+
+**Rhythm run: the whole field (2026-11-17, playground only).** The owner's four calls and what was built are in
+`design/evals-course.md` → The whole field. Notes land anywhere across the line by pitch (`fieldFor`), a press takes the
+note within reach (`press(hand, t, kind, x)`, `move`), held notes slide and are followed. Lanes are unchanged.
+`tests/rhythm-field.test.js`. Also fixed: the AI's replay now slashes where its attempt did (the replay tapped them).

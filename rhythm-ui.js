@@ -9,7 +9,7 @@
     const R = () => window.Rhythm;
     const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'text') n.textContent = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k !== '' && k != null)); return n; };
     const KEY = 'agiRhythm';
-    const load = () => { try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); return { marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), best: s.best && typeof s.best === 'object' ? s.best : {}, track: +s.track || 0, level: Math.max(0, Math.min(3, Math.floor(+s.level || 0))), own: !!s.own, boards: s.boards && typeof s.boards === 'object' ? s.boards : {} }; } catch { return { marks: 0, runs: 0, stage: 1, best: {}, track: 0, level: 0, own: false, boards: {} }; } };
+    const load = () => { try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); return { marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), best: s.best && typeof s.best === 'object' ? s.best : {}, track: +s.track || 0, level: Math.max(0, Math.min(3, Math.floor(+s.level || 0))), own: !!s.own, field: !!s.field, boards: s.boards && typeof s.boards === 'object' ? s.boards : {} }; } catch { return { marks: 0, runs: 0, stage: 1, best: {}, track: 0, level: 0, own: false, field: false, boards: {} }; } };
     const keep = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch { /* private mode */ } };
     const skills = () => (location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
     const masteryNow = () => R().mastery(save.runs, location.hash === '#playground' ? 0 : Math.min(skills(), 20));
@@ -40,8 +40,13 @@
         const board = boardNow(tr);
         return (sel = { area: tr.area, index: tr.index, song: R().compose(tr.song, board, { lead: true }), name: 'Your track', from: 1, bars: board.len, key: 'own:' + palKey(tr), own: true });
     }
-    const rules = (lvl = save.level) => ({ ...R().rulesFor(lvl), bars: sel.bars });
-    const chartNow = (lvl = save.level) => R().chartFor(sel.song, lvl, sel.from, rules(lvl));
+    const rules = (lvl = save.level) => ({ ...R().rulesFor(lvl), bars: sel.bars, field: !!save.field, hands: save.field && mouse() ? 1 : 2 });
+    const chartNow = (lvl = save.level) => (save.field ? R().fieldFor : R().chartFor)(sel.song, lvl, sel.from, rules(lvl));
+    // The whole field (the owner's calls, 2026-11-17): where the mouse is aiming, the fingers that are down (a hand
+    // each), and the AI's hands while it plays. Positions are shares of the field's width.
+    let aimX = 0.5;
+    const fieldHands = new Map(), aiHands = new Map();
+    const xOf = e => { const r = canvas.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width))); };
     const engine = () => { const sfx = window.SFX, lab = sfx && sfx.lab; return sfx && sfx.playing && lab && lab.clock && lab.clock() && lab.music() ? sfx : null; };
     // Put the game's own song back once the engine is no longer needed for yours.
     function restore(tr = trackNow()) { if (!engineOwn) return; engineOwn = false; try { window.SFX.songCmd(tr ? { area: tr.area, song: tr.index, bar: Math.max(0, R().startBar(tr.song)) } : {}); } catch { /* no engine */ } }
@@ -104,6 +109,7 @@
         const lane = i => { const b = el('button', { type: 'button', class: 'maze-dir rhythm-lane', 'aria-label': LANES[i], text: LANES[i] }); hook(b, () => i); return b; };
         padEl = el('div', { class: 'rhythm-pad', hidden: '' }, lane(0), lane(1), lane(2));
         hook(canvas, e => { if (mouse() && !inFree()) return dueLane(); const r = canvas.getBoundingClientRect(); return Math.max(0, Math.min(2, Math.floor((e.clientX - r.left) / (r.width / 3)))); });
+        hookField();
 
         actionsEl = el('div', { class: 'course-actions' });
         dlg = el('dialog', { class: 'evals-screen course-screen rhythm-screen', 'aria-label': 'Evals: the rhythm run' },
@@ -114,17 +120,17 @@
         dlg.addEventListener('close', () => { stop(); listening = false; cancelAnimationFrame(headRaf); headRaf = 0; restore(null); music = { area: 'lab', level: 0.4 }; });
         const KEYS = { a: 0, s: 1, d: 2, j: 0, k: 1, l: 2, ArrowLeft: 0, ArrowDown: 1, ArrowRight: 2 }, heldKeys = {};
         // W slashes whichever slash is due (a mouse flick across the notes does too).
-        dlg.addEventListener('keydown', e => { if (mode !== 'test' || e.repeat || (e.key !== 'w' && e.key !== 'W' && e.key !== 'ArrowUp')) return; e.preventDefault(); const l = dueLane('slash'); press(l, 'slash'); release(l); });
+        dlg.addEventListener('keydown', e => { if (mode !== 'test' || e.repeat || (e.key !== 'w' && e.key !== 'W' && e.key !== 'ArrowUp')) return; e.preventDefault(); if (save.field) { press('w', 'slash', aimX); release('w'); return; } const l = dueLane('slash'); press(l, 'slash'); release(l); });
         let spaceLane = -1;
         dlg.addEventListener('keydown', e => {
             if (mode !== 'test' || e.repeat) return;
-            if (e.key === ' ') { e.preventDefault(); spaceLane = dueLane(); press(spaceLane); return; }
+            if (e.key === ' ') { e.preventDefault(); if (save.field) { spaceLane = 'space'; aiHands.clear(); fieldHands.set('space', { x: aimX, sent: true, key: true }); press('space', undefined, aimX); return; } spaceLane = dueLane(); press(spaceLane); return; }
             const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-            if (!(k in KEYS)) return;
+            if (!(k in KEYS) || save.field) return;
             e.preventDefault(); heldKeys[k] = true; press(KEYS[k]);
         });
         dlg.addEventListener('keyup', e => {
-            if (e.key === ' ') { if (spaceLane >= 0) { if (mode === 'test') release(spaceLane); spaceLane = -1; } return; }
+            if (e.key === ' ') { if (spaceLane !== -1) { fieldHands.delete('space'); if (mode === 'test') release(spaceLane); spaceLane = -1; } return; }
             const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
             if (!(k in KEYS) || !heldKeys[k]) return;
             heldKeys[k] = false; if (mode === 'test') release(KEYS[k]);
@@ -152,6 +158,7 @@
         pickEl.replaceChildren(
             el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'Track' }, ...all.map((t, i) => el('button', { type: 'button', class: 'maze-tool' + (i === save.track ? ' on' : ''), 'aria-pressed': String(i === save.track), text: t.name, onclick: () => { save.track = i; yours = null; cellAt = null; listening = false; keep(); toPick(); } }))),
             el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'Whose arrangement' }, whose(false, 'The song as written'), whose(true, 'Your board')),
+            el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'How the notes arrive' }, ...[[false, 'Lanes'], [true, 'Whole field']].map(([f, label]) => el('button', { type: 'button', class: 'maze-tool' + (save.field === f ? ' on' : ''), 'aria-pressed': String(save.field === f), text: label, onclick: () => { if (save.field === f) return; save.field = f; yours = null; keep(); toPick(); } }))),
             ...(save.own ? [boardView(tr)] : []),
             el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'How hard' }, ...R().MODES.map((l, i) => el('button', { type: 'button', class: 'maze-tool' + (i === save.level ? ' on' : ''), 'aria-pressed': String(i === save.level), text: `${l.name} · ${notes(i)}`, onclick: () => { save.level = i; yours = null; keep(); toPick(); } }))));
         const n = notes(save.level), ms = save.own ? R().measure(chartNow(), sel.bars, sel.song.steps) : null;
@@ -166,7 +173,7 @@
     }
     // A run begins: ask the engine for the song a bar before the notes start, and line the chart up with its clock.
     function begin(by) {
-        stop(); who = by; mode = by === 'you' ? 'test' : 'ai'; pickEl.hidden = true; canvas.hidden = false; padEl.hidden = by !== 'you'; pops = []; mouseLane = -1; fx = []; sparks = []; marks = []; energy = 0.5;
+        stop(); who = by; mode = by === 'you' ? 'test' : 'ai'; pickEl.hidden = true; canvas.hidden = false; padEl.hidden = by !== 'you' || !!save.field; pops = []; mouseLane = -1; fx = []; sparks = []; marks = []; energy = 0.5; fieldHands.clear(); aiHands.clear();
         listening = false; cancelAnimationFrame(headRaf); headRaf = 0;
         if (!sel) pickSel();
         const sfx = engine();
@@ -177,11 +184,12 @@
         else { stepLen = 60 / (sel.song.bpm || 120) / 4; start(performance.now() / 1000 + sel.song.steps * stepLen); }
         feed = by === 'ai' ? { events: hand.attempts[attempt].events.slice().sort((a, b) => a.t - b.t), i: 0 } : null;
         run = null; chart = null;
-        if (by === 'you') { say(mouse() ? 'A, S and D are the lanes; a click or the spacebar takes whichever note is due. Hold the long ones. W, or a flick of the mouse, for a slash. In a freestyle bar, play a beat of your own.' : 'Tap each note at the line and hold the long ones. Swipe the diamonds. In a freestyle bar, tap a beat of your own.'); actions(button('Stop', () => toPick())); }
+        if (by === 'you' && save.field) { say(mouse() ? 'Aim with the mouse and click each note as it reaches the line; the spacebar hits too. Keep the button down on a long one and follow it as it slides. W, or a flick, for a slash.' : 'Tap each note where it reaches the line. Keep your finger on a long one and follow it as it slides. Swipe the diamonds. In a freestyle bar, tap a beat of your own.'); actions(button('Stop', () => toPick())); }
+        else if (by === 'you') { say(mouse() ? 'A, S and D are the lanes; a click or the spacebar takes whichever note is due. Hold the long ones. W, or a flick of the mouse, for a slash. In a freestyle bar, play a beat of your own.' : 'Tap each note at the line and hold the long ones. Swipe the diamonds. In a freestyle bar, tap a beat of your own.'); actions(button('Stop', () => toPick())); }
         cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
     }
     function start(at) {
-        const o = rules(); chart = R().timed(chartNow(), stepLen, o); end = R().lengthOf(sel.song, stepLen, o); run = R().createRun(chart, o); t0 = at;
+        const o = rules(); chart = R().timed(chartNow(), stepLen, o); end = R().lengthOf(sel.song, stepLen, o); run = R().createRun(chart, o); run.opts = o; t0 = at;
     }
     const clockNow = () => { if (!audio) return performance.now() / 1000; const c = window.SFX.context; return c.currentTime - (c.outputLatency || 0); };
     const now = () => (t0 == null ? -99 : clockNow() - t0);
@@ -194,13 +202,37 @@
     // finger moves (a slash) or lifts (only a tap).
     const SWIPE = 22, pending = new Map();
     function hook(node, laneOf) {
-        node.addEventListener('pointerdown', e => { if (mode !== 'test') return; e.preventDefault(); const l = laneOf(e), t = now(), due = run && run.state.notes.find(n => !n.free && n.lane === l && n.state === 'wait' && Math.abs(n.t - t) <= R().RHYTHM.good + 0.08);
+        node.addEventListener('pointerdown', e => { if (mode !== 'test' || save.field) return; e.preventDefault(); const l = laneOf(e), t = now(), due = run && run.state.notes.find(n => !n.free && n.lane === l && n.state === 'wait' && Math.abs(n.t - t) <= R().RHYTHM.good + 0.08);
             if (due && due.kind === 'slash') pending.set(e.pointerId, { lane: l, x: e.clientX, y: e.clientY, sent: false }); else { pending.set(e.pointerId, { lane: l, sent: true }); press(l); } });
         node.addEventListener('pointermove', e => { const p = pending.get(e.pointerId); if (!p || p.sent) return; if (Math.hypot(e.clientX - p.x, e.clientY - p.y) >= SWIPE) { p.sent = true; press(p.lane, 'slash'); } });
         const up = e => { const p = pending.get(e.pointerId); if (!p) return; e.preventDefault(); pending.delete(e.pointerId); if (!p.sent) press(p.lane); release(p.lane); };
         node.addEventListener('pointerup', up); node.addEventListener('pointercancel', up); node.addEventListener('pointerleave', up);
     }
-    function press(lane, kind) { if (mode !== 'test' || !run || run.state.over) return; show(run.press(lane, now(), kind)); }
+    // The whole field: a finger or the mouse on the notes is a hand. A press takes the note under it; where a slash
+    // is due there it waits to see whether the hand moves (a slash) or lifts (a tap); a hand that stays down is
+    // followed, for a held note that slides.
+    function hookField() {
+        canvas.addEventListener('pointerdown', e => {
+            if (mode !== 'test' || !save.field) return;
+            e.preventDefault(); const x = xOf(e), t = now(), o = run && run.opts; aimX = x;
+            try { canvas.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+            const due = run && o && run.state.notes.find(n => !n.free && n.kind === 'slash' && n.state === 'wait' && Math.abs(n.t - t) <= o.good + 0.08 && Math.abs(n.x - x) <= o.reach);
+            if (due) fieldHands.set(e.pointerId, { x, x0: x, px: e.clientX, py: e.clientY, sent: false });
+            else { fieldHands.set(e.pointerId, { x, sent: true }); press(e.pointerId, undefined, x); }
+        });
+        canvas.addEventListener('pointermove', e => {
+            if (!save.field) return;
+            const x = xOf(e); aimX = x;
+            if (fieldHands.has('space') && mode === 'test' && run && !run.state.over) { fieldHands.get('space').x = x; show(run.move('space', now(), x)); }
+            const h = fieldHands.get(e.pointerId); if (!h) return;
+            h.x = x;
+            if (!h.sent) { if (Math.hypot(e.clientX - h.px, e.clientY - h.py) >= SWIPE) { h.sent = true; press(e.pointerId, 'slash', h.x0); } }   // a swipe counts where it began
+            else if (mode === 'test' && run && !run.state.over) show(run.move(e.pointerId, now(), x));
+        });
+        const up = e => { const h = fieldHands.get(e.pointerId); if (!h) return; e.preventDefault(); fieldHands.delete(e.pointerId); if (!h.sent) press(e.pointerId, undefined, h.x0); release(e.pointerId); };
+        canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+    }
+    function press(lane, kind, x) { if (mode !== 'test' || !run || run.state.over) return; show(run.press(lane, now(), kind, x)); }
     function release(lane) { if (mode !== 'test' || !run || run.state.over) return; show(run.release(lane, now())); }
     // What just happened, for the eye and the ear.
     // What just happened, for the eye and the ear: the word, the sparks, the packet sent on its way, the timing mark.
@@ -208,14 +240,15 @@
         const at = performance.now();
         for (const e of events) {
             if (e.type === 'perfect' || e.type === 'good') {
-                pops.push({ lane: e.lane, text: e.type === 'perfect' ? 'PERFECT' : 'GOOD', at, good: true });
-                fx.push({ kind: 'hit', lane: e.lane, at, perfect: e.type === 'perfect', gold: !!e.gold });
-                if (e.kind === 'hold') fx.push({ kind: 'sent', lane: e.lane, at, gold: !!e.gold });
+                pops.push({ lane: e.lane, x: e.x, text: e.type === 'perfect' ? 'PERFECT' : 'GOOD', at, good: true });
+                fx.push({ kind: 'hit', lane: e.lane, x: e.x, at, perfect: e.type === 'perfect', gold: !!e.gold });
+                if (e.kind === 'hold') fx.push({ kind: 'sent', lane: e.lane, x: e.x, at, gold: !!e.gold });
                 if (e.off != null) { marks.push({ off: e.off, at, lane: e.lane }); if (marks.length > 18) marks.shift(); }
                 if (e.combo && [10, 25, 50, 75, 100].includes(e.combo)) fx.push({ kind: 'combo', n: e.combo, at });
                 if (who === 'you') window.SFX?.play?.('click', { res: SOUND[e.lane] });
-            } else if (e.type === 'miss') { pops.push({ lane: e.lane, text: 'MISS', at, good: false }); fx.push({ kind: 'miss', lane: e.lane, at }); }
-            else if (e.type === 'stray') pops.push({ lane: e.lane, text: '·', at, good: false });
+            } else if (e.type === 'miss') { pops.push({ lane: e.lane, x: e.x, text: 'MISS', at, good: false }); fx.push({ kind: 'miss', lane: e.lane, x: e.x, at }); }
+            else if (e.type === 'slipped') pops.push({ lane: e.lane, x: e.x, text: 'SLIPPED', at: at + 1, good: false });
+            else if (e.type === 'stray') pops.push({ lane: e.lane, x: e.x, text: '·', at, good: false });
             else if (e.type === 'flair') { pops.push({ lane: 1, text: 'NICE', at, good: true }); fx.push({ kind: 'flair', at }); }
             else if (e.type === 'fell') fx.push({ kind: 'fell', at });
         }
@@ -231,7 +264,7 @@
         }
         if (run) {
             const t = now(), s = run.state;
-            if (feed) while (feed.i < feed.events.length && feed.events[feed.i].t <= t && !s.over) { const e = feed.events[feed.i++]; show(e.down ? run.press(e.lane, e.t) : run.release(e.lane, e.t)); }
+            if (feed) while (feed.i < feed.events.length && feed.events[feed.i].t <= t && !s.over) { const e = feed.events[feed.i++]; if (e.x != null) { if (e.move || e.down) aiHands.set(e.lane, { x: Math.max(0, Math.min(1, e.x)), at: performance.now() }); else aiHands.delete(e.lane); } show(e.move ? run.move(e.lane, e.t, e.x) : e.down ? run.press(e.lane, e.t, e.kind, e.x) : run.release(e.lane, e.t)); }
             if (!s.over) show(run.advance(t));
             music.level = s.failed ? 0 : 0.12 + 0.88 * s.meter;
             draw();
@@ -308,8 +341,9 @@
         const rect = canvas.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1), W = Math.max(50, rect.width), H = Math.max(50, rect.height);
         if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
         const ctx = canvas.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
-        const lw = W / o.lanes, hitY = H * 0.84, look = 1.7, t = now(), s = run ? run.state : null, gold = !!(s && s.combo >= o.goldCombo), ai = who === 'ai', still = calm();
+        const lw = W / o.lanes, hitY = H * 0.84, look = 1.7, t = now(), s = run ? run.state : null, gold = !!(s && s.combo >= o.goldCombo), ai = who === 'ai', still = calm(), field = !!save.field, reach = (run && run.opts ? run.opts.reach : R().rulesFor(save.level).reach) * W;
         const yOf = nt => hitY - (nt - t) / look * hitY, r = Math.min(lw * 0.22, 20), beatLen = stepLen * 4, LANE = [C.primary, C.research, C.success], laneX = i => (i + 0.5) * lw, tint = i => (gold ? C.warning : LANE[i]);
+        const PX = p => (p.x != null ? p.x * W : p.lane != null ? laneX(p.lane) : W / 2);
         const beatPhase = run && t >= 0 ? (t / beatLen) % 1 : 1, pulse = Math.max(0, 1 - beatPhase * 3), bar = run && t >= 0 ? (t / (beatLen * 4)) % 1 : 1, barPulse = Math.max(0, 1 - bar * 6);
         // How alive the picture is: it follows the meter, a little behind it.
         energy += ((s ? (s.failed ? 0 : s.meter) : 0.5) - energy) * Math.min(1, dt * 4);
@@ -338,7 +372,7 @@
             ctx.globalAlpha = 1; ctx.lineWidth = 1;
         }
         ctx.strokeStyle = C.border;
-        for (let i = 1; i < o.lanes; i++) { ctx.beginPath(); ctx.moveTo(i * lw, 0); ctx.lineTo(i * lw, H); ctx.stroke(); }
+        if (!field) for (let i = 1; i < o.lanes; i++) { ctx.beginPath(); ctx.moveTo(i * lw, 0); ctx.lineTo(i * lw, H); ctx.stroke(); }
         if (run) for (let b = Math.ceil((t - 0.2) / beatLen); b * beatLen < t + look; b++) { const y = yOf(b * beatLen); ctx.strokeStyle = C.text; ctx.globalAlpha = b % 4 === 0 ? 0.24 : 0.08; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
         ctx.globalAlpha = 1;
         if (barPulse > 0 && run && !still) { ctx.fillStyle = gold ? C.warning : C.text; ctx.globalAlpha = 0.05 * barPulse * (0.4 + E); ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
@@ -355,14 +389,24 @@
             ctx.restore(); ctx.lineWidth = 1;
             for (let k = 0; k * f.grid < f.dur - 1e-9; k++) { const y = yOf(f.t + k * f.grid); if (y < 0 || y > H) continue; ctx.strokeStyle = C.text; ctx.globalAlpha = k % 2 ? 0.25 : 0.5; ctx.setLineDash([2, 6]); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); ctx.setLineDash([]); }
             ctx.globalAlpha = 1;
-            for (const q of f.taps) { const y = yOf(f.t + q.k * f.grid); A.glow(ctx, laneX(q.lane), y, r * 0.5, tint(q.lane), 1); ctx.fillStyle = tint(q.lane); ctx.beginPath(); ctx.arc(laneX(q.lane), y, r * 0.45, 0, A.TAU); ctx.fill(); }
+            for (const q of f.taps) { const y = yOf(f.t + q.k * f.grid), qx = PX(q); A.glow(ctx, qx, y, r * 0.5, tint(q.lane), 1); ctx.fillStyle = tint(q.lane); ctx.beginPath(); ctx.arc(qx, y, r * 0.45, 0, A.TAU); ctx.fill(); }
             ctx.fillStyle = C.text; ctx.font = '700 13px ' + C.mono; ctx.textAlign = 'center'; ctx.fillText(live ? 'FREESTYLE · your beat' : 'FREESTYLE', W / 2, Math.max(18, Math.min(hitY - 44, y0 + 20)));
         }
 
         // ---- The line, and a ring to hit in each lane.
         ctx.strokeStyle = gold ? C.warning : C.success; ctx.globalAlpha = 0.25; ctx.lineWidth = 9 + 6 * pulse * E; ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke();
         ctx.globalAlpha = 1; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke(); ctx.lineWidth = 1;
-        for (let i = 0; i < o.lanes; i++) {
+        if (field) {
+            // The hands on the line: the mouse's aim, each finger that is down, the AI's hands; as wide as a press reaches.
+            const hands = ai ? [...aiHands.values()].filter(h => nowMs - h.at < 1500) : [...fieldHands.values(), ...(mouse() && !fieldHands.size ? [{ x: aimX, idle: true }] : [])];
+            for (const h of hands) {
+                const x = h.x * W, c = gold ? C.warning : ai ? C.research : C.text;
+                ctx.strokeStyle = c; ctx.globalAlpha = h.idle ? 0.35 : 0.8; ctx.lineWidth = h.idle ? 2 : 3; ctx.lineCap = 'round';
+                ctx.beginPath(); ctx.moveTo(x - reach, hitY); ctx.lineTo(x + reach, hitY); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x - reach, hitY - 7); ctx.lineTo(x - reach, hitY + 7); ctx.moveTo(x + reach, hitY - 7); ctx.lineTo(x + reach, hitY + 7); ctx.stroke();
+                ctx.beginPath(); ctx.arc(x, hitY, r * (0.55 + 0.06 * pulse), 0, A.TAU); ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 1;
+            }
+        } else for (let i = 0; i < o.lanes; i++) {
             const x = laneX(i), p = pops.find(q => q.lane === i && q.good && nowMs - q.at < 220), a = p ? 1 - (nowMs - p.at) / 220 : 0;
             ctx.strokeStyle = tint(i); ctx.lineWidth = 2 + 2 * a; ctx.globalAlpha = 0.55 + 0.45 * a; ctx.beginPath(); ctx.arc(x, hitY, r * (1.15 + 0.35 * a + 0.06 * pulse), 0, A.TAU); ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 1;
             if (p) { ctx.fillStyle = tint(i); ctx.globalAlpha = 0.35 * a; ctx.beginPath(); ctx.arc(x, hitY, r * 1.1, 0, A.TAU); ctx.fill(); ctx.globalAlpha = 1; }
@@ -371,13 +415,13 @@
         // ---- The notes.
         if (run) for (const n of s.notes) {
             if (n.free || n.t - t > look || (n.state !== 'wait' && n.state !== 'held')) continue;
-            const x = laneX(n.lane), held = n.state === 'held', y = held ? hitY : yOf(n.t), c = tint(n.lane);
+            const held = n.state === 'held', x = field && n.x != null ? R().xAt(n, held ? t : n.t) * W : laneX(n.lane), xe = field && n.x2 != null ? n.x2 * W : x, y = held ? hitY : yOf(n.t), c = tint(n.lane);
             if (n.hold > 0) {
                 // A packet, pointing the way it is going: forward, up the lane. Its tail is the path still to write;
                 // while you hold, the written part burns bright behind the head as it is pushed on.
                 const yEnd = Math.min(y, yOf(n.t + n.hold)), done = held ? Math.max(0, Math.min(1, (t - n.t) / n.hold)) : 0;
-                ctx.lineCap = 'round'; ctx.strokeStyle = c; ctx.globalAlpha = 0.22; ctx.lineWidth = r * 1.2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, yEnd); ctx.stroke();
-                ctx.globalAlpha = 0.5; ctx.lineWidth = r * 0.4; ctx.setLineDash([r * 0.5, r * 0.6]); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, yEnd); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.lineWidth = 1;
+                ctx.lineCap = 'round'; ctx.strokeStyle = c; ctx.globalAlpha = 0.22; ctx.lineWidth = r * 1.2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(xe, yEnd); ctx.stroke();
+                ctx.globalAlpha = 0.5; ctx.lineWidth = r * 0.4; ctx.setLineDash([r * 0.5, r * 0.6]); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(xe, yEnd); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.lineWidth = 1;
                 if (held) {
                     A.glow(ctx, x, y, r * 1.3, c, 1.4 + 0.5 * pulse);
                     ctx.strokeStyle = c; ctx.lineWidth = r * 0.7; ctx.globalAlpha = 0.95; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + (H - y) * 0.9 * done); ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 1;   // what has been written, trailing behind
@@ -399,7 +443,7 @@
         // ---- Moments: sparks from a hit, a held packet sent on up the lane, a miss, a combo reached, the song falling apart.
         fx = fx.filter(f => nowMs - f.at < 900);
         for (const f of fx) {
-            const age = (nowMs - f.at) / 1000, x = f.lane != null ? laneX(f.lane) : W / 2, c = f.gold || gold ? C.warning : f.lane != null ? LANE[f.lane] : C.text;
+            const age = (nowMs - f.at) / 1000, x = PX(f), c = f.gold || gold ? C.warning : f.lane != null ? LANE[f.lane] : C.text;
             if (!f.done) {
                 f.done = true;
                 if (f.kind === 'hit') spark(x, hitY, c, f.perfect ? 12 + Math.round(8 * E) : 5, f.perfect ? 230 : 130, f.perfect ? 0.55 : 0.4, 60);
@@ -412,7 +456,7 @@
                 const a = age / 0.6, y = hitY - a * a * hitY * 1.05; ctx.globalAlpha = 1 - a * 0.7; A.glow(ctx, x, y, r, c, 1.5);
                 ctx.strokeStyle = c; ctx.lineWidth = r * 0.5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x, y + r); ctx.lineTo(x, Math.min(hitY, y + r * (2 + 10 * a))); ctx.stroke(); ctx.lineWidth = 1;
                 ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(x, y - r * 1.15); ctx.lineTo(x + r * 1.05, y + r * 0.85); ctx.lineTo(x, y + r * 0.3); ctx.lineTo(x - r * 1.05, y + r * 0.85); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
-            } else if (f.kind === 'miss' && age < 0.3) { ctx.fillStyle = C.danger; ctx.globalAlpha = 0.16 * (1 - age / 0.3); ctx.fillRect(f.lane * lw, 0, lw, H); ctx.globalAlpha = 1; }
+            } else if (f.kind === 'miss' && age < 0.3) { ctx.fillStyle = C.danger; ctx.globalAlpha = 0.16 * (1 - age / 0.3); if (field) ctx.fillRect(x - reach, 0, reach * 2, H); else ctx.fillRect(f.lane * lw, 0, lw, H); ctx.globalAlpha = 1; }
             else if (f.kind === 'combo') { const a = age / 0.9; ctx.fillStyle = C.warning; ctx.globalAlpha = 1 - a; ctx.font = `700 ${Math.round(22 + 16 * a)}px ${C.display}`; ctx.textAlign = 'center'; ctx.fillText(`${f.n} in a row`, W / 2, hitY * 0.42 + Math.min(W * 0.34, 120) * 0.62); ctx.globalAlpha = 1; }
             else if (f.kind === 'fell') { ctx.fillStyle = C.danger; ctx.globalAlpha = 0.3 * Math.max(0, 1 - age / 0.9); ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
         }
@@ -426,9 +470,11 @@
         // ---- What each hit was.
         ctx.textAlign = 'center';
         pops = pops.filter(p => nowMs - p.at < 600);
-        for (const p of pops) { const a = (nowMs - p.at) / 600; ctx.globalAlpha = 1 - a; ctx.font = `700 ${p.text === 'PERFECT' || p.text === 'NICE' ? 13 : 12}px ${C.mono}`; ctx.fillStyle = !p.good ? C.danger : p.text === 'GOOD' ? C.text : gold ? C.warning : C.success; ctx.fillText(p.text, laneX(p.lane), hitY - 30 - a * 22); }
+        for (const p of pops) { const a = (nowMs - p.at) / 600; ctx.globalAlpha = 1 - a; ctx.font = `700 ${p.text === 'PERFECT' || p.text === 'NICE' ? 13 : 12}px ${C.mono}`; ctx.fillStyle = !p.good ? C.danger : p.text === 'GOOD' ? C.text : gold ? C.warning : C.success; ctx.fillText(p.text, PX(p), hitY - 30 - a * 22); }
         ctx.globalAlpha = 1;
-        ctx.fillStyle = C.muted; ctx.font = '11px ' + C.mono; for (let i = 0; i < o.lanes; i++) ctx.fillText(mouse() ? `${LANES[i]} [${KEYNAME[i]}]` : LANES[i], laneX(i), H - 7);
+        ctx.fillStyle = C.muted; ctx.font = '11px ' + C.mono;
+        if (field) { ctx.textAlign = 'left'; ctx.fillText('low', 18, H - 7); ctx.textAlign = 'right'; ctx.fillText('high', W - 8, H - 7); ctx.textAlign = 'center'; }
+        else for (let i = 0; i < o.lanes; i++) ctx.fillText(mouse() ? `${LANES[i]} [${KEYNAME[i]}]` : LANES[i], laneX(i), H - 7);
 
         // ---- How early or late: a strip under the line, the middle the beat. The last hits as dots; while the AI
         // plays, your own spread is the faint band behind its dots, so its hands can be seen closing in.
@@ -468,5 +514,5 @@
         toPick();
     }
     function close() { if (dlg && dlg.open) { stop(); dlg.close(); } }
-    window.RhythmUI = { open, close, get isOpen() { return !!(dlg && dlg.open); }, get mode() { return mode; }, get run() { return run; }, get hand() { return hand; }, get save() { return save; }, get music() { return music; }, get audio() { return audio; }, get sel() { return sel; }, get listening() { return listening; }, now, press, release };
+    window.RhythmUI = { open, close, get isOpen() { return !!(dlg && dlg.open); }, get mode() { return mode; }, get run() { return run; }, get hand() { return hand; }, get save() { return save; }, get music() { return music; }, get audio() { return audio; }, get sel() { return sel; }, get listening() { return listening; }, now, press, release, move: (hand, x) => { if (mode === 'test' && run && !run.state.over) show(run.move(hand, now(), x)); } };
 })();
