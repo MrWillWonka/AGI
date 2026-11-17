@@ -2852,8 +2852,10 @@
     //   feed      works through your stockpiles while you are not in a session, for about half what a session by hand pays;
     //   training  cleared hills train faster on their own (the Auto-Trainer's job).
     // More than one in a place: each adds `AGENT_STACK` of the one before. ALL NUMBERS ARE PLACEHOLDERS.
+    // (2026-11-17, the owner's call: the Feed agent slowed to match The Feed's pace. It ate 1 packet a second when a led mite
+    // ate 4; mites now eat 1, so the agent eats `AGENT_FEED_RATE` 0.25: still a quarter of a mite. What a packet pays is unchanged.)
     const AGENT_PLACES = ['lab', 'feed', 'training'];
-    const AGENT_STACK = 0.5, AGENT_LAB_SHARE = 0.3, AGENT_LAB_MAX = 0.9, AGENT_FEED_RATE = 1, AGENT_FEED_PAY = 0.15, AGENT_FEED_GOLD = 3, AGENT_TRAIN_XP = 1;
+    const AGENT_STACK = 0.5, AGENT_LAB_SHARE = 0.3, AGENT_LAB_MAX = 0.9, AGENT_FEED_RATE = 0.25, AGENT_FEED_PAY = 0.15, AGENT_FEED_GOLD = 3, AGENT_TRAIN_XP = 1;
     const bossesBeaten = s => { let n = 0; for (let k = 0; k < s.snare.sector; k++) if (isSnareBossSector(k)) n++; return n; };
     const agentCount = s => (ring ? bossesBeaten(s) : 0);
     const agentPower = n => { let p = 0; for (let i = 0; i < n; i++) p += AGENT_STACK ** i; return p; };

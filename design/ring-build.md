@@ -1158,3 +1158,6 @@ The owner's internet stayed out, so the PC's 37 commits since `8e0d67d` (15 Nov 
   anything done on the PC after 16 Nov 08:03 CST), then keep one.
 - **For the owner:** the Feed agent eats 1 packet a second, which was a quarter of a led mite and is now equal to one
   (the Feed's pace was slowed four times); the *unbound* picture.
+
+**The Feed agent slowed to match** (the owner's call, 2026-11-17): `AGENT_FEED_RATE` 1 → 0.25 packets a second, a
+quarter of a led mite as it was before The Feed's pace was slowed; what a packet pays is unchanged.
