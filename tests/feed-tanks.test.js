@@ -153,7 +153,7 @@ test('the squad: mites come in the squad\'s order; kinds open as the game goes o
         E.feedDeliver(g, { sector: 1, packets: 40 });
         assert.equal(E.feedStart(g, 1), true);
         assert.ok(g.feed.swarm.every(m => Feed.miteKindOf(m.c) === 'driller'));
-        assert.equal(E.SAVE_VERSION, 44);
+        assert.equal(E.SAVE_VERSION, 45);
         assert.deepEqual(E.migrate(JSON.parse(JSON.stringify(g)), Date.now()).feed.squad, ['driller']);
     } finally { E.setRing(false); }
 });

@@ -487,6 +487,529 @@ the gaps as ratios. Still a run of quick splits in the middle (3 to 5 s for the 
 while a layer grows only a fifth: `miteEvery` would be the next lever. All numbers mine, to be played; the dials
 (now kept as `agiFeedDials2`, so an earlier trial does not hide these) still change them live.
 
+## 2026-11-15: the logs and snapshot of late morning (inbox: 20261115-113840, -085018, -113759; snap-04387 in -100800)
+
+- **Snapshot, 11:21, desktop, Parcel over Packet Snare:** the Mining Rig's card was squeezed to a word a line and
+  five times its height by the new "Sell 2.03K compute and buy" button. Fixed: that button gets a row of its own under
+  the part. The same picture shows 39,230 compute banked against 23 research, with 15 cards and one rig.
+- **Playground on the iPhone, 19 minutes (before the pace change):** nine minutes on the home screen trying the music
+  (the Soft track, at full volume), then two Feed sessions. On sector 1 the splits came 8, 12 and 9 s apart. On a
+  sector-4 pile with garbled sand the first split took 49 s and the second 66, then 25 to 38 s each: ten splits, 311 s,
+  500 research. Packet Snare and Training were not opened.
+- **The pace change and deep sectors (not acted on):** the first split is now twice the size (30 packets), so on a
+  deep, tough pile it will take about twice as long as the 49 s above. Later splits there are smaller than they were
+  from the fifth on. Whether a long first split on tough sand is right is the owner's to say.
+- The phone playtest log (-085018) is the morning's session again with a declined call and a start-over added; the
+  two short ones are a 40-second look and another agent's test of the old game.
+
+## 2026-11-15: the orb's third look, its glow from compute, elbowed lines (the owner's call, with reference pictures)
+
+- **The orb is a dark glass sphere with a ribbon of light across its middle** (`ORB_FACE` in game.js, an inline SVG
+  in the orb's mark, `.orb-face`): two waves drifting at different speeds, a white core with the theme's colour round
+  it and a faint blue and pink fringe. It is the game's own orb in that style, in the theme's colour.
+- **Its glow follows compute, with no flash:** a soft halo behind it (`.assist-dot::before`) whose strength is
+  `--orb-power`, 0.12 on a new game rising with the log of the run's compute to 1 at about 3M (set in
+  `assistDotTick`). While compute is coming in (class `making`, for 1.6 s after the last gain) the halo breathes
+  on a 2.8 s cycle; while a line is up, 1.5 s. A tap brightens the sphere a little for a third of a second
+  (`swell`). The orb never changes size. The 0-to-100 flare (`computing`, `orb-flare`) is no longer used.
+- **Lines turn in soft corners:** the two rotated bars are replaced by one SVG overlay (`.assist-wire`,
+  `assistThreadTick`): straight when the orb and its target line up, else out sideways and round one 18 px corner;
+  from an app's ring to the line, two corners. A white pulse travels along it.
+- Not seen on a real iPhone yet (the ribbon uses SVG blur filters; checked in Chromium only).
+
+## 2026-11-15: Parcel's Installed fold; the Feed's width (the owner's cards)
+
+- **Parcel:** delivered parts fold under one "Installed · n parts" row at the foot of the list (`.shop-installed`,
+  a details element; open or shut is remembered while Parcel is loaded), so what can still be bought stays on top.
+- **The small orb in the status bar** keeps its halo close (it sat over the numbers beside it).
+- **The compute pile** (39K compute against 23 research): left until the Lab rework. **Deep sand's first split:**
+  waiting on the owner's play notes.
+- **The Feed on wide screens, picked "wider field", not built:** the box is 256 cells wide in the rules and the
+  screen already shows all of it; the empty space is outside the walls. A wider box alone would not spread the sand,
+  because the heap's shape comes from the single spout in the middle, not from the walls. Spreading it needs a change
+  to how sand pours (a spout that sweeps, or several), which changes the rules, the save's box and the pace: back to
+  the owner as a question.
+- Seen in passing: the Server's card in Parcel still says "Opens the Training Cluster" (the app is named Training).
+
+## 2026-11-15: the AI says hello and asks you into the Lab (the owner's call on two phone screenshots)
+
+- It had no introduction and never asked to meet in the Lab. Now, on the home screen: the flicker, **`hello`** (a
+  short hello, five seconds), then `download` as before, and once the Lab is installed **`meet`**, which rings the
+  Lab's icon until it is opened. The longer introduction stays the Lab's (`lab1`).
+- Both lines are placeholders. `lab1` still opens "Hello. I am new here.", which now repeats the hello: the owner's
+  to rewrite as the longer introduction.
+
+## 2026-11-15: back to the Lab, and Parcel without Sell buttons (the owner's calls on a phone screenshot)
+
+- **The "back to the Lab" line has a button that opens the Lab** (`back`, "Back to the Lab"). This is the one line
+  whose button opens an app; the others still take you home and ring the icon (the call of 2026-11-14 stands for them).
+- **Parcel's Sell 100 / Sell half / Sell all buttons are gone.** The box keeps its one line ("You have n compute.
+  Parcel pays $1 for every 10."); a part's own button sells what it needs ("Sell 100 compute and buy"). So compute is
+  only ever sold to buy something, and the bank holds money only from the story's offers and change.
+
+## 2026-11-15: the orb after the owner's picture; "Training Landscape" on the Server's card
+
+- **The orb is redrawn from the owner's picture** (`ORB_FACE`, `.orb-face`): a teal glass sphere with a bright
+  rim, five fine contour lines flowing across it (still: only the core and halo move) and winding into a small amber core, off
+  centre to the right. Drawn in SVG in the theme's colours (`--success`, the core `--warning`), not the picture
+  itself, so it follows the theme and stays sharp at 28, 46 and 76 px. The core's glow and the halo behind the orb
+  grow with compute (`--orb-power`) and breathe while compute comes in, as before. No blur filters any more.
+- **The Server's card in Parcel reads "Opens the Training Landscape"** (the owner's wording). The app's own name on
+  the home screen is still "Training".
+
+## 2026-11-15: the orb talking (the owner's second picture)
+
+- While a line is up (`.assist-dot.speaking`) the orb is the picture's "talking and glowing" version: the rim and
+  the contour lines brighten with a glow, the innermost loop fades out, three amber rings ripple out from the core
+  (2.1 s, staggered), and the core swells. It eases back when the line is put away. Under reduced motion the rings
+  stand still.
+
+## 2026-11-15: the orb grown strong (the owner's third picture)
+
+- The orb changes form as it gains strength. `--orb-strong` (CSS, from `--orb-power`) is 0 until about 10K of a
+  run's compute and reaches 1 at about 2M; across that stretch the calm contour lines fade into **three ribbons of
+  lines sweeping round the core** (turning very slowly), each pinched at an amber node, the **core grows to five
+  times its size and moves to the centre** with a ring round it, the rim glows more, and **broken teal and amber arcs
+  appear outside the sphere** (`.orb-arcs`, not on the small status-bar orb). The talking state works on both forms.
+- **What "strength" is measured by is a placeholder:** the run's compute, because that is what the glow already
+  followed. The thresholds (10K to 2M) are mine; whether strength should be compute, skills learned, or story beats
+  is the owner's to say.
+
+## 2026-11-15: the AI's four forms (the owner's pictures)
+
+- The orb has **four forms**, a class on it (`form-1` to `form-4`, all drawn in the one SVG, cross-fading):
+  1. the calm sphere (contour lines, small core); 2. the strong sphere (large core, three ribbons, arcs outside);
+  3. **unbound**: no sphere, three ribbons streaming out from three amber nodes round a flame of a core, swaying;
+  4. **final**: a symmetrical knot of translucent bands in a diamond with an amber four-pointed star, breathing.
+  The talking state (rings from the core) and the halo work on all four.
+- The form is now a step, not a slide (`--orb-strong` is 0 or 1 by class).
+- **PLACEHOLDER: what moves it from form to form.** `ORB_FORMS` in game.js: the run's compute at 10K, 10M and 10B.
+  What strength is measured by is the owner's to say (asked; open).
+- **Playground preview:** the assistant's sheet (tap the orb) has "Orb form: … (tap to change)", stepping through
+  1 to 4 and back to "by compute". Playground only.
+
+## 2026-11-15: the orb is the owner's pictures themselves (the owner: the drawn forms didn't look right)
+
+- My SVG redrawings of the forms are gone. The orb's face is now the owner's five pictures: the originals are kept in
+  `design/orb/` (calm, talking, strong, unbound, final), and `node tools/orb-art.js` makes the game's art from them
+  (`art/orb-*.webp`, 512 px, about 850 KB together): cropped square about the subject, the dark ground turned into
+  transparency so the glow and the loose ribbons sit on the game's own background, the inside of a sphere kept solid.
+- Forms as before (`form-1` to `form-4`, cross-fading); talking shows the talking picture on the calm form and a
+  brightening pulse on the others; making compute is a slow, slight breath of light; the unbound form sways a few
+  degrees and the final form breathes. The halo behind is much quieter, since the art has its own glow.
+- **Not following the theme:** the art is teal and amber in every theme (the drawn orb took the theme's colours).
+- **The review artifact's file list (`tools/review/artifact-files.js`) is text only** and does not carry `art/`; a
+  published artifact would show no orb until that is extended. The play server serves it (`.webp` added to serve.js).
+- Still a placeholder: what moves the AI from form to form (`ORB_FORMS`, the run's compute at 10K, 10M, 10B).
+
+## 2026-11-15: the AI's forms change at story beats (the owner's call)
+
+- Asked what moves the AI from form to form, the owner chose **story beats**, and said which beats can wait until the
+  rebuild plan is finished. So the compute stand-in is gone: **the AI stays in its first form in play** until the
+  beats are set. The glow still follows compute. The playground's sheet steps through forms 1 to 4 to look at them.
+- **Open, for after the rebuild plan:** the three beats (my suggestions were the first boss falling, sector 9's
+  boss, and General AI at the ending).
+
+## 2026-11-15: from the owner's 3 PM snapshots (two fixes, one not reproduced)
+
+- **Two Upgrades buttons in Training:** Packet Snare's bar button was only put away while its own bay was open; on the
+  device an app opens straight from another, so it stayed. `render()` now hides it outside the bay. Replayed from the
+  owner's saved state: one button.
+- **The AI's line over the app names:** pointing at an app in the home column, the line ran along the top and down
+  through Parcel, Packet Snare and The Feed's names. A target further to the side than up or down is now reached down
+  first, then across into its side (`toBox` in `assistThreadTick`). Not seen in a browser yet.
+- **Not reproduced:** the Training field only about 180 px tall on the owner's 3072 px screen, cutting the Skill
+  learned card off. The same saved state gives a 526 px field here, after a window resize and after leaving Packet
+  Snare mid-run too.
+
+## 2026-11-15: every snapshot from the day, gone through (17 pictures)
+
+- **Fixed since they were taken:** the Sell buttons, the old orb and its straight line, "Back to the Lab" with no
+  button, the long Parcel list, the Mining Rig card's text in a one-word column (11:21), two Upgrades buttons in
+  Training, the line over the app names.
+- **Seen in the pictures, not rechecked on today's build, the owner's to call:** achievement and delivery toasts land
+  on the orb in the Lab (10:10, 10:14); the dock line's bubble covers the dock it describes (10:12); a click's "+2"
+  floats over the AI's words (10:14); the assistant's sheet has "Open Parcel" (against "the AI's buttons never open an
+  app"); in Parcel the Graphics Card and Mining Rig cards are laid out differently.
+- **In the pictures, not reproduced from the same saved state (also at 1.25 display scaling):** from 10:13 on the page
+  has its own scrollbar; the old minimap shows in the Lab as the monitor arrives (10:14); the call's words sit far
+  right with no button showing (10:16); the Training field is about 180 px tall (15:08). All four look like a layout
+  made for another window size; that session's window was 798x730, then 3072x1559, then 1920x911.
+
+- **Rule dropped (the owner, 2026-11-15):** "the AI's buttons never open an app" no longer holds. "Open Parcel" in
+  the assistant's sheet stays, and a line's button may open an app where that reads better. Nothing else changed.
+
+## 2026-11-15: Build 3, first piece: Evals is an app (the owner's four cards)
+
+- **Opens when the first Packet Snare boss falls** (engine.js `evalsOpen`: a boss beaten, under the ring). The AI says
+  one line once the run is over (`evals`, with Show me; `evalsHome` on the home screen), and the icon loads in on the
+  home screen with a NEW tag, like the other apps; it is on the dock's app row too. No mail (that waits for the story
+  build). A save that had already beaten a boss gets the line and the icon the next time the home screen shows.
+- **Bosses open the kinds** (`evalsSteps`, passed to evals.js as `steps`): one step of the ladder for each different
+  boss beaten (three kinds at the first boss; a replayed boss opens nothing), and handing a kind over opens no kinds
+  under the ring. The old game and `#evals` keep the handover rule. The playground has every kind.
+- **Pays Marks only**, as it did; funding rounds come with their own piece. Marks and the seven upgrades are untouched.
+- Evals' own screen and cards are unchanged, so **its words are still the old game's** ("Verification required",
+  "Prove you are human"), it has no status bar, and the AI's orb does not show over it. The two new AI lines are
+  placeholders of mine, in `design/assistant-lines.md`.
+- With one boss beaten, once all three kinds are handed over a run ends "Verified automatically… nothing left here
+  for you to prove"; nothing there says the next boss opens more. To be worded.
+- Checked in a test browser: the line and the icon on the owner's 3 PM save (one boss beaten), the app opening on a
+  laptop and on a phone in the playground (14 kinds there, 3 on the save). A captcha run was not played through.
+  `tests/ring-evals.test.js`.
+
+## 2026-11-15: Build 3, second piece: funding rounds (the owner's three cards)
+
+- **A rival passed on Evals' score sheet is a funding round, and a round is room** (engine.js `fundingRounds`,
+  `ringRoom`, `capacity`): `RING_ROOM` 20 Graphics Cards and 20 Mining Rigs to start, `RING_ROOM_ROUND` 10 more of each
+  a round (eight rivals: 100). **Skills give no room under the ring** (they gave 10 a skill step). No money: a round
+  is an event. Hardware a save already owns past its room is kept; it just cannot buy more.
+- **Shown** on the run's end card ("Funding round 1: room for 10 more Graphics Cards and Mining Rigs in Parcel (30 of
+  each)."), as a notice from the top that opens Parcel, and by the AI once (`funding`, a placeholder of mine). Parcel's
+  cards read "you own 22 · room for 32" (the free cards counted in both) and, full, "Full. A funding round in Evals
+  makes room" once Evals is open.
+- Debug: `AGI.debug.fundRound()` passes the next rival without playing. Logged as `funding` (round, room).
+- Checked in a test browser on the owner's save with 20 cards: full before, a round, the notice, the AI's line, room
+  for 32 after. **The end card's line was not seen** (no Evals run was played to a rival). **How long the first rival
+  (Parrot-7B, score 12) takes to pass is not measured**; the plan wants the first round within a few minutes of the
+  first boss. `tests/ring-evals.test.js`.
+
+## 2026-11-15: Build 3, third piece: agents and the roster (the owner's four cards)
+
+- **One agent for each different boss beaten** (engine.js `agentCount`, `bossesBeaten`; a replayed boss gives none).
+  **Moving one is instant** for now (`assignAgent`). A place must be open to take one. Two in a place: the second adds
+  half (`AGENT_STACK`). Save v44 (`state.agents`: where each works, the Lab agent's fund, the Feed agent's job).
+- **The roster is a panel in the Lab** (`#rosterPanel`, game.js `renderRoster`): a row an agent, buttons Idle, Lab,
+  The Feed, Training, and a line saying what it is doing. The AI says one line with the first agent (`agent`, with
+  Open the Lab).
+- **Three jobs** (the owner's pick; Packet Snare's waits for tears, Evals' comes next). ALL NUMBERS ARE MINE, UNPLAYED:
+  - **Lab:** sets aside 30% of the compute coming in (`AGENT_LAB_SHARE`; 45% with two, never over 90%) and buys the
+    Graphics Card or Mining Rig with the most compute a second for its price whenever that covers it, at Parcel's
+    rate of ten compute a dollar. With no room it saves nothing. Moved away, what it had saved comes back.
+  - **The Feed:** while you are not in a session it works the fullest stockpile down, a packet a second
+    (`AGENT_FEED_RATE`), paying 0.15 research a packet on sector 1 and half as much again a sector deeper, gold three
+    times, garbled nothing (`AGENT_FEED_PAY`: about half of a hand session's 0.31 a packet measured on sector 1). A
+    notice says what a finished stockpile paid. **It is worked out, not played: no mites, no box, no cards.** The
+    owner picked "runs sessions for you, slower"; this is the cheap reading of that and is theirs to accept or not.
+  - **Training:** cleared hills train twice as fast on their own (`AGENT_TRAIN_XP`; 2.5 times with two).
+- Not done: the Packet Snare and Evals jobs; the plan's "an agent never sets your records" (none of these can); the
+  minute to move; "no obvious best home" is unmeasured. The old game's scheduled tasks are untouched (hidden under the
+  ring as before). On a phone the Lab with the roster is a little taller than the screen (889 against 844 px).
+- Checked in a test browser on the owner's 3 PM save: the AI's line and its button, the panel on a laptop and a phone,
+  each assignment and its status line. `tests/ring-agents.test.js` (6).
+
+- **The owner accepted the calculated Feed agent for now** (2026-11-15: "Yes, fine for now"). Playing its sessions out
+  with mites stays open for later.
+- **Build 3's research trickle is already retired:** `snareRpPerSec` pays nothing under the ring (it has been `!ring`
+  since Build 1). So of Build 3's five pieces, only **the first tear** is left, plus the two agent jobs that wait on
+  it and on Evals.
+
+## 2026-11-15: Evals "needs a lot of work to match the rest of the game" (the owner)
+
+- The owner's cards: all four parts are off (look and shell, words and the AI's voice, how it plays, rewards and
+  upgrades); the framing is **"you teach, the AI is tested"** (backers want benchmarks), not "prove you are human";
+  and shell-and-words, a play-through review and a redesign are to go **in parallel**.
+- **Shell and words, first step (built):** under the ring Evals' screen carries the device's status bar and the AI's
+  orb (as The Feed's does), its start card reads Benchmark ("The backers want numbers. Show the AI how each test is
+  done."), its end cards Benchmark over and It passes these alone (which now says the next Packet Snare boss brings
+  harder tests). All placeholders of mine. The old game keeps its words. Seen on a phone: the small orb sits over the
+  first number in the status bar (it does in the other full-screen apps too).
+- **Running:** a play-through review with screenshots (`review-out/evals-review/REVIEW.md`) and a redesign proposal.
+  Nothing of how it plays or pays is changed until the owner has seen both.
+
+- **The play-through review is in** (`review-out/evals-review/REVIEW.md`, 204 screenshots, all 14 kinds on laptop and
+  phone, no console errors; git-ignored). Its 16 problems, the first ten: the framing is half changed (captcha, "to
+  prove", "I'm not a robot" between the new cards); nothing is in the AI's voice; tall cards opened scrolled to the
+  foot; the play box took its children's styles; the AI's attempt shows before you answer; the ghost hand lies on the
+  buttons and is a mouse arrow on touch; the card's height jumps between kinds (Verify moves 112 px on a phone); the
+  combo pill caps at ×2.0 while the end card reports a combo of 55; handing over has no moment under the ring; the
+  upgrades are a text list that does not read as rewards. No Evals target is under 40 px and nothing scrolls the page.
+- **Fixed from it (plain bugs):** a card opens at its top (its button was focused with a scroll); the play box's class
+  is `evals-lay-<layout>` (as `evals-<layout>` it took the styles of the pads, choices, order, grid and tick inside
+  it: Play again lay over the entered row, sums sat in half the width), and the score sheet's leaderboard no longer
+  takes the ball board's grid. Replayed on a phone, all 14 kinds, no errors.
+- Everything else in the review is design and waits on the redesign's direction (`design/evals-redesign.md`).
+
+## 2026-11-15: Evals becomes an obstacle course (the owner: "Scratch what we have")
+
+- The owner's husband's idea, the owner's calls, written in **`design/evals-course.md`**: you build a course, test it,
+  hand it to the AI; score for every obstacle cleared and for speed, nothing for a failure; skills give obstacle types
+  and abilities; the AI uses both its training and your run, improves in front of you and ends up beating you; three
+  phases (side-on track, grid maze, platformer rooms), the trick questions perhaps a fourth; its own currency and tree.
+- The captcha redesign proposal and the whack-a-mole sketch are dropped. **Nothing is built or deleted yet:** the
+  captcha Evals is still the Evals app, and funding rounds still run on its score sheet.
+
+## 2026-11-15: the obstacle course, a first rough prototype (phase 1, playground only)
+
+- **Where:** the playground's Evals app opens it (`#playground`; game.js `openEvalsApp`, `RING_PLAY`). The playtest
+  and `#ring` still open the captcha Evals. Rules `course.js` (pure, `tests/course.test.js`, 9), screen
+  `course-ui.js`. **It keeps its own progress on the device (`localStorage['agiCourse']`) and pays nothing into the
+  game's save**: its Marks are a number on its own screen. No save version change.
+- **What it is:** a track of 8 places. A runner goes along by itself; the one control is the jump (a tap hops, a hold
+  then letting go jumps higher; a press in the air is acted on at touchdown). **Build:** tap a place to go round
+  what you have: Gap (1 point), Wall (2, needs the charged jump), Spikes (2, two short gaps with a ledge), Booster
+  (an ability: faster for a stretch, no points). **Test:** you run it; only a cleared run can be handed over, and
+  your time is what the AI is measured against. **Hand over:** the AI gets up to 4 tries shown one after another.
+  **Score:** points x 10 Marks x (your time / its time, between a half and double) if it finishes; nothing if not.
+- **The AI ("both", the owner's call):** each jump starts from your own jump at that obstacle, moves toward the
+  cleanest timing by its mastery, and its hands shake (0.05 s at first, steadier with mastery, halved at an obstacle
+  each time it fails there, which is the iterating you watch). Mastery grows with courses run (and a little with
+  skills learned). A landing just past an obstacle is "clean" and gives a burst of speed, which is how a practised AI
+  ends up faster than you.
+- **Measured** (course.js alone, 300 hand-overs each, a careful stand-in for the player): a 2-obstacle course is
+  cleared 91% of the time by a new AI, a 4-obstacle one (6 points) 43%, rising to 86% after 5 courses and 99 to 100%
+  after 10. **Obstacles are given by skills learned** (Gap from the start, Wall at 1, Spikes at 2, Booster at 3; the
+  playground has all four).
+- **ALL OF IT IS PLACEHOLDER:** the physics is its own small model, not Training's (training-path.js builds its ground
+  from a leg and a seed and could not take a course without surgery); every number; every word; the look.
+- **Not built:** cheating and catching it; the tree; exploits; phases 2 and 3; the trick questions; a currency in the
+  save; anything in the playtest. Some neighbouring pairs cannot be cleared at all (wall then wall), which the test
+  run is there to catch.
+- **Checked in a test browser on a phone:** build, a cleared test run, the hand-over and the result (60 Marks for a
+  6-point course). **On a laptop my scripted test run fell at the wall**, so the hand-over was not seen there; no
+  errors on either. Not played by a person.
+
+## 2026-11-15: the course, past your limit (the owner's cards after playing the prototype)
+
+- The owner: the loop "was great"; the open problem was the time when the player cannot complete the course. Their
+  calls are in `design/evals-course.md` (stages by mastery; always one honest try; scored against its own best;
+  later you design harder courses, catch cheating, try to keep up, and it builds courses for you).
+- **Built (course.js `stage`, `canHandOver`; PLACEHOLDER numbers):** stage 2 from mastery 0.35 (about 3 courses run),
+  stage 3 from 0.75 (about 9). From stage 2 a run you fell on can be handed over ("Let the AI try"): it uses your jumps
+  up to the fall and its own line after, its hands 2.5 times as unsteady at the jumps you never showed it; at stage 3
+  no unsteadier there. A course nobody can do (the search finds no way through and you did not clear it) is refused:
+  "I do not think anyone can do this one." With no time of yours, the speed bonus is against its best time on that
+  exact course (kept on the device); the first clear there has no bonus either way. The AI says once when a stage is
+  reached.
+- **A fault in the first prototype, fixed:** the playground has every skill learned, and skills counted toward the
+  AI's mastery, so in the playground it began at about 0.8 mastery, already near its best. **The AI the owner played
+  was not a beginner.** In the playground only courses run count now, so it starts shaky (a 4-obstacle course about
+  4 times in 10) and the early "pull back so it can keep up" part can be felt.
+- **Not built of the owner's picks:** harder and longer courses, cheating, racing its ghost, courses it builds for you.
+- Checked in a test browser on a phone at 0, 4 and 12 courses run: refused at stage 1, handed over and finished at
+  stages 2 and 3, a second hand-over measured against its own best. `tests/course.test.js` (11).
+
+## 2026-11-15: the second kind of course, a maze (a rough prototype, playground only)
+
+- **Where:** in the playground's Evals app a button in the bar switches between **Track** and **Maze** (the last one
+  used opens next time). Rules `maze.js` (pure, `tests/maze.test.js`, 7), screen `maze-ui.js`. Its own progress on the
+  device (`localStorage['agiMaze']`), nothing paid into the save, as with the track.
+- **What it is:** a grid 7 wide and 9 high, seen from above, start bottom left, exit top right. Time goes in ticks of
+  0.16 s: hold a direction to walk a cell a tick, let go to stand. **Tiles:** Wall (shapes the way, no points), Trap
+  (1 point: live four ticks, safe four, each on its own beat), Patrol (2: walks its row back and forth, a cell every
+  two ticks), Key and Door (2 for the door; one of each). **Only what is got past scores, and only with the exit
+  reached**, so a hazard off the way is worth nothing. Built by picking a tile and tapping the grid; the hazards keep
+  time while you build, so their rhythm can be seen.
+- **The same loop as the track:** walk it yourself; hand it over; up to 4 tries shown one after another; Marks for the
+  points got past x how its time compares with yours (or with its own best on a maze you could not finish).
+- **The AI:** it walks your route. It knows the safe moment to step, stands about where you stood by as much as it
+  has not yet mastered, and at a hazard may misjudge the moment (30% of hazard steps at first, less with mastery,
+  halved at a step each time it is caught there). The same three stages past your limit as the track: caught part-way,
+  it follows you to there and takes the shortest way on.
+- **Measured** (maze.js alone, 300 hand-overs each): a maze of four traps is got out of 82% of the time by a new AI in
+  about 3 tries, an 8-point maze with two patrols 78%; both 100% after five to ten mazes, and by ten it is faster than
+  a careful player nine times in ten.
+- **Found while testing:** a patrol's row can be crossed but not walked along (it catches you at its turn), so a way
+  that needs that has no way through, and the AI says so.
+- **ALL PLACEHOLDER** (numbers, words, look). **Not built:** the third kind (platformer rooms), cheating, the tree,
+  anything in the playtest. It chooses no cleverer route than yours when you finished: it only times yours better.
+- **Checked in a test browser, phone and laptop:** switching from the track, placing tiles by taps on the grid, a
+  walked run (driven by a script holding the directions), the hand-over, the result, switching back; no errors, no
+  page scroll, cells 52 px on a phone. Not played by a person.
+
+## 2026-11-15: the third kind of course, a platformer room (a rough prototype, playground only)
+
+- **Where:** the playground's Evals app; the button in the bar now goes round **Track → Maze → Rooms → Track** (the last
+  one used opens next time). Rules `rooms.js` (pure, `tests/rooms.test.js`, 7), screen `rooms-ui.js`. Its own progress
+  on the device (`localStorage['agiRooms']`), nothing paid into the save. So all three kinds can now be compared.
+- **What it is:** a room seen from the side, 12 tiles wide and 7 high, with a floor. You start bottom left; the flag is
+  on a ledge at the top right, too high to reach from the floor, so every room needs a way up. Controls: left, right,
+  jump (a jump clears two tiles; buttons on a phone, arrow keys and space on a laptop). **Tiles:** Block (the way up,
+  no points), Spike (1), Pit (1, in the floor row only), Saw (2, slides back and forth), Spring (an ability: throws you
+  nearly five tiles up). A hazard scores when you cross its middle within three tiles of it, and only with the flag
+  reached.
+- **The same loop:** run it yourself; hand it over; up to 4 tries; Marks for the points got past x how its time
+  compares with yours (or its own best on a room you could not finish).
+- **The AI:** it is given the tiles you stood on, in order, and gets from each to the next with its own hands. A
+  beginner takes off from the wrong spot and aims its landing badly (0.42 tiles off at first), and misjudges a saw's
+  moment (35% of the time); both lessen with mastery and halve at a jump each time it fails there. It looks ahead a
+  jump before setting off under a saw. Come down on the wrong tile, it works out the way on from there. It stands
+  about where you stood, less as it masters rooms, which is how it ends up faster.
+- **It can find its own way** (a search over which tile can be reached from which, tried with its own controller), so
+  the stages past your limit work here too, and a room with no way up is refused: "I do not think anyone can do this
+  one." Where it cannot copy a move of yours it joins your tiles up with moves it can make.
+- **Measured** (rooms.js alone): a new AI reaches the flag in a room of two spikes 58% of the time, one with two saws
+  70%, one with a spike, a pit and a saw 83%, in three to four tries; all 97 to 100% after three to six rooms, and
+  from about five it is faster than a careful player nearly every time.
+- **ALL PLACEHOLDER.** Its physics is its own. **Not built:** cheating, the tree, anything in the playtest. A new AI
+  fails by "being stuck" (it waits too long for a saw) about as often as by a saw, which reads oddly and wants a look.
+- **Checked in a test browser, phone and laptop:** going round the three kinds, placing tiles by taps (a pit off the
+  floor is refused with a line), a run (driven by a script pressing the keys), the hand-over and the result; no
+  errors, no page scroll, tiles 30 px on a phone. In that check the new AI failed all four tries on both screens.
+  **On a phone the room is small** (30 px tiles in a 362 by 211 px view). Not played by a person.
+
+## 2026-11-16: the track and the room are combined (the owner's call)
+
+- The owner: "the track and the platformer don't feel distinct from each other"; asked whether to combine them or
+  make them distinct, they chose **combine**, and a **third kind** is to be thought up with them.
+- **The room is the side-on course.** In the playground the Evals app opens the room (or the maze, whichever was used
+  last) and the bar's button goes Rooms and Maze. **The track is no longer reachable**; `course.js`, `course-ui.js` and
+  their tests are still in the repo, untouched, until the third kind is settled. Nothing of the track's (the one
+  button, the clean landing's burst of speed, the booster) has been carried into the room yet.
+
+- **The booster carries over into the room** (the owner's pick of the track's three things; the clean-landing burst and
+  the one-thumb option are dropped): a pad in a tile above the floor or a block; run over it and you are 1.6 times as
+  fast for 1.25 s (`boost`, `boostSteps`; PLACEHOLDER). An ability, no points, given with the spring.
+- **The third kind is still open:** the owner said "maybe target range, but let's hear some more".
+
+- **2026-11-16, the owner on the kinds of course:** each should be something "the player can build over time through
+  components"; more ideas wanted for the third; and a fourth, **the rhythm run**, is theirs (in `design/evals-course.md`
+  with a first sketch of mine and the rules a chart could be measured by). Nothing built. **A risk for the rhythm run:**
+  the music engine on this branch is the one from before the audio overhaul (another agent's branch,
+  `claude/audio-overhaul`), so a rhythm kind built here would be built on the old engine.
+
+- **2026-11-16: the rhythm run's twelve decisions** are the owner's and are written in `design/evals-course.md` (they
+  changed four of my assumptions: the music is built in three steps of freedom, not charted over a finished song; the
+  notes go from lanes to the whole field to anywhere; every kind of hit is wanted, chords and a flung hold included;
+  and what the game's things mean: the Training ball is the regular note, packets are held notes that move, a combo
+  turns everything gold and opens the backing, bad ones garble the sound, a boss is a freestyle). **Built first.**
+  **The third kind** is a puck course, mini-golf crossed with target practice. **The audio overhaul is done** and may
+  be brought over.
+
+## 2026-11-16: the rhythm run, step 1 (a rough prototype, playground only)
+
+- **Nothing needed bringing over:** the audio overhaul branch (`claude/audio-overhaul`) is already wholly in this
+  branch (its tip is an ancestor of this one, its worktree clean), so the finished engine is what the game here plays.
+- **Where:** the playground's Evals app; the bar's button goes round **Rooms → Maze → Rhythm → Rooms**. Rules
+  `rhythm.js` (pure, `tests/rhythm.test.js`, 6), screen `rhythm-ui.js`. Its own progress on the device
+  (`localStorage['agiRhythm']`), nothing paid into the save.
+- **What step 1 is** (the owner's calls 5, 6, 8, 9, 10): you pick one of the theme's six songs and how much of it is
+  notes (**Kick**, **Kick and bass**, **With the melody**: 24, 47 and 79 notes over 8 bars of Night Survey). **The
+  notes are read out of the song's own data** (its kick pattern, its bass pattern, its melody; a melody note four
+  steps long or more is a held note), a lane an instrument, thinned so no two in a lane are closer than two steps.
+  Regular notes are drawn as **the Training ball**, held notes as **a packet** with a tail. A hit within 0.05 s of the
+  beat is perfect, within 0.11 s good. **The meter:** it rises with hits and falls with misses; at a combo of 8 the
+  notes and the line **turn gold**; empty, **the song has fallen apart**, the run stops and scores nothing. Tapping
+  where there is no note costs a little. Score: hits by how well, plus up to half again for the longest combo.
+- **It plays the game's own music.** The run asks the engine for the chosen song a bar before the notes start
+  (`SFX.songCmd({ area, song, bar })`, new in sfx.js: this song of this area from this bar on the next downbeat),
+  lines the chart up with the engine's clock (`SFX.lab.clock()`, new), and **its meter is the engine's intensity**
+  (game.js `musicTick` reads `RhythmUI.music`): a full meter is the whole arrangement, a low one strips it to a kick
+  and a bass. A hit plays the engine's click for its lane, which the engine puts on the grid. With the music off or
+  not yet allowed by the browser, the run keeps a silent clock of its own and says so.
+- **The AI** (call 10): for each note it presses about when you did, as early or late as you were, less so with
+  mastery, with shaky hands on top (0.06 s at first) and a 14% chance of missing a note outright; both shrink with
+  mastery and halve at a note each time it gets it wrong, so a second try is tighter where the first was loose. Up to
+  3 tries. The stages past your limit apply: a track that fell apart on you can be handed over from stage 2.
+- **Marks:** 2.5 a note it hit, times how its score compares with yours (or its own best on that track and level).
+- **ALL PLACEHOLDER.** **Not in step 1** (the owner's calls 1 to 4, 7, 11): the composing board and arranging; the whole
+  field and notes anywhere; slashes, chords, flung holds; packets that move as you hold; bad notes that garble the
+  sound; the boss's freestyle; the AI writing tracks.
+- **Checked in a test browser, phone and laptop**, with real taps so the music was allowed to start: the engine turned
+  to the chosen song on cue, the run used its clock, the meter at full gave full intensity; a scripted player tapping
+  30 ms late played 79 of 79; the AI's tries and the result showed; no errors, no page scroll. `tests/audio.test.js`
+  still passes (14). **Not checked, and not checkable from here: whether the notes fall in time with what is heard.**
+  The picture is lined up with the audio clock less the output delay the browser reports; a real phone, and
+  Bluetooth headphones above all, will need a calibration setting. Not played by a person.
+
+## 2026-11-16: two thumbs at most, and a mouse alone (the owner, on a phone screenshot of the rhythm run)
+
+- The owner's first run on a phone fell apart after 6 notes: "With the melody" asked for the kick, the bass and the
+  melody at the same moment. Their rule: **"on mobile we are shooting for two thumbs at most, and desktop will need to
+  rely on just mouse."** It holds for every kind of course.
+- **Rhythm run, built:** a chart is thinned to the hands there are (rhythm.js `playable`, `hands`): on a phone never
+  more than two things down at once, a held note counting as one while it is held; at a clash the melody is kept,
+  then the kick, then the bass. **With a mouse** it is one thing at a time, notes at least two steps apart, and **a
+  click anywhere on the notes goes to whichever note is due** (a mouse cannot aim at a lane in time; the lane pads are
+  hidden). The AI plays the same thinned chart. Night Survey with the melody: 79 notes as written, fewer once thinned.
+- **Open, the same rule elsewhere:** the room needs left or right held while jump is pressed, which one mouse cannot
+  do (it works with two thumbs, and with the keyboard); the maze is one direction at a time and is fine.
+
+- **2026-11-16, the desktop rule revised by the owner:** "Mouse and keyboard is fine ... we can plan for WASD spacebar
+  and mouse." So a desktop has two hands as a phone does. **Rhythm run:** charts are the two-thumb ones on every
+  device (the one-at-a-time mouse charts are gone; `playable` still takes a hand count); **A, S and D are the lanes**
+  (shown under them), and **a click on the notes or the spacebar takes whichever note is due**; the lane pads show on a
+  desktop too. **The room** already has A, D, W and the spacebar, and **the maze** W A S D, so both fit the rule as
+  they are. The room's question about a mouse alone is closed.
+
+## 2026-11-16: the rhythm run's modes (the owner: "more forgiving", Easy, Medium, Hard instead of the instruments)
+
+- The owner: "we need to be a bit more forgiving and have the modes be easy medium and hard instead of bass kick and
+  lead"; "we can mix parts between the instruments to change the difficulty and the extreme version would be everything
+  together with a mix of slashing, holds, multiple shots and freestyle; early easy would be mostly notes and freestyles
+  with some holds."
+- **Four modes** (rhythm.js `MODES`, `chartFor`): **Easy, Medium, Hard, Extreme**. Each bar keeps the song's weightiest
+  notes (the beats, the melody) from all three instruments, up to the mode's count and spacing. ALL NUMBERS MINE:
+  | Mode | Notes a bar at most | Least gap | Two at once | Held notes kept | Slashes | Freestyle bars | A miss costs |
+  |---|---|---|---|---|---|---|---|
+  | Easy | 5 | a beat | none | half | none | 2 of 8 | 4.5% of the meter |
+  | Medium | 8 | half a beat | about one a bar | all | none | 1 | 6% |
+  | Hard | 11 | half a beat | about two a bar | all | a quarter of single notes | 1 | 7.5% |
+  | Extreme | all the song has | a quarter beat | any | all | four in ten | 1 | 9% |
+  On Night Survey that is 22, 46, 49 and 56 notes; on Overclock 24, 56, 69 and 101.
+- **More forgiving:** perfect is within 0.07 s of the beat (was 0.05), good within 0.15 s (0.11); the meter starts at
+  60% (50%); a tap where there is no note costs 1.2% (3%); a hold may be let go a quarter of a second early (0.14 s).
+- **Slashes** (new): a diamond. On a phone, swipe the lane's pad or the lane itself; on a desktop, **W** or a flick of
+  the mouse. Slashed on the beat it is perfect; only tapped, good at best.
+- **Freestyle bars** (new; the owner's boss moment, judged "on the beat, and not boring"): a bar with no notes, shown
+  as a band. Your taps count when they land near a half-beat, up to eight a bar; taps off the beat cost nothing; a bar
+  with at least four taps on two lanes at more than one spacing earns a bonus ("NICE"); a bar left silent is one miss.
+  The taps are not yet kept as part of the track (the owner's call 7 asks for that).
+- **Two at once** ("multiple shots") were already there. **The AI** slashes or only taps a slash, and plays freestyle
+  bars sparsely on one lane at first, fuller and across the lanes with mastery.
+- Checked in a test browser on a phone with real touch events on the pads: Easy and Extreme of Night Survey played
+  clean (taps, holds, six swiped slashes, freestyle with the bonus), then the AI's tries; no errors.
+  `tests/rhythm.test.js` (12). Not heard, and not played by a person.
+
+## 2026-11-16: a first pass at how the three courses look (the owner: "work on the visuals for each eval")
+
+- **Shared (`course-art.js`, new):** the AI's runner is **the orb** (its picture in a glowing ring), yours is **the
+  Training ball** (blue, an amber core, squashing and stretching in the room); a burst where a run ends (red for a
+  fall, green at the finish); the clock and points in a pill; "try 2 of 4" while the AI plays; glows drawn as faint
+  rings, no blur (slow on phones). Colours are the theme's own.
+- **The room:** dots at the tile corners; a floor with a lit top edge; raised blocks; three-pronged spikes; pits that
+  fade down into red; saws as toothed wheels on a dotted rail; a coiled spring; booster chevrons that run; a waving
+  flag with a beacon; a trail behind the runner; speed lines while boosted; the AI's given way as a dotted line.
+- **The maze:** a checkered floor; raised walls; traps whose spikes come up when live and **turn amber a tick or two
+  before**, so the rhythm can be read; patrols drawn as **Packet Snare's Antivirus** (a red ring with four notches)
+  gliding along a dashed row; a bobbing key and a barred door that opens; a pulsing exit; the runner's path behind it.
+  **Movement now glides between ticks** (the rules still step; the picture is redrawn every frame).
+- **The rhythm run:** a tint for each lane (kick blue, bass violet, melody green) that breathes on the beat; bar lines
+  heavier than beats; **a ring to hit in each lane** that flashes with a burst on a hit; notes as the Training ball
+  with a streak, held notes as a packet with a thick tail that lights while held, slashes as a red diamond with the
+  stroke drawn through it; **the combo large and faint behind the notes**; everything amber at a combo of 8; the
+  freestyle bar as a band of moving stripes with a mark for each half-beat and a dot where you tapped; a segmented
+  meter, and a red frame when the song is close to falling apart; a count-in over the last three beats.
+- **A fault of mine while the owner was playing:** for a few minutes the maze asked for two redraws for every one it
+  drew, doubling each frame, which froze the page. Fixed (found by a screenshot timing out).
+- Looked at in a test browser on a phone and a laptop (pictures in `review-out/evals-art/`); no errors. Drawing only:
+  no rule changed and the tests are untouched. The orb's picture reads dark at the room's small size. All of it is a
+  first pass for the owner to react to.
+
+## 2026-11-16: the rhythm run's look, second pass (the owner: "I like the direction")
+
+- **Packets point forward** (the owner: "like you are writing the packet forward instead of it coming towards you"):
+  a held note's arrowhead points up the lane, its tail is the dashed path still to write, and while you hold, what has
+  been written burns bright behind the head with sparks coming off it; let go at its end and **the finished packet
+  flies on up the lane**.
+- **Particles and glow:** sparks from every hit (more for a perfect, more the better the run is going), a ring opening
+  out from the ring you hit, red shards and a red wash of the lane on a miss, a burst across all lanes for a freestyle
+  bonus and at combos of 10, 25, 50, 75 and 100 ("25 in a row"). Particles are drawn additively and capped at 220;
+  under reduced motion there are none.
+- **The music itself drives the backdrop:** an analyser listens to the engine's music bus (it adds nothing to what is
+  heard) and its levels stand as columns behind the lanes, the low end under the kick's lane, the middle under the
+  bass, the top under the melody. The lanes, the line, the rings, the notes and the combo breathe on the beat, with a
+  wash on each bar. With the music off the columns are simply absent.
+- **It follows how the run is going** (`energy`, eased from the meter): streaks run up the lanes, more, faster and
+  brighter the fuller the meter; the lane tints deepen; near empty the picture goes dull, the edges close in and a red
+  frame pulses; the whole frame flashes red when the song falls apart.
+- **Timing, shown:** a strip under the line, the middle the beat and the green band "perfect", with the last hits as
+  dots. **While the AI plays, your own spread is a faint bar behind its dots**, so its hands can be seen closing in on
+  the beat from where yours were. The orb sits beside the lanes, swelling on its hits and dimming as it loses the song.
+- Drawing only (rhythm-ui.js `draw`, `show`); the rules and their tests are untouched. Looked at on a phone and a
+  laptop in a test browser with the music running; no errors. Not seen on a real phone, where the particle count and
+  the analyser want checking for speed.
+
 ## 2026-11-16: The Feed's overhaul (full tanks, corruption, frenzy, caches, bolder cards, the squad, the look)
 
 Built in the cloud while the owner's home internet was out, on `claude/trusting-dijkstra-skhxsb` from `main` at
@@ -606,3 +1129,32 @@ options; the owner's picks:
   split every 80–95 s, and a full 1,600-packet tank about 10 minutes on sector 2 and 20 on sector 5.
 - Also: a split pauses a walkthrough step instead of ending it; the dials' kept values moved to `agiFeedDials3` (the old
   pace's would have held), eating's dial goes down to 0.25.
+
+## 2026-11-17: the PC's unpushed work rebuilt from its session's history and merged here
+
+The owner's internet stayed out, so the PC's 37 commits since `8e0d67d` (15 Nov 12:04 CST: ring polish, the orb, Build
+3's Evals app, funding rounds and agents, the Evals courses) could not be pushed. With the owner's go-ahead they were
+**rebuilt here from the PC session's recorded tool calls** and merged with the Feed branch.
+
+- **How** (scripts in this session's scratchpad, not kept): the session's history holds every file it wrote and every
+  command it ran. Of 573 recorded actions, the 344 that write, edit or run were replayed in their true order (each
+  record's own timestamp: the coarse one ties within a message) on a clean checkout of `8e0d67d`, with the PC's paths
+  mapped to local ones. Skipped: pushes and fetches, a command the PC's safety check refused, two its shell could not
+  parse (the PC redid each another way), and the browser navigation tour (`ring-nav.js`, checks only; it hangs here).
+- **Checked against the PC's own record:** 37 commits with the same messages in the same order; the test count at each
+  commit as the PC printed it (609 … 657 at the last); command outputs compared step by step (the patch scripts refuse
+  to apply unless their anchor is found exactly once). What differed was only what lives outside git on the PC: its
+  playtest snapshots (`playtests/inbox`), a reviewer's script in `review-out`, its branch names.
+- **Not the PC's bytes:** `design/orb/unbound.png` is a **stand-in** (a copy of `final.png`: the owner sent four of the
+  five pictures here), so `art/orb-free.webp` is too; `calm` and `strong` came out 4 and 156 bytes off the PC's art
+  (`talk` and `final` are byte-identical). The last commit (the rhythm run's second visual pass) is included; on the PC
+  its command's result was never recorded, so it may be uncommitted there.
+- **The merge** (four conflicts): **save v45** (the agents and The Feed's tanks were each v44 on their own branch; both
+  are read by their own `clean`, so a save from either loads); the exports joined; the two tails of styles.css and of
+  this file kept, the PC's first. The **Feed agent** needed no change: it works a stockpile only outside a session, and
+  a tank's leftovers go back to the stockpile when a session ends. 668 tests (the Feed's 620 and the PC's 48).
+- **When the PC is back online:** its own branch has the same work under different commit ids. Don't merge the two
+  histories blindly: compare the PC's tree with `pc-rebuild`'s (they should differ only in the pictures above and in
+  anything done on the PC after 16 Nov 08:03 CST), then keep one.
+- **For the owner:** the Feed agent eats 1 packet a second, which was a quarter of a led mite and is now equal to one
+  (the Feed's pace was slowed four times); the *unbound* picture.

@@ -127,7 +127,8 @@
             el('div', { class: 'evals-card-actions' },
                 el('button', { type: 'button', class: 'evals-go', text: button, onclick: action }),
                 ...extras.map(([label, act]) => el('button', { type: 'button', class: 'ghost-button evals-extra', text: label, onclick: act })))));
-        stage.querySelector('.evals-go').focus();
+        stage.querySelector('.evals-go').focus({ preventScroll: true });
+        stage.scrollTop = 0; stage.firstChild.scrollTop = 0;
     }
     const engine = () => (window.AGIEngine?.evalsOpts && window.AGI?.state ? window.AGIEngine : null);
     // A run's options: what the upgrades have bought, and this device's debug switches.
@@ -166,10 +167,11 @@
     const cardExtras = back => [['Score sheet', () => sheetCard(back)], ...(engine() ? [['Upgrades', () => upgradesCard(back)]] : [])];
 
     // The unlock ladder (evals.js `LADDER`) is on unless the debug panel turned it off on this device.
+    const ringOn = () => !!window.AGIEngine?.isRing?.();
     const ladderOn = () => { try { return localStorage.getItem('agiEvalsLadder') !== '0'; } catch { return true; } };
     const listOf = names => (names.length < 2 ? names.join('') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1]);
     function rotationLine() {
-        const n = window.Evals.rotation(saved().learn, { ...window.Evals.EVALS, ladder: ladderOn() ? 1 : 0 }).length;
+        const n = window.Evals.rotation(saved().learn, { ...window.Evals.EVALS, ...runOpts() }).length;
         const its = Object.keys(window.Evals.takenMap(saved().learn)).length;
         return (n === 1 ? 'One kind of captcha to prove.' : `${n} kinds of captcha to prove.`) + (its ? ` The AI does ${its === 1 ? 'one kind' : its + ' kinds'} for you.` : '');
     }
@@ -177,10 +179,11 @@
         run = null;
         hud();
         hideLane();
-        const lines = ['Prove you are human. Each one is harder than the last.', 'It watches how you do it. Hand a kind over when you trust it.', `You have ${lives(runOpts().lives || window.Evals.EVALS.lives)}. Every verified captcha pays Marks, more for a quick clean streak.`];
+        // The ring's framing (the owner's call, 2026-11-15): you teach, the AI is tested. PLACEHOLDER words.
+        const lines = [...(ringOn() ? ['The backers want numbers. Show the AI how each test is done.', 'It watches how you do it. Hand a kind over when you trust it, then check its work.'] : ['Prove you are human. Each one is harder than the last.', 'It watches how you do it. Hand a kind over when you trust it.']), `You have ${lives(runOpts().lives || window.Evals.EVALS.lives)}. Every verified captcha pays Marks, more for a quick clean streak.`];
         lines.push(rotationLine());
         if (saved().best > 0) lines.push(`Your best run: ${saved().best} solved.`);
-        card('Verification required', lines, 'Start', start, cardExtras(startCard));
+        card(ringOn() ? 'Benchmark' : 'Verification required', lines, 'Start', start, cardExtras(startCard));
     }
 
     // A run that has ended is counted once and saved, whichever way it ended (the last life, or the screen closed).
@@ -203,6 +206,9 @@
             const s = window.Evals.sheet(saved().learn, run.opts), before = window.AGI.state.evals.passed;
             run.bounty = window.AGIEngine.evalsPassed(window.AGI.state, s.passed, window.Evals.RIVALS.map(r => r.bounty));
             run.passedNames = window.Evals.RIVALS.slice(before, s.passed).map(r => r.name);
+            // The ring: each rival passed is a funding round, and a round is room for hardware (engine.js `fundingRounds`).
+            const E = window.AGIEngine, after = window.AGI.state.evals.passed;
+            if (E.isRing?.() && after > before) { run.rounds = [before + 1, after]; run.roomMore = E.RING_ROOM_ROUND * (after - before); run.room = E.ringRoom(window.AGI.state); window.AGI.fundingRound?.(before, after); }
         } else { run.counted = true; const s = saved(); s.runs++; s.best = Math.max(s.best, run.solved); s.marks = (s.marks || 0) + run.marks; }
         window.AGI?.save?.();
     }
@@ -227,18 +233,20 @@
         const was = saved().best, solved = run.solved;
         settle();
         hud();
-        if (run.endLines) { card(run.exhausted ? 'Verified automatically' : 'Verification failed', run.endLines, 'Try again', start, cardExtras(endCard)); return; }
+        if (run.endLines) { card(run.exhausted ? (ringOn() ? 'It passes these alone' : 'Verified automatically') : ringOn() ? 'Benchmark over' : 'Verification failed', run.endLines, 'Try again', start, cardExtras(endCard)); return; }
         if (run.exhausted) {
-            card('Verified automatically', ['It solves every kind you know before you can.', 'There is nothing left here for you to prove.'], 'Close', close);
+            if (ringOn()) card('It passes these alone', ['It solves every kind you have shown it.', 'The next boss in Packet Snare brings harder tests.'], 'Close', close);
+            else card('Verified automatically', ['It solves every kind you know before you can.', 'There is nothing left here for you to prove.'], 'Close', close);
             return;
         }
         const lines = [`You solved ${solved}.`, solved > was ? 'That is your best run.' : `Your best run: ${was} solved.`];
         lines.push(`You earned ${run.marks.toLocaleString('en-US')} Marks${run.bestCombo > 1 ? `, with a best combo of ${run.bestCombo}` : ''}.`);
         if (run.bounty) lines.push(`Your model passed ${listOf(run.passedNames)} on the score sheet: ${run.bounty.toLocaleString('en-US')} Marks more.`);
+        if (run.rounds) lines.push(`${run.rounds[0] === run.rounds[1] ? `Funding round ${run.rounds[1]}` : `Funding rounds ${run.rounds[0]} to ${run.rounds[1]}`}: room for ${run.roomMore} more Graphics Cards and Mining Rigs in Parcel (${run.room} of each).`);
         if (run.slipped) lines.push(`${run.slipped === 1 ? 'One pass was' : run.slipped + ' passes were'} by loophole, worth half.`);
         if (window.Evals.misaligned(saved().learn) >= window.Evals.EVALS.misShow) lines.push('The AI is misaligned: it looks for loopholes wherever it works alone. Catch them to bring it back.');
         run.endLines = [...lines, ...progress()];
-        card('Verification failed', run.endLines, 'Try again', start, cardExtras(endCard));
+        card(ringOn() ? 'Benchmark over' : 'Verification failed', run.endLines, 'Try again', start, cardExtras(endCard));
     }
 
     function start() {
@@ -398,7 +406,7 @@
         const c = shown = run.current;
         const hand = el('span', { class: 'evals-hand', 'aria-hidden': 'true' });
         hand.innerHTML = '<svg viewBox="0 0 24 24"><path d="M5 2.5v17l4.6-4.2 3 6.4 2.7-1.3-3-6.3 6.2-.5z"/></svg>';
-        play = el('div', { class: `evals-play evals-${c.layout}` }, ...LAYOUTS[c.layout](c), hand);
+        play = el('div', { class: `evals-play evals-lay-${c.layout}` }, ...LAYOUTS[c.layout](c), hand);
         const canHand = !!run.opts.handoff;
         stage.replaceChildren(el('div', { class: `evals-captcha is-${c.layout}` + (c.auto ? ' is-auto' : '') },
             c.family === 'trick' ? el('p', { class: 'evals-quiz', text: `Question ${c.at + 1} of ${c.of}` }) : '',
