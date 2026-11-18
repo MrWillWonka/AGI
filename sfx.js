@@ -861,7 +861,7 @@
     // The music never times the game: it reads the game's state (`musicState`, `setArea`, `setDepth`,
     // `setTraining`, `held`) and nothing in the game waits on it.
     let music = null;               // the running music: buses, sends, the scheduler's place in the song
-    let musicVolume = 0.35;
+    let musicVolume = 0.18;
     let intensity = 0;
     let mode = null;                // null | 'crunch' | 'flow' | 'freeze'
     let area = 'lab';               // 'lab' | 'server' | 'snare' (game.js, `setArea`)
@@ -1462,7 +1462,20 @@
 
     // The bus level for the music volume, and each track's trim (`gain` on the style), all measured to the same
     // loudness (tools/audio; re-measure if a track changes).
-    const musicLevel = () => musicVolume * 0.55;
+    // `soft`: a screen may ask for the music to sit back (the rhythm run's pick card: soft background, loud preview).
+    let soft = 1;
+    const musicLevel = () => musicVolume * 0.55 * soft;
+    function setSoft(v, seconds = 0.25) { soft = Math.max(0, Math.min(1, Number(v))); if (!(soft >= 0)) soft = 1; if (music && ctx) music.bus.gain.setTargetAtTime(musicLevel(), ctx.currentTime, Math.max(0.01, seconds / 3)); }
+    // One pitched note of a played instrument (the rhythm run with the music off: each note you hit sounds). `lane`: 0
+    // the kick, 1 the bass, 2 the melody; `p`: its step in the scale. In the track's key, like every effect.
+    const PENT = [0, 3, 5, 7, 10];
+    function note(lane, p = 0, opts = {}) {
+        if (volume <= 0 || !ensure() || !live()) return;
+        const d = Math.round(p) || 0, midi = lane === 0 ? 33 : (lane === 1 ? 45 : 69) + PENT[((d % 5) + 5) % 5] + 12 * Math.floor(d / 5);
+        base = 0; startAt = ctx.currentTime;
+        tone({ f0: NOTE(midi), dur: lane === 0 ? 0.12 : lane === 1 ? 0.22 : 0.18, type: lane === 0 ? 'sine' : 'triangle', gain: lane === 0 ? 0.2 : 0.13, ...opts });
+        startAt = null;
+    }
     const styleTrim = () => { const st = styleOf(); return (simple ? st.simpleMix?.gain : st.gain) || 1; };
     // Changing track: tracks differ in tempo, so the old one fades out and the new one starts on a beat of its own
     // (the game calls `musicState` every tick, which starts it), never two grooves at once.
@@ -1776,6 +1789,6 @@
     // For tests (tests/audio.test.js): the song builders, and a look at the running music.
     const lab = { parseMelody, parseChord, buildSong, harmNote, melNote, songs: SONGS, music: () => music, clock: () => (clock ? { ...clock } : null), areaSongs: a => areaSongs(a), master: () => master, gridMul: () => gridMul(), scales: { AEOL, PHRY, DOR, HARM, ION } };
 
-    return { tick, setPolicy, get catalog() { return catalog(); }, lab, get voices() { return { ...voices }; }, get context() { return ctx; }, get faults() { return { ...faults }; }, get sounds() { return Object.keys(SOUNDS); }, play, held, setArea, setDepth, setTraining, songCmd, get song() { return songNow(); }, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
+    return { tick, setPolicy, get catalog() { return catalog(); }, lab, get voices() { return { ...voices }; }, get context() { return ctx; }, get faults() { return { ...faults }; }, get sounds() { return Object.keys(SOUNDS); }, play, held, setArea, setDepth, setTraining, songCmd, get song() { return songNow(); }, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, setSoft, note, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
     }
 })();

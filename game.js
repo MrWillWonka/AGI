@@ -82,7 +82,7 @@ window.AGI = (function () {
     const SFX_SIMPLE_KEY = 'agiSfxSimple';  // simple sounds only (per device)
     const SOUND_GROUPS = [['clicks', 'Workbench clicks'], ['buys', 'Purchases'], ['training', 'Training'], ['events', 'Celebrations'], ['ui', 'Interface']];
     const SOUND_GROUP_SAMPLE = { clicks: 'click', buys: 'buy', training: 'clean', events: 'achievement', ui: 'ui' };
-    const MUSIC_DEFAULT = '0.35';
+    const MUSIC_DEFAULT = '0.18';   // half of what it was (the owner's call, 2026-11-17: "a lot of the music is loud")
     function musicTick() {
         if (!window.SFX?.musicState) return;
         // Evals' rhythm run plays the music itself: its track's area, the beat on, and as much of the song as its meter has earned.

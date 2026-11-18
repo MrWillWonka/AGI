@@ -1199,3 +1199,23 @@ unlocks on only what you could build is offered. The picker shows the first time
 built and nothing picked) and from a **Starters** button beside Clear; **Blank** is one of the choices.
 `tests/course-starters.test.js` holds each to its step's parts and to being clearable. All courses and names mine.
 The rhythm run already starts from the game's songs.
+
+**Fixes from the owner's playtest, round 4 (2026-11-17): audio. I CANNOT HEAR ANY OF THIS: it is checked for running
+without faults, not for how it sounds.**
+- **The default music level is halved**, 35% to 18% (the owner's call). A device that has moved the slider keeps its own.
+- **Measured, the songs are already even**: `node tools/audio/survey.js owner-1117 --quick` puts all 30 between -33.4 and
+  -35.7 LUFS. What is far louder is everything at full intensity (the stress timeline: -16 to -25 LUFS, Soft the
+  loudest at -16.2), so "a couple tracks louder than others" is more likely a full arrangement than a song. Nothing
+  was changed for this; it is the owner's call whether full intensity should be held down.
+- **The rhythm run's pick card: soft background, loud preview** (the owner's call). `SFX.setSoft` (new) sits the music
+  back to 40% on the card; tapping a track brings it forward for 12 s, Listen for as long as it plays.
+- **Tapping a track now always changes the song.** It only told the engine when a board had been playing, so a second
+  track in the same area never started.
+- **A run with the music off sat for ever: fixed, twice over.** The run was created and then cleared by the next
+  line when there was no engine; and music at 0 was still read as an engine, which waited 6 s for a song. With the
+  music off **each note you hit sounds** (`SFX.note`, new: the kick low, the bass and the melody by the note's step in
+  the scale, in the track's key).
+- **Starts and stops are eased**: the music dips before the song is called and comes back under the count; it eases
+  back at the end of your run and on the result. **Falling apart is heard sooner**: the layers thin as the meter to
+  the power 1.8 (half a meter was half the layers, now under a third), a miss plays the game's error sound, and the
+  music drops back when the song falls. The owner kept the hit window and the meter's numbers as they are.

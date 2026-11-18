@@ -47,15 +47,19 @@
     let aimX = 0.5;
     const fieldHands = new Map(), aiHands = new Map();
     const xOf = e => { const r = canvas.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width))); };
-    const engine = () => { const sfx = window.SFX, lab = sfx && sfx.lab; return sfx && sfx.playing && lab && lab.clock && lab.clock() && lab.music() ? sfx : null; };
+    const SOFT = 0.4, PREVIEW_MS = 12000;   // how far back the music sits on the pick card, and how long a picked track is brought forward
+    let previewT = 0;
+    const soften = (v, s) => { try { window.SFX?.setSoft?.(v, s); } catch { /* no engine */ } };
+    function preview() { clearTimeout(previewT); soften(1, 0.3); previewT = setTimeout(() => { previewT = 0; if (dlg && dlg.open && mode === 'pick' && !listening) soften(SOFT, 1.2); }, PREVIEW_MS); }
+    const engine = () => { const sfx = window.SFX, lab = sfx && sfx.lab; return sfx && sfx.playing && sfx.musicVolume > 0 && lab && lab.clock && lab.clock() && lab.music() ? sfx : null; };   // (music at 0 is no engine: the run sat waiting for a song that never came)
     // Put the game's own song back once the engine is no longer needed for yours.
     function restore(tr = trackNow()) { if (!engineOwn) return; engineOwn = false; try { window.SFX.songCmd(tr ? { area: tr.area, song: tr.index, bar: Math.max(0, R().startBar(tr.song)) } : {}); } catch { /* no engine */ } }
     function listen(on) {
         const tr = trackNow(), sfx = engine();
         if (on && (!tr || !sfx)) { say('The music is off, so there is nothing to hear. Turn the music up in Settings and try again.'); return; }
         listening = on;
-        if (on) { liveSong = R().compose(tr.song, boardNow(tr)); engineOwn = true; sfx.songCmd({ area: tr.area, custom: liveSong, bar: 0 }); music = { area: tr.area, level: 0.85 }; }
-        else { restore(tr); music = { area: (tr || {}).area || 'lab', level: 0.4 }; }
+        if (on) { liveSong = R().compose(tr.song, boardNow(tr)); engineOwn = true; sfx.songCmd({ area: tr.area, custom: liveSong, bar: 0 }); music = { area: tr.area, level: 0.85 }; clearTimeout(previewT); soften(1, 0.3); }
+        else { restore(tr); music = { area: (tr || {}).area || 'lab', level: 0.4 }; soften(SOFT, 0.8); }
         toPick();
     }
     // The board changed: what you played before no longer counts, and a track being listened to changes as it plays.
@@ -118,7 +122,7 @@
                 window.CourseUnlocks.switchButton('rhythm'),
                 marksEl, el('button', { type: 'button', class: 'ghost-button evals-close', 'aria-label': 'Close Evals', text: '×', onclick: close })),
             el('div', { class: 'course-body rhythm-body' }, sayEl, pickEl, canvas, padEl, actionsEl));
-        dlg.addEventListener('close', () => { stop(); listening = false; cancelAnimationFrame(headRaf); headRaf = 0; restore(null); music = { area: 'lab', level: 0.4 }; });
+        dlg.addEventListener('close', () => { clearTimeout(previewT); soften(1, 0.6); stop(); listening = false; cancelAnimationFrame(headRaf); headRaf = 0; restore(null); music = { area: 'lab', level: 0.4 }; });
         const KEYS = { a: 0, s: 1, d: 2, j: 0, k: 1, l: 2, ArrowLeft: 0, ArrowDown: 1, ArrowRight: 2 }, heldKeys = {};
         // W slashes whichever slash is due (a mouse flick across the notes does too).
         dlg.addEventListener('keydown', e => { if (mode !== 'test' || e.repeat || (e.key !== 'w' && e.key !== 'W' && e.key !== 'ArrowUp')) return; e.preventDefault(); if (save.field) { press('w', 'slash', aimX); release('w'); return; } const l = dueLane('slash'); press(l, 'slash'); release(l); });
@@ -152,7 +156,7 @@
         const all = tracks(), tr = trackNow();
         if (!tr) { say('There is no music to play. The game\'s tracks did not load.'); actions(); return; }
         if (!save.own) listening = false;
-        if (!listening) { restore(tr); music = { area: tr.area, level: 0.4 }; }
+        if (!listening) { restore(tr); music = { area: tr.area, level: 0.4 }; if (!previewT) soften(SOFT, 1.2); }
         const can = window.CourseUnlocks.can;
         if (save.own && !can('board')) save.own = false;
         if (save.field && !can('field')) save.field = false;
@@ -161,7 +165,7 @@
         const notes = lvl => chartNow(lvl).filter(n => !n.free).length;
         const whose = (own, label) => el('button', { type: 'button', class: 'maze-tool' + (save.own === own ? ' on' : ''), 'aria-pressed': String(save.own === own), text: label, onclick: () => { if (save.own === own) return; save.own = own; yours = null; cellAt = null; keep(); toPick(); } });
         pickEl.replaceChildren(
-            el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'Track' }, ...all.map((t, i) => el('button', { type: 'button', class: 'maze-tool' + (i === save.track ? ' on' : ''), 'aria-pressed': String(i === save.track), text: t.name, onclick: () => { save.track = i; yours = null; cellAt = null; listening = false; keep(); toPick(); } }))),
+            el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'Track' }, ...all.map((t, i) => el('button', { type: 'button', class: 'maze-tool' + (i === save.track ? ' on' : ''), 'aria-pressed': String(i === save.track), text: t.name, onclick: () => { save.track = i; yours = null; cellAt = null; listening = false; keep(); toPick(); const t = trackNow(); engineOwn = false; try { if (t && engine()) window.SFX.songCmd({ area: t.area, song: t.index, bar: Math.max(0, R().startBar(t.song)) }); } catch { /* no engine */ } preview(); } }))),
             ...(can('board') ? [el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'Whose arrangement' }, whose(false, 'The song as written'), whose(true, 'Your board'))] : []),
             ...(!can('field') ? [] : [el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'How the notes arrive' }, ...[[false, 'Lanes'], [true, 'Whole field']].map(([f, label]) => el('button', { type: 'button', class: 'maze-tool' + (save.field === f ? ' on' : ''), 'aria-pressed': String(save.field === f), text: label, onclick: () => { if (save.field === f) return; save.field = f; yours = null; keep(); toPick(); } })))]),
             ...(save.own ? [boardView(tr)] : []),
@@ -182,13 +186,13 @@
         listening = false; cancelAnimationFrame(headRaf); headRaf = 0;
         if (!sel) pickSel();
         const sfx = engine();
-        audio = !!sfx;
-        music = { area: sel.area, level: 0.5 };
-        t0 = null; wait = performance.now();
+        audio = !!sfx; fellAt = 0;
+        music = { area: sel.area, level: 0.5 }; clearTimeout(previewT); previewT = 0;
+        soften(0.15, 0.2); setTimeout(() => { if (dlg.open && (mode === 'test' || mode === 'ai')) soften(1, 0.9); }, 350);
+        t0 = null; wait = performance.now(); run = null; chart = null;   // (cleared before the song is called: cleared after, a run with no engine was thrown away as it began and the screen sat)
         if (audio) { asked = sfx.lab.music().asked || 0; engineOwn = sel.own; sfx.songCmd(sel.own ? { area: sel.area, custom: sel.song, bar: 0 } : { area: sel.area, song: sel.index, bar: sel.from - 1 }); }
         else { stepLen = 60 / (sel.song.bpm || 120) / 4; start(performance.now() / 1000 + sel.song.steps * stepLen); }
         feed = by === 'ai' ? { events: hand.attempts[attempt].events.slice().sort((a, b) => a.t - b.t), i: 0 } : null;
-        run = null; chart = null;
         if (by === 'you' && save.field) { say(mouse() ? 'Aim with the mouse and click each note as it reaches the line; the spacebar hits too. Keep the button down on a long one and follow it as it slides. W, or a flick, for a slash.' : 'Tap each note where it reaches the line. Keep your finger on a long one and follow it as it slides. Swipe the diamonds. In a freestyle bar, tap a beat of your own.'); actions(button('Stop', () => toPick())); }
         else if (by === 'you') { say(mouse() ? 'A, S and D are the lanes; a click or the spacebar takes whichever note is due. Hold the long ones. W, or a flick of the mouse, for a slash. In a freestyle bar, play a beat of your own.' : 'Tap each note at the line and hold the long ones. Swipe the diamonds. In a freestyle bar, tap a beat of your own.'); actions(button('Stop', () => toPick())); }
         cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
@@ -241,6 +245,12 @@
     function release(lane) { if (mode !== 'test' || !run || run.state.over) return; show(run.release(lane, now())); }
     // What just happened, for the eye and the ear.
     // What just happened, for the eye and the ear: the word, the sparks, the packet sent on its way, the timing mark.
+    // The note a hit took: the nearest in time (in its lane, where the lanes are the instruments).
+    function hitNote(e) {
+        let pick = null;
+        for (const n of run.state.notes) { if (n.free || Math.abs(n.t - e.t) > 0.3 || (!save.field && n.lane !== e.lane)) continue; if (!pick || Math.abs(n.t - e.t) < Math.abs(pick.t - e.t)) pick = n; }
+        try { window.SFX?.note?.(pick ? pick.lane : typeof e.lane === 'number' ? e.lane : 2, pick ? pick.p || 0 : 0); } catch { /* no engine */ }
+    }
     function show(events) {
         const at = performance.now();
         for (const e of events) {
@@ -250,8 +260,8 @@
                 if (e.kind === 'hold') fx.push({ kind: 'sent', lane: e.lane, x: e.x, at, gold: !!e.gold });
                 if (e.off != null) { marks.push({ off: e.off, at, lane: e.lane }); if (marks.length > 18) marks.shift(); }
                 if (e.combo && [10, 25, 50, 75, 100].includes(e.combo)) fx.push({ kind: 'combo', n: e.combo, at });
-                if (who === 'you') window.SFX?.play?.('click', { res: SOUND[e.lane] });
-            } else if (e.type === 'miss') { pops.push({ lane: e.lane, x: e.x, text: 'MISS', at, good: false }); fx.push({ kind: 'miss', lane: e.lane, x: e.x, at }); }
+                if (who === 'you') { if (audio) window.SFX?.play?.('click', { res: SOUND[e.lane] }); else hitNote(e); }   // with the music off, each note you hit sounds (the owner's call)
+            } else if (e.type === 'miss') { window.SFX?.play?.('error'); pops.push({ lane: e.lane, x: e.x, text: 'MISS', at, good: false }); fx.push({ kind: 'miss', lane: e.lane, x: e.x, at }); }
             else if (e.type === 'slipped') pops.push({ lane: e.lane, x: e.x, text: 'SLIPPED', at: at + 1, good: false });
             else if (e.type === 'stray') pops.push({ lane: e.lane, x: e.x, text: '·', at, good: false });
             else if (e.type === 'flair') { pops.push({ lane: 1, text: 'NICE', at, good: true }); fx.push({ kind: 'flair', at }); }
@@ -271,15 +281,18 @@
             const t = now(), s = run.state;
             if (feed) while (feed.i < feed.events.length && feed.events[feed.i].t <= t && !s.over) { const e = feed.events[feed.i++]; if (e.x != null) { if (e.move || e.down) aiHands.set(e.lane, { x: Math.max(0, Math.min(1, e.x)), at: performance.now() }); else aiHands.delete(e.lane); } show(e.move ? run.move(e.lane, e.t, e.x) : e.down ? run.press(e.lane, e.t, e.kind, e.x) : run.release(e.lane, e.t)); }
             if (!s.over) show(run.advance(t));
-            music.level = s.failed ? 0 : 0.12 + 0.88 * s.meter;
+            music.level = s.failed ? 0 : 0.08 + 0.92 * Math.pow(s.meter, FALL);
+            if (s.failed && !fellAt) { fellAt = performance.now(); soften(0.25, 0.5); }
             draw();
             if (s.over || t > end + 0.6) { if (!s.over) run.advance(end + 1); return mode === 'test' ? testOver() : aiOver(); }
         } else draw();
         raf = requestAnimationFrame(frame);
     }
+    const FALL = 1.8;   // the meter's share of the song's layers: half a meter is under a third of the layers (it was half)
+    let fellAt = 0;
     function stop() { cancelAnimationFrame(raf); raf = 0; }
     function testOver() {
-        const r = R().result(run); padEl.hidden = true; mode = 'tested';
+        const r = R().result(run); padEl.hidden = true; mode = 'tested'; soften(SOFT, 1.5);   // the song eases back, it does not cut
         window.CourseUnlocks.log('courseTest', { kind: 'rhythm', ...window.CourseUnlocks.brief(r), built: `${sel.name}|${R().modeOf(save.level).key}|${save.field ? 'field' : 'lanes'}|${save.own ? 'board' : 'song'}` });
         if (r.finished) {
             yours = r;
@@ -322,7 +335,7 @@
         window.CourseUnlocks.log('courseAi', { kind: 'rhythm', cleared: top ? 1 : 0, marks, tries: hand.attempts.map(a => ((a.result || a).finished ? 'C' : 'F')).join(''), skipped: attempt < hand.attempts.length ? 1 : 0, ai: window.CourseUnlocks.brief(top), you: window.CourseUnlocks.brief(yours), built: `${sel.name}|${R().modeOf(save.level).key}|${save.field ? 'field' : 'lanes'}|${save.own ? 'board' : 'song'}` });
         if (top) { const news = window.CourseUnlocks.cleared('rhythm', window.CourseUnlocks.rhythmNames); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'rhythm'); }
         actions(button('Change the track', () => toPick(), true), button('Hand it over again', toAi));
-        music.level = 0.4; draw();
+        music.level = 0.4; soften(SOFT, 1.5); draw();
     }
 
     // Drawing (course-art.js for the ball, the orb and the theme's colours). Nothing here decides anything.
