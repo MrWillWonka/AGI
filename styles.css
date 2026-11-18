@@ -5035,3 +5035,46 @@ body.ring-device.device-phone.ai-in-lab #labRoom { padding-bottom: calc(140px + 
    values; it has a gutter of its own now. A window's × no longer wears a focus ring just for having opened on a phone. */
 .journal-body { padding-right: 12px; margin-right: -6px; scrollbar-gutter: stable; }
 @media (pointer: coarse) { dialog .win-x:focus-visible, dialog .evals-close:focus-visible, dialog .shop-close:focus-visible, dialog .feed-close:focus-visible, dialog .inbox-close:focus-visible { outline: none; } }
+
+/* ---- The owner's notes of 2026-11-18. ---- */
+/* The cracks: one layer over everything while the old screen lasts (game.js cracksTick keeps it on top of dialogs and
+   notices). The older three-line layers stand down wherever it is up; the scan lines and the dimness stay. */
+.device-cracks { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: none; overflow: hidden; pointer-events: none; transform: translateZ(0); }
+.device-cracks:not(:popover-open) { display: block; z-index: 3999; }
+.device-cracks svg { width: 100%; height: 100%; display: block; }
+.device-cracks::backdrop { display: none; }
+body.cracks-top.ring-device.screen-old::after, body.cracks-top.ring-device.screen-old dialog[open]::after, body.cracks-top .device-login[open]::after { background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px), rgba(0, 10, 12, 0.14); }
+/* The capture tip: a veil under the status strip, the button ringed, a line from it to the card, an example notice. */
+.capture-tip { position: fixed; inset: 0; z-index: 3300; background: rgba(2, 8, 9, 0.82); display: grid; align-content: center; justify-items: center; padding: 120px 16px 40px; }
+.capture-card { width: min(440px, 100%); padding: 18px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7); }
+.capture-card h2 { font: 700 1.15rem var(--font-display); margin-bottom: 8px; }
+.capture-card .dialog-actions { margin-top: 12px; }
+.capture-sample { position: fixed; top: calc(46px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); width: min(380px, calc(100% - 36px)); pointer-events: none; animation: none; }
+.capture-ring { position: fixed; z-index: 3450; border: 2px solid var(--primary); border-radius: 10px; box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 30%, transparent), 0 0 18px var(--primary); pointer-events: none; animation: capture-ring 1.3s ease-in-out infinite; }
+@keyframes capture-ring { 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--primary) 12%, transparent), 0 0 26px var(--primary); } }
+.capture-line { position: fixed; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.capture-line path { fill: none; stroke: var(--primary); stroke-width: 2; stroke-dasharray: 5 6; stroke-linecap: round; }
+@media (prefers-reduced-motion: reduce) { .capture-ring { animation: none; } }
+/* The home screen of a phone (the owner's sketch): the apps fill from the foot up in threes, Achievements, Mail, then
+   the rest; Achievements keeps its place empty until one is earned. The dock is Feedback, a space for the AI, Settings. */
+.home-icon.ghost { display: none; }
+@media (max-width: 640px) {
+    body.device-phone .home-icons { display: grid; grid-template-columns: repeat(3, 1fr); justify-items: center; align-content: start; padding: 10px 6px 14px; gap: 10px 4px; transform: scaleY(-1); flex: 1; }
+    body.device-phone .home-icons > .home-icon { transform: scaleY(-1); }
+    body.device-phone .home-icons > .home-icon.ghost { display: grid; visibility: hidden; }
+    body.device-phone .home-dock { align-self: stretch; display: grid; grid-template-columns: 1fr 76px 1fr; align-items: center; justify-items: center; gap: 0; padding: 6px 12px; }
+    body.device-phone .home-dock .home-icon { width: auto; }
+}
+.home-dock-ai { display: grid; place-items: center; width: 64px; min-height: 52px; }
+body:not(.device-phone) .home-dock-ai { display: none; }
+.home-dock-ai > .assist-dot { position: static; inset: auto; width: 50px; height: 50px; }
+/* The dock's AI row holds three; a pinned dock holds the AI itself (its mark on that row), so the handle under it goes. */
+.device-switch-aibtn { padding: 4px 6px; font-size: 0.8rem; }
+body.dock-pinned .device-homedot.is-ai { display: none !important; }
+body.ring-device.dock-pinned.ai-here .device-switch, body.ring-device.device-phone.dock-pinned.ai-here .device-switch { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+body.dock-pinned .device-switch-aimark { width: 34px; height: 34px; box-shadow: 0 0 10px color-mix(in srgb, var(--success) 45%, transparent); }
+.home-dock-ai > .assist-dot { position: relative; left: auto; top: auto; right: auto; bottom: auto; }
+/* While the playtest's two opening cards are up, the game's own notices wait out of sight (the example is the only one). */
+body.tip-up .device-notices { display: none; }
+.capture-sample { z-index: 1; }
+.home-icons .home-icon-journal .home-icon-name { overflow-wrap: normal; font-size: 0.7rem; letter-spacing: -0.01em; white-space: nowrap; }

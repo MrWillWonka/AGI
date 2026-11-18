@@ -2012,7 +2012,7 @@ window.AGI = (function () {
         snapBusy = false;
         // Tapping the notice opens a one-line note about it (the owner's call: a quick note, then back to playing).
         const said = ok ? 'Snapshot saved. Tap to add a quick note.' : 'The snapshot could not be saved.';
-        if (E.isRing()) deviceNotice('playtest', 'Playtest', said, () => { if (ok) quickNote(base, app); }); else toast('Playtest', ok ? 'Snapshot saved.' : said, 'info');
+        if (E.isRing()) deviceNotice('playtest', 'Feedback', said, () => { if (ok) quickNote(base, app); }); else toast('Playtest', ok ? 'Snapshot saved.' : said, 'info');
     }
     // The whole page as it stands, for a snapshot on a phone that can't photograph its own screen: the document with its
     // canvases turned into pictures and its form values written in, no scripts. tools/review/snap-page.js draws it.
@@ -2304,6 +2304,48 @@ window.AGI = (function () {
         snare: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="5 3"/><path d="M16 22l-5-11 5 3 5-3z" fill="currentColor"/></svg>',
         feed: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 27l9-12 5 6 4-5 8 11z" fill="currentColor"/><circle cx="21" cy="8" r="3" fill="currentColor"/></svg>'
     };
+    // The old screen's cracks (the owner, 2026-11-18: over everything, more of them and worse, like a real break): two
+    // impacts with jagged cracks running out to the edges, branches, broken rings round each hit and a crazed patch at
+    // its middle. Drawn once, from a fixed seed, so the break is the same every time. It is a popover so that it lies
+    // over dialogs and notices too; taps pass through it.
+    let cracks = null, cracksTop = '';
+    function cracksBuild() {
+        let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, W = 1000, H = 2000, parts = [];
+        const crack = (x, y, ang, len, w, depth) => {
+            let d = 'M' + x.toFixed(1) + ' ' + y.toFixed(1), a = ang, n = Math.max(3, Math.round(len / 55));
+            for (let i = 0; i < n; i++) { a += (rnd() - 0.5) * 0.5; const step = len / n * (0.7 + rnd() * 0.6); x += Math.cos(a) * step; y += Math.sin(a) * step; d += 'L' + x.toFixed(1) + ' ' + y.toFixed(1);
+                if (depth < 2 && rnd() < 0.3) crack(x, y, a + (rnd() < 0.5 ? 1 : -1) * (0.35 + rnd() * 0.6), len * (0.18 + rnd() * 0.3), w * 0.6, depth + 1); }
+            parts.push('<path d="' + d + '" stroke="rgba(0,0,0,0.55)" stroke-width="' + (w + 1.6).toFixed(1) + '" transform="translate(1.5 2)"/><path d="' + d + '" stroke="rgba(255,255,255,' + (0.16 + 0.3 / (depth + 1)).toFixed(2) + ')" stroke-width="' + w.toFixed(1) + '"/>');
+        };
+        const impact = (cx, cy, rays, reach, w) => {
+            const angs = []; for (let i = 0; i < rays; i++) angs.push((i + rnd() * 0.7) / rays * Math.PI * 2);
+            for (const a of angs) crack(cx, cy, a, reach * (0.45 + rnd() * 0.75), w * (0.7 + rnd() * 0.8), 0);
+            // broken rings: short chords between neighbouring rays, at a few distances from the hit
+            for (const r of [reach * 0.07, reach * 0.14, reach * 0.24, reach * 0.38]) for (let i = 0; i < angs.length; i++) { if (rnd() < 0.28) continue; const a1 = angs[i], a2 = angs[(i + 1) % angs.length] + (i === angs.length - 1 ? Math.PI * 2 : 0), r1 = r * (0.85 + rnd() * 0.3), r2 = r * (0.85 + rnd() * 0.3);
+                parts.push('<path d="M' + (cx + Math.cos(a1) * r1).toFixed(1) + ' ' + (cy + Math.sin(a1) * r1).toFixed(1) + 'L' + (cx + Math.cos(a2) * r2).toFixed(1) + ' ' + (cy + Math.sin(a2) * r2).toFixed(1) + '" stroke="rgba(255,255,255,0.3)" stroke-width="' + (w * 0.55).toFixed(1) + '"/>'); }
+            // the crazed middle: glass gone white
+            parts.push('<circle cx="' + cx + '" cy="' + cy + '" r="' + (reach * 0.055).toFixed(0) + '" fill="url(#crk)" stroke="none"/>');
+            for (let i = 0; i < 26; i++) { const a = rnd() * Math.PI * 2, r = rnd() * reach * 0.05, l = 6 + rnd() * 22, b = rnd() * Math.PI * 2, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+                parts.push('<path d="M' + x.toFixed(1) + ' ' + y.toFixed(1) + 'l' + (Math.cos(b) * l).toFixed(1) + ' ' + (Math.sin(b) * l).toFixed(1) + '" stroke="rgba(255,255,255,0.5)" stroke-width="1.2"/>'); }
+        };
+        impact(640, 1560, 12, 1500, 2.4);   // the big hit, low and right of centre
+        impact(120, 260, 9, 620, 1.9);      // a second, in the top corner
+        impact(930, 700, 6, 380, 1.5);      // and a chip on the right edge
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" fill="none" stroke-linecap="round" stroke-linejoin="round"><defs><radialGradient id="crk"><stop offset="0" stop-color="rgba(255,255,255,0.3)"/><stop offset="0.6" stop-color="rgba(255,255,255,0.12)"/><stop offset="1" stop-color="rgba(255,255,255,0)"/></radialGradient></defs>' + parts.join('') + '</svg>';
+        const node = el('div', { class: 'device-cracks', 'aria-hidden': 'true' });
+        try { node.setAttribute('popover', 'manual'); } catch { /* an old browser: it stays under dialogs */ }
+        node.innerHTML = svg;
+        return node;
+    }
+    function cracksTick(on) {
+        if (!on) { if (cracks) { try { cracks.hidePopover(); } catch { /* not open */ } cracks.remove(); cracks = null; cracksTop = ''; document.body.classList.remove('cracks-top'); } return; }
+        if (!cracks) { cracks = cracksBuild(); document.body.append(cracks); }
+        // On top again whenever something else has gone into the top layer since (a dialog, a notice).
+        const key = [...document.querySelectorAll('dialog[open], .device-notices:popover-open')].map(n => n.id || n.className).join('|') + '#' + document.querySelectorAll('.device-notice').length;
+        if (key === cracksTop && cracks.matches(':popover-open')) return;
+        cracksTop = key;
+        try { if (cracks.matches(':popover-open')) cracks.hidePopover(); cracks.showPopover(); document.body.classList.add('cracks-top'); } catch { /* no popovers: the page's own layer shows */ }
+    }
     let desk = null;
     function renderDesk() {
         const node = $('deskScreen');
@@ -2382,13 +2424,14 @@ window.AGI = (function () {
             // said earlier, "what is this?"). PLACEHOLDER words.
             const aiRow = el('div', { class: 'device-switch-row device-switch-ai' }, [
                 el('span', { class: 'device-switch-aimark', 'aria-hidden': 'true' }),
-                el('button', { type: 'button', class: 'device-switch-aibtn', text: 'What now?', onclick: () => { hideSwitch(true); const [text] = assistWhatNow(); pt('assistAsk', { now: 'dock' }); assist('whatNow', text, { again: true }); } }),
-                el('button', { type: 'button', class: 'device-switch-aibtn', text: 'Ask · earlier', onclick: () => { hideSwitch(true); assistSheetToggle(); } })]);
+                el('button', { type: 'button', class: 'device-switch-aibtn', text: 'Need help?', onclick: () => { hideSwitch(true); pt('assistAsk', { help: 'dock' }); assistSheetToggle(); } }),
+                el('button', { type: 'button', class: 'device-switch-aibtn', text: 'What next', onclick: () => { hideSwitch(true); const [text] = assistWhatNow(); pt('assistAsk', { now: 'dock' }); assist('whatNow', text, { again: true }); } }),
+                el('button', { type: 'button', class: 'device-switch-aibtn', text: 'Last tip', onclick: () => { hideSwitch(true); pt('assistAsk', { last: assistLastKey || '' }); const s = assistLastKey && assistSeen[assistLastKey]; if (s) assist(assistLastKey, s.text, { ...s.o, done: null, again: true }); else assist('lastNone', ASSIST_LINES.empty, { again: true }); } })]);
             aiRow.hidden = true; desk.aiRow = aiRow;
             sw.append(aiRow, appsRow, mainRow);
             mainRow.append(
                 pin,
-                switchButton('playtest', 'Playtest survey', HOME_ICONS.playtest, () => openSurvey()),
+                switchButton('playtest', 'Feedback', HOME_ICONS.playtest, () => openSurvey()),
                 desk.shopDock,
                 switchButton('home', 'Home screen', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>', () => goHome()),
                 switchButton('settings', 'Settings', HOME_ICONS.settings, () => $('settingsButton').click()),
@@ -2422,6 +2465,7 @@ window.AGI = (function () {
         cl.add('ring-device');
         cl.toggle('device-phone', device === 'phone'); cl.toggle('device-laptop', device !== 'phone');
         cl.toggle('screen-monitor', monitor); cl.toggle('screen-old', !monitor);
+        cracksTick(!monitor);
         // The lab's panels are the desktop's windows.
         if (!desk.titled) {
             const names = { Workbench: 'Compute', 'Hardware bench': 'Parts' };
@@ -2546,9 +2590,12 @@ window.AGI = (function () {
         // Settings, the Journal, Debug and the playtest survey are apps too (the owner's call), so they can be reached
         // from the home screen, which covers the top bar.
         const tools = [
-            icon('playtest', 'Playtest', () => openSurvey()),
+            icon('playtest', 'Feedback', () => openSurvey()),
             icon('settings', 'Settings', () => $('settingsButton').click()),
             icon('journal', 'Achievements', () => $('journalButton').click())];
+        // (The owner's sketch, 2026-11-18: Feedback and Settings on the dock, a space between them that the AI takes when
+        // it arrives; Achievements is an app beside Mail, there once one is earned.)
+        const aiSlot = el('div', { class: 'home-dock-ai' });
         const clock = el('span', { class: 'home-clock' });
         const bar = el('div', { class: 'home-bar-fill' });
         const popupText = el('p', { class: 'home-popup-text' });
@@ -2557,10 +2604,10 @@ window.AGI = (function () {
             el('div', { class: 'home-popup-title', text: 'Download' }), popupText, el('div', { class: 'home-bar' }, [bar]), el('div', { class: 'home-popup-actions' }, [popupOpen])]);
         const node = el('div', { class: 'device-home', id: 'deviceHome', hidden: '' }, [
             el('div', { class: 'home-status' }, [clock, el('span', { class: 'home-signal', text: '▂▄▆ 37%' })]),
-            el('div', { class: 'home-icons' }, [mail.button, lab.button, shopApp.button, snareApp.button, feedApp.button, trainApp.button, evalsApp.button]),
+            el('div', { class: 'home-icons' }, [tools[2].button, mail.button, lab.button, shopApp.button, snareApp.button, feedApp.button, trainApp.button, evalsApp.button]),
             popup,
             // The system apps sit in a row at the foot of the screen (the owner's call): a phone's dock, a laptop's shelf.
-            el('div', { class: 'home-dock' }, tools.map(t => t.button)),
+            el('div', { class: 'home-dock' }, [tools[0].button, aiSlot, tools[1].button]),
             el('div', { class: 'home-taskbar' }, [el('span', { class: 'home-start', text: '▦' }), el('span', { class: 'home-task', text: 'Mail' }), el('span', { class: 'home-taskbar-clock' })])]);
         // No zooming the home screen (the owner's call): iOS pinches and double-tap zooms are refused here, with
         // `touch-action: none` in styles.css for every other browser.
@@ -2569,7 +2616,7 @@ window.AGI = (function () {
         let lastTap = 0;
         node.addEventListener('touchend', e => { const now = Date.now(); if (now - lastTap < 320 && !e.target.closest('button')) e.preventDefault(); lastTap = now; }, { passive: false });
         document.body.append(node);
-        return { node, mail, lab, snare: snareApp, feed: feedApp, train: trainApp, shop: shopApp, evals: evalsApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
+        return { node, aiSlot, mail, lab, snare: snareApp, feed: feedApp, train: trainApp, shop: shopApp, evals: evalsApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
     }
     function renderHome() {
         if (!E.isRing()) return;
@@ -2588,6 +2635,7 @@ window.AGI = (function () {
         if (!home && !on) return;
         home = home || buildHome();
         if (home.node.hidden === on) home.node.hidden = !on;
+        home.tools[2].button.classList.toggle('ghost', !Object.keys(state.achievements).length);
         if (!on) return;
         const now = new Date(), time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         setText(home.clock, time); setText(home.clock2, time);
@@ -2898,7 +2946,7 @@ window.AGI = (function () {
     const aiLine = (key, old) => (E.isRing() ? `> ${ASSIST_LINES[key]}` : old);
     let assistRetry = 0;
     const assistSeen = {};   // this visit's lines with their pointing, for the assistant's panel to show again
-    let assistDot = null, assistSheet = null;
+    let assistDot = null, assistSheet = null, assistLastKey = '';
     // (The owner's calls, 2026-11-15.) 'float': the home screen, dragged anywhere. 'lab': the Lab is its home, the orb
     // at the top of the Lab with its lines under it (`aiHome`). 'mini': in a session (Packet Snare, The Feed, Training,
     // Parcel) it sits small in the status bar.
@@ -2910,6 +2958,7 @@ window.AGI = (function () {
         if (ASSIST_LINES[key]) text = o.sector == null ? ASSIST_LINES[key].replace(' for sector {sector}', '') : ASSIST_LINES[key].replace('{sector}', o.sector);
         assistSeen[key] = { text, o };
         if (!E.isRing() || (!o.again && state.intro['assist:' + key]) || assistLive?.key === key || assistQueue.some(q => q.key === key)) return;
+        if (!o.again && !key.startsWith('help:')) assistLastKey = key;   // (the dock's Last tip says it again)
         // A line you asked for comes now, ahead of whatever was waiting or showing.
         if (o.again) { assistQueue.unshift({ key, text, ...o }); if (assistLive) assistClose('replaced'); else assistNext(); return; }
         assistQueue.push({ key, text, ...o });
@@ -3052,7 +3101,7 @@ window.AGI = (function () {
             ...(shopOpenable() ? [el('button', { type: 'button', class: 'assist-ask assist-parcel', text: 'Open Parcel', onclick: () => { assistSheetToggle(); pt('assistAsk', { parcel: 1 }); openShop(); } })] : []),
             el('h4', { class: 'assist-sheet-title', text: 'Earlier' }),
             ...(past.length ? past.reverse() : [el('p', { class: 'assist-answer', text: ASSIST_LINES.empty })])]);
-        (assistMode === 'lab' ? document.body : assistDot.parentNode).append(assistSheet);
+        (assistMode === 'lab' || assistDot.parentNode === home?.aiSlot ? document.body : assistDot.parentNode).append(assistSheet);
         { const k = pageZoom(), d = (assistDot.getClientRects().length ? assistDot : desk?.dot || assistDot).getBoundingClientRect(), w = Math.min(440 * k, innerWidth - 20), below = innerHeight - d.bottom - 16, above = d.top - 16, under = below >= Math.min(320 * k, above) || below >= above;
             const st = assistSheet.style; st.margin = '0'; st.right = 'auto'; st.width = w / k + 'px'; st.maxWidth = 'none';
             st.left = Math.max(10, Math.min(innerWidth - w - 10, d.left + d.width / 2 - w / 2)) / k + 'px';
@@ -3069,10 +3118,10 @@ window.AGI = (function () {
             const place = (l, t) => { const z = pageZoom(), w = innerWidth, h = innerHeight; assistDot.style.left = Math.max(4, Math.min(w - 60, l)) / z + 'px'; assistDot.style.top = Math.max(40, Math.min(h - 70, t)) / z + 'px'; assistDot.style.right = 'auto'; assistDot.style.bottom = 'auto'; };
             const restore = assistDot._restore = () => { for (const p of ['left', 'top', 'right', 'bottom']) assistDot.style.removeProperty(p);
                 try { const at = JSON.parse(localStorage.getItem('agiAssistDot2') || 'null'); if (at && typeof at.x === 'number' && typeof at.y === 'number') place(at.x * innerWidth, at.y * innerHeight); } catch { /* private mode */ } };
-            restore();
+            if (!document.body.classList.contains('device-phone')) restore();
             let d = null;
             assistDot.addEventListener('pointerdown', e => { try { assistDot.setPointerCapture(e.pointerId); } catch { /* gone */ } const b = assistDot.getBoundingClientRect(); d = { x: e.clientX, y: e.clientY, l: b.left, t: b.top, moved: false }; });
-            assistDot.addEventListener('pointermove', e => { if (!d || assistMode !== 'float') return; const dx = e.clientX - d.x, dy = e.clientY - d.y; if (!d.moved && Math.hypot(dx, dy) < 8) return; d.moved = true; place(d.l + dx, d.t + dy); });
+            assistDot.addEventListener('pointermove', e => { if (!d || assistMode !== 'float' || document.body.classList.contains('device-phone')) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; if (!d.moved && Math.hypot(dx, dy) < 8) return; d.moved = true; place(d.l + dx, d.t + dy); });
             assistDot.addEventListener('pointerup', () => { const was = d; d = null; if (!was) return;
                 if (!was.moved) { assistSheetToggle(); return; }
                 const b = assistDot.getBoundingClientRect(); try { localStorage.setItem('agiAssistDot2', JSON.stringify({ x: b.left / innerWidth, y: b.top / innerHeight })); } catch { /* private mode */ } });
@@ -3083,10 +3132,11 @@ window.AGI = (function () {
         }
         const open = document.querySelectorAll('dialog[open]'), top = open.length ? open[open.length - 1] : null, mine = !top || top.matches('.feed-screen, .shop-screen, .evals-screen');
         const app = ringAppNow(), mode = top ? 'mini' : app === 'home' ? 'float' : app === 'lab' && aiHome?.isConnected ? 'lab' : 'mini';
-        const host = top && mine ? top : mode === 'lab' ? aiHome.firstChild : document.body;
+        const phone = document.body.classList.contains('device-phone');
+        const host = top && mine ? top : mode === 'lab' ? aiHome.firstChild : mode === 'float' && phone && home?.aiSlot ? home.aiSlot : document.body;
         if (assistDot.hidden === mine) { assistDot.hidden = !mine; if (!mine && assistSheet) assistSheetToggle(); }
         if (desk?.dot) { desk.dockHost(top && mine ? top : document.body); if (!desk.dot.classList.contains('is-ai')) { desk.dot.classList.add('is-ai'); desk.dot.setAttribute('aria-label', 'The assistant: the dock, and what it can tell you'); document.body.classList.add('ai-here'); } if (desk.aiRow.hidden) desk.aiRow.hidden = false; }
-        if (assistDot.parentNode !== host) { host.append(assistDot); if (assistSheet) (host === aiHome.firstChild ? document.body : host).append(assistSheet); }
+        if (assistDot.parentNode !== host) { host.append(assistDot); if (assistSheet) (host === aiHome.firstChild || host === home?.aiSlot ? document.body : host).append(assistSheet); }
         if (mode !== assistMode) {
             // Into the Lab the AI rises from the foot of the screen to its place and grows (the owner, 2026-11-18): the dock
             // takes the foot there, open, so there is one AI on screen and the way out is still to hand.
@@ -3096,7 +3146,7 @@ window.AGI = (function () {
                 try { assistDot.animate([{ transform: 'translate(' + dx + 'px, ' + dy + 'px) scale(' + k + ')' }, { transform: 'none' }], { duration: 620, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }); } catch { /* no animations: it is simply there */ } });
             assistMode = mode;
             assistDot.classList.toggle('docked', mode === 'lab'); assistDot.classList.toggle('mini', mode === 'mini');
-            if (mode === 'float') assistDot._restore(); else for (const p of ['left', 'top', 'right', 'bottom']) assistDot.style.removeProperty(p);
+            if (mode === 'float' && !phone) assistDot._restore(); else for (const p of ['left', 'top', 'right', 'bottom']) assistDot.style.removeProperty(p);
             if (assistSheet) assistSheetToggle();
         }
         // Its glow follows compute: weak on a new game, stronger as the run's compute grows, breathing while compute is coming in.
@@ -3210,7 +3260,7 @@ window.AGI = (function () {
         assistBox.classList.toggle('beside', !!beside);
         if (!beside) { for (const p of ['top', 'left', 'right', 'bottom', 'width']) st.removeProperty(p); return; }
         const k = pageZoom(), r = target.getBoundingClientRect(), w = Math.min(440 * k, innerWidth - 20), h = node.getBoundingClientRect().height || 90 * k;
-        const below = r.bottom + 16 + h <= innerHeight - 70 * k;
+        const below = r.bottom + 16 + h <= innerHeight - 70 * k && r.top + r.height / 2 < innerHeight * 0.5;   // (the apps fill from the foot of a phone now: its line goes over one down there, not onto the row under it)
         st.width = w / k + 'px'; st.right = 'auto'; st.bottom = 'auto';
         st.left = Math.max(10, Math.min(innerWidth - w - 10, r.left + r.width / 2 - w / 2)) / k + 'px';
         st.top = Math.max(50 * k, below ? r.bottom + 16 : r.top - 16 - h) / k + 'px';
@@ -3539,7 +3589,7 @@ window.AGI = (function () {
             text('broken', 'Did anything break or look wrong?'),
             text('more', 'Anything else?')]);
         const dlg = el('dialog', { class: 'dialog ring-welcome ring-survey', 'aria-labelledby': 'ringSurveyTitle' }, [
-            el('div', { class: 'win-head' }, [el('h2', { id: 'ringSurveyTitle', text: 'Playtest survey' }), el('button', { type: 'button', class: 'ghost-button win-x', 'aria-label': 'Close', text: '×', onclick: () => dlg.close() })]),
+            el('div', { class: 'win-head' }, [el('h2', { id: 'ringSurveyTitle', text: 'Feedback' }), el('button', { type: 'button', class: 'ghost-button win-x', 'aria-label': 'Close', text: '×', onclick: () => dlg.close() })]),
             el('p', { class: 'survey-lead', text: inboxOn ? 'Answer what you like. Your answers are saved in the playtest log, which is sent to your PC by itself.' : 'Answer what you like. Your answers are saved in the playtest log.' }),
             form,
             ...(inboxOn ? [(() => { const note = el('span', { class: 'survey-photos-note' }); const input = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', multiple: '', class: 'survey-photos-input', onchange: async () => { const files = [...input.files]; if (!files.length) return; note.textContent = 'Sending…'; const n = await inboxPhotos(files); note.textContent = `${n} of ${files.length} saved to your PC.`; input.value = ''; } });
@@ -14476,21 +14526,44 @@ window.AGI = (function () {
     }
     // The playtest note (the owner's call): once, before the sign-in, not a line under every mail.
     function showPlaytestNote(then) {
-        // What a playtester has to hand (the owner's call, 2026-11-18): said up front, shown once the playtest inbox answers.
-        const tools = el('ul', { class: 'playtest-tools', hidden: '' }, [
-            el('li', {}, [el('b', { text: '◉ at the top' }), ' saves a snapshot of what is on screen.']),
-            el('li', {}, [el('b', { text: 'Tap the notice' }), ' that follows to add a quick note. Your keyboard\'s mic works, so you can just say it.']),
-            el('li', {}, [el('b', { text: 'The Playtest app' }), ' is for longer thoughts, whenever you like.'])]);
-        const showTools = () => { if (inboxOn) tools.hidden = false; }; showTools(); setTimeout(showTools, 1500); setTimeout(showTools, 4000);
+        // (The owner's order, 2026-11-18: the sign-in, then this thank-you, then the capture tip, then the home screen.)
         const dlg = el('dialog', { class: 'dialog ring-welcome ring-playtest', 'aria-labelledby': 'ringPlaytestTitle' }, [
             el('h2', { id: 'ringPlaytestTitle', text: 'Thanks for playtesting' }),
             el('p', { text: 'This is a work in progress. The story isn\'t finished and the numbers are still being tuned.' }),
-            el('p', { text: 'As you play, note anything that drags, confuses you or breaks. Settings has a playtest log you can copy and send.' }),
-            tools,
-            el('div', { class: 'dialog-actions' }, [el('button', { type: 'button', class: 'button', text: 'Start', onclick: () => dlg.close() })])]);
-        dlg.addEventListener('close', () => { state.intro['ring:playtestNote'] = true; dlg.remove(); save(); then(); });
+            el('p', { text: 'As you play, note anything that drags, confuses you or breaks.' }),
+            el('div', { class: 'dialog-actions' }, [el('button', { type: 'button', class: 'button', text: 'Next', onclick: () => dlg.close() })])]);
+        dlg.addEventListener('cancel', e => e.preventDefault());
+        dlg.addEventListener('close', () => { dlg.remove(); const end = () => { document.body.classList.remove('tip-up'); state.intro['ring:playtestNote'] = true; save(); then(); }; if (inboxOn && desk?.status) captureTip(end); else end(); });
+        document.body.classList.add('tip-up');
         document.body.append(dlg);
         dlg.showModal();
+    }
+    // The second card (the owner's call, 2026-11-18): the capture button lit, a line drawn to it, and an example of the
+    // notice it leaves, so a playtester has seen both before the game starts. Not a dialog: the status strip and its
+    // button have to show over it. PLACEHOLDER words.
+    function captureTip(then) {
+        const snap = desk.status.snap, was = snap.hidden; snap.hidden = false;
+        const veil = el('div', { class: 'capture-tip' });
+        const ring = el('span', { class: 'capture-ring', 'aria-hidden': 'true' });
+        const NS = 'http://www.w3.org/2000/svg', line = document.createElementNS(NS, 'svg'), path = document.createElementNS(NS, 'path'); line.setAttribute('class', 'capture-line'); line.setAttribute('aria-hidden', 'true'); line.append(path);
+        const art = el('span', { class: 'device-notice-art' }); art.innerHTML = HOME_ICONS.playtest;
+        const sample = el('div', { class: 'device-notice capture-sample', 'aria-hidden': 'true' }, [art, el('span', { class: 'device-notice-app', text: 'Feedback' }), el('span', { class: 'device-notice-text', text: 'Snapshot saved. Tap to add a quick note.' })]);
+        const card = el('div', { class: 'capture-card', role: 'dialog', 'aria-labelledby': 'captureTipTitle' }, [
+            el('h2', { id: 'captureTipTitle', text: 'See something? Capture it' }),
+            el('ul', { class: 'playtest-tools' }, [
+                el('li', {}, [el('b', { text: 'The ◉ button' }), ' at the top saves what is on screen.']),
+                el('li', {}, [el('b', { text: 'Tap the notice' }), ' that drops in, like the one above, to add a quick note. Your keyboard\'s mic works, so you can just say it.']),
+                el('li', {}, [el('b', { text: 'The Feedback app' }), ' is for longer thoughts, whenever you like.'])]),
+            el('div', { class: 'dialog-actions' }, [el('button', { type: 'button', class: 'button', text: 'Next', onclick: () => done() })])]);
+        veil.append(line, sample, card, ring);
+        const place = () => { const k = pageZoom(), r = snap.getBoundingClientRect(), c = card.getBoundingClientRect(); if (!r.width) return;
+            ring.style.left = (r.left - 6) / k + 'px'; ring.style.top = (r.top - 6) / k + 'px'; ring.style.width = (r.width + 12) / k + 'px'; ring.style.height = (r.height + 12) / k + 'px';
+            line.setAttribute('viewBox', '0 0 ' + innerWidth + ' ' + innerHeight); line.style.width = innerWidth / k + 'px'; line.style.height = innerHeight / k + 'px';
+            const x1 = r.left + r.width / 2, y1 = r.bottom + 8, x2 = Math.min(c.right - 40, Math.max(c.left + 40, x1)), y2 = c.top;
+            path.setAttribute('d', 'M' + x1 + ' ' + y1 + 'V' + (y1 + (y2 - y1) * 0.5) + 'Q' + x1 + ' ' + (y2 - 10) + ' ' + x2 + ' ' + y2); };
+        const timer = setInterval(place, 300);
+        const done = () => { clearInterval(timer); veil.remove(); if (was && !inboxOn) snap.hidden = true; pt('captureTip', {}); then(); };
+        document.body.append(veil); place(); requestAnimationFrame(place);
     }
     // The device's mail sign-in, the first thing a new game under the ring shows: a first name and an email name. The
     // device is a phone on a phone and the laptop otherwise, and stays what it was. Nothing typed here is logged.
@@ -14519,9 +14592,10 @@ window.AGI = (function () {
             pt('login', { device });
             dlg.close(); dlg.remove();
             save();
-            // The home screen is where a new game starts; Mail is on it.
+            // The home screen is where a new game starts; Mail is on it. The playtest's two cards come first, over it.
             renderDesk();
             renderHome();
+            if (!state.intro['ring:playtestNote']) showPlaytestNote(() => {});
         });
         document.body.append(dlg);
         dlg.showModal();
@@ -14848,7 +14922,7 @@ window.AGI = (function () {
         if (RING_PLAY) straightToRing();
         deliverMail(true);
         // The ring: a new game opens on the sign-in and then the device's home screen (Mail is opened from there).
-        if (!introDone()) { if (!E.isRing()) openInbox(); else if (!state.player.email) { if (state.intro['ring:playtestNote']) showLogin(); else showPlaytestNote(showLogin); } }
+        if (!introDone()) { if (!E.isRing()) openInbox(); else if (!state.player.email) showLogin(); else if (!state.intro['ring:playtestNote']) showPlaytestNote(() => {}); }
     }
     // The playground link: the ring with every app open. Done once to a save (`ring:playground`): signed in as a
     // tester, the opening read and the offer taken, the desk and the server bought and paid for, Parcel, Packet Snare,
