@@ -1219,3 +1219,8 @@ without faults, not for how it sounds.**
   back at the end of your run and on the result. **Falling apart is heard sooner**: the layers thin as the meter to
   the power 1.8 (half a meter was half the layers, now under a third), a miss plays the game's error sound, and the
   music drops back when the song falls. The owner kept the hit window and the meter's numbers as they are.
+
+**A fault of mine in round 4, fixed in the next commit:** the new `SFX.note` was written as a function called `note`,
+which took the place of the engine's own `note` inside sfx.js, so held jobs played their figure three times too fast
+(`tests/audio.test.js` caught it). Commit 9ac9271 went to main with that test failing, because my commit step did not
+stop on a failed test; it was live on main and the play server for about ten minutes. It is `laneNote` now.
