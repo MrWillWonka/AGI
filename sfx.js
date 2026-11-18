@@ -917,7 +917,7 @@
     function buildSpace(sp, dest) {
         const s = { nodes: [] };
         if (!sp) return s;
-        if (sp.reverb) {
+        if (sp.reverb && !LIGHT) {
             const inp = ctx.createGain(), conv = ctx.createConvolver(), out = ctx.createGain();
             conv.buffer = impulse(sp.reverb);
             out.gain.value = sp.reverb.level ?? 0.3;
@@ -1029,7 +1029,12 @@
     // Voices are counted (`voices`), and a voice marked `low` (decoration: doublings, arpeggios) is dropped while
     // the count is over `VOICE_SOFT`: the tune and the beat always play.
     const voices = { music: 0, peak: 0 };
-    const VOICE_SOFT = env.phone ? 70 : 120;
+    // On a phone the music is made lighter for the device (the owner's go-ahead, 2026-11-17, after crackle in the music on
+    // an iPhone that could not be reproduced or measured elsewhere; A GUESS AT THE CAUSE, not a finding): no reverb (a
+    // convolver is the heaviest node there is; the delay stays), no panner a voice, and decoration dropped sooner.
+    // (`VOICE_SOFT` read `env.phone`, which only tools set, so a real phone never had the lower count it was written for.)
+    const LIGHT = env.light ?? PHONE;
+    const VOICE_SOFT = LIGHT ? 45 : 120;
     function count(node) {
         voices.music++;
         if (voices.music > voices.peak) voices.peak = voices.music;
@@ -1039,7 +1044,7 @@
         if (!music) return;
         const g = ctx.createGain();
         let tail = g;
-        if (o && o.pan && ctx.createStereoPanner && !simple) {
+        if (o && o.pan && ctx.createStereoPanner && !simple && !LIGHT) {
             const p = ctx.createStereoPanner();
             p.pan.value = Math.max(-1, Math.min(1, o.pan * (styleOf().space?.width ?? 1)));
             g.connect(p);
@@ -1585,7 +1590,7 @@
     // behind, the furthest behind it was, and the longest wait between two turns of the scheduler (seconds). `takeTiming`
     // hands them to the playtest log with what the device's audio is doing, and starts the count again.
     const timing = { skipped: 0, worst: 0, tick: 0 };
-    function takeTiming() { const out = { skipped: timing.skipped, worst: timing.worst, tick: timing.tick, peak: voices.peak, music: voices.music, rate: ctx ? ctx.sampleRate : 0, lat: ctx ? (ctx.outputLatency || ctx.baseLatency || 0) : 0, state: ctx ? ctx.state : 'none', faults: faults.count }; timing.skipped = 0; timing.worst = 0; timing.tick = 0; return out; }
+    function takeTiming() { const out = { skipped: timing.skipped, worst: timing.worst, tick: timing.tick, peak: voices.peak, music: voices.music, rate: ctx ? ctx.sampleRate : 0, lat: ctx ? (ctx.outputLatency || ctx.baseLatency || 0) : 0, state: ctx ? ctx.state : 'none', faults: faults.count, light: LIGHT ? 1 : 0 }; timing.skipped = 0; timing.worst = 0; timing.tick = 0; return out; }
     function schedule() {
         if (!music || !live() || (!env.offline && document.hidden)) return;
         const now = ctx.currentTime;

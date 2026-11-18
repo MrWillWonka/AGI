@@ -151,7 +151,7 @@ window.AGI = (function () {
     // an `audio` line at the moment the music skips or the page stalls a quarter of a second, saying where and whether
     // the AI was speaking.
     let stallLast = performance.now(), stallMax = 0, audioSaidAt = 0, skippedSeen = 0;
-    const audioNote = () => { const t = window.SFX?.takeTiming?.(); const gap = Math.round(stallMax); stallMax = 0; skippedSeen = 0; return t ? { sk: t.skipped, late: r2(t.worst), tick: r2(t.tick), v: t.peak, hz: t.rate, lat: Math.round(t.lat * 1000), st: t.state, f: t.faults, gap } : { gap }; };
+    const audioNote = () => { const t = window.SFX?.takeTiming?.(); const gap = Math.round(stallMax); stallMax = 0; skippedSeen = 0; return t ? { sk: t.skipped, late: r2(t.worst), tick: r2(t.tick), v: t.peak, hz: t.rate, lat: Math.round(t.lat * 1000), st: t.state, f: t.faults, light: t.light, gap } : { gap }; };
     setInterval(() => {
         const now = performance.now(), gap = now - stallLast; stallLast = now;
         if (document.hidden) return;

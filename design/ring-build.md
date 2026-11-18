@@ -1365,3 +1365,12 @@ hear. I cannot hear the phone or make a desktop browser do what it does. **Added
 - `AGI.debug.say(text)` makes the AI say a line, to try it on the device.
 If a garble comes with no `audio` line and `sk` 0, the cause is not the page falling behind: then the suspects are
 the phone's own audio thread under the orb's animated filters, or iOS's audio after an interruption.
+
+**The music is lighter on a phone (the owner's go-ahead, 2026-11-17, to the crackle in the music on the iPhone). A GUESS
+AT THE CAUSE, not a finding.** On a touch device (`sfx.js` `LIGHT`): no reverb (no convolver, for the music or the
+effects; the delay stays), no panner a voice, and decoration voices dropped from 45 at once, not 120. Measured in a
+browser as a phone against a desktop over eight seconds of full music: 0 convolvers and 1 panner against 1 and 28.
+**It changes how the music sounds on a phone: drier and narrower.** A desktop, the tests and the offline renders are
+untouched. Found on the way: the lower voice count for phones (70) had never applied on a real phone, because it
+read a flag only the tools set. The log's `au` says `light: 1` where this is on. If the crackle goes, put the reverb
+back in a cheaper form; if it does not, take this out and look at the phone's audio session.
