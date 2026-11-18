@@ -98,7 +98,7 @@
         }
         return { state: s, world: w, act };
     }
-    const result = (run, o = MAZE) => { const s = run.state; return { finished: s.finished, failed: s.failed, ticks: s.n, time: s.n * o.tick, points: s.points, route: s.route.slice(), at: s.at.slice(), acts: s.acts.slice() }; };
+    const result = (run, o = MAZE) => { const s = run.state; return { finished: s.finished, failed: s.failed, spared: s.spared, ticks: s.n, time: s.n * o.tick, points: s.points, route: s.route.slice(), at: s.at.slice(), acts: s.acts.slice() }; };
     function simulate(maze, acts, o = MAZE) {
         const run = createRun(maze, o);
         for (let i = 0; i < acts.length && !run.state.over; i++) run.act(acts[i]);
@@ -180,14 +180,21 @@
         if (!r || (!p.possible && !yours.finished)) return { attempts: [], score: null, impossible: true };
         const waits = yours.at.map((t, i) => (i ? t - yours.at[i - 1] - 1 : 0)).slice(1), fixes = {}, attempts = [];
         const unseen = stage(a.mastery || 0, o) >= 3 ? 1 : o.unseen;
-        let top = null;
+        let top = null, honest = null;
+        const cheatRand = rng(((a.seed || 0) ^ 0x51ed270b) >>> 0);
         for (let k = 0; k < (a.tries || o.tries); k++) {
             const acts = aiActs(maze, r, waits, { seed: (a.seed + k * 7919) >>> 0, mastery: a.mastery, fixes, unseen, plan: p }, o), res = simulate(maze, acts, o);
+            // A cheat (design/evals-course.md, "The AI cheats"): caught by a hazard, it may walk the same steps again and
+            // not be caught, once. `a.cheat`: how likely. The attempt is marked; `honest` is its best without one.
+            if (!res.finished && res.failed && res.failed.type !== 'time' && a.cheat > 0 && cheatRand() < a.cheat) {
+                const bent = simulate(maze, acts, Object.assign({}, o, { lives: 1 }));
+                if (bent.finished && bent.spared) { attempts.push({ acts, result: bent, cheat: { tick: bent.spared.tick, type: bent.spared.type } }); if (!top || bent.ticks < top.ticks) top = bent; if (k >= 1) break; continue; }
+            }
             attempts.push({ acts, result: res });
-            if (res.finished) { if (!top || res.ticks < top.ticks) top = res; if (k >= 1) break; }
+            if (res.finished) { if (!honest || res.ticks < honest.ticks) honest = res; if (!top || res.ticks < top.ticks) top = res; if (k >= 1) break; }
             else if (res.failed) { const at = Math.max(0, res.failed.step - 1); fixes[at] = (fixes[at] || 0) + 1; }
         }
-        return { attempts, score: top, route: r };
+        return { attempts, score: top, honest, route: r };
     }
     // What it pays: Marks for the points it got past, times how its time compares with yours (or its own best).
     function marksFor(res, refTime, o = MAZE) {

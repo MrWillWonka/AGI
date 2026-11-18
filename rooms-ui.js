@@ -11,6 +11,7 @@
     const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
     const skills = () => (window.CourseUnlocks.on ? window.CourseUnlocks.levelOf('rooms') : location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
     const O = () => window.CourseTree.room(R().ROOM);   // the rules as the tree has changed them: grace at a ledge, the AI's take-off
+    const stageNow = () => R().stage(masteryNow());
     const masteryNow = () => R().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min(skills(), 20));
     const secs = t => t.toFixed(1) + ' s';
     const roomKey = () => save.room.map(k => (k ? k[0] + k[1] : '-')).join('');
@@ -95,12 +96,13 @@
     function toAi() {
         if (!yours) return;
         stop(); mode = 'ai'; toolsEl.hidden = true; padEl.hidden = true;
-        hand = R().handOver(save.room, yours, { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow(), tries: R().ROOM.tries + window.CourseTree.tries() }, O());
+        hand = R().handOver(save.room, yours, { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow(), tries: R().ROOM.tries + window.CourseTree.tries(), cheat: window.CourseCheat.rate('rooms', stageNow()) }, O());
         if (!hand.attempts.length) { say('I do not think anyone can do this one.'); actions(button('Change it', () => toBuild(), true)); mode = 'tested'; draw(); return; }
-        attempt = 0; actions(button('Skip to the result', aiResult)); aiStart();
+        attempt = 0; actions(button('Skip to the result', aiResult), ...(window.CourseCheat.can('rooms', stageNow()) ? [button('Flag', flag)] : [])); aiStart();
     }
+    const bent = k => (hand.attempts[k].cheat ? { ...O(), immune: 1 } : O());   // a cheated try is replayed under the rule it broke
     function aiStart() {
-        run = R().createRun(save.room, O()); feed = { inputs: hand.attempts[attempt].inputs, i: 0 };
+        flagK = attempt; run = R().createRun(save.room, bent(attempt)); feed = { inputs: hand.attempts[attempt].inputs, i: 0 };
         startAt = performance.now() + 350;
         say(`Attempt ${attempt + 1} of ${hand.attempts.length}.`);
         go();
@@ -111,8 +113,14 @@
         attempt++;
         setTimeout(() => { if (mode !== 'ai') return; if (attempt < hand.attempts.length) aiStart(); else aiResult(); }, 750);
     }
+    // Flag: you saw it break a rule (course-cheat.js). Right as it happens is a strike and a bounty; wrong costs a little.
+    let flagK = 0;
+    function flag() { if (mode !== 'ai' || !hand) return; const c = hand.attempts[flagK] && hand.attempts[flagK].cheat; say(window.CourseCheat.flag(hand, flagK, !!c && (run && run.state.n >= c.n))); }
+    // One clip: the moment a try cheated.
+    function reviewCheat(k) { const c = hand.attempts[k].cheat; clips = [{ k, from: Math.max(0, c.n - 60), why: `Try ${k + 1}: the moment` }]; clipI = 0; mode = 'review'; actions(button('Back to the result', resultCard, true)); clipStart(); }
     function aiResult() {
         stop(); mode = 'result';
+        if (window.CourseCheat.judge('rooms', hand, { say, actions, button, again: aiResult, replay: reviewCheat, best: list => list.reduce((a, b) => (!a || b.steps < a.steps ? b : a), null), did: c => `went through ${WHAT[c.type] || 'a hazard'} unharmed` })) { run = null; return; }
         const key = roomKey(), ref = (yours.finished && yours.time) || save.times[key] || 0, top = hand.score, marks = window.CourseTree.payOut('rooms', R().marksFor(top, ref), { cleared: !!top, key }), tries = hand.attempts.length;
         save.runs++;
         if (top) save.times[key] = Math.min(save.times[key] || Infinity, top.time);
@@ -125,7 +133,8 @@
         if (!top && marks) sayEl.textContent += ` Partial credit: ${marks} Marks.`;
         window.CourseUnlocks.log('courseAi', { kind: 'rooms', cleared: top ? 1 : 0, marks, tries: hand.attempts.map(a => ((a.result || a).finished ? 'C' : 'F')).join(''), skipped: attempt < hand.attempts.length ? 1 : 0, ai: window.CourseUnlocks.brief(top), you: window.CourseUnlocks.brief(yours), built: window.CourseUnlocks.parts(save.room) });
         if (top) { const news = window.CourseUnlocks.cleared('rooms', lvl => R().palette(lvl).map(k => R().TILES[k].name)); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'rooms'); }
-        hand.text = sayEl.textContent; resultCard();
+        if (hand.notes) sayEl.textContent += ' ' + hand.notes;
+        header(); hand.text = sayEl.textContent; resultCard();
     }
     // Reviewing a hand-over from its result (the owner's calls, 2026-11-17: "a mini highlight reel with notable misses
     // or successes", "the option to review on the end card"): the highlights are each fail at the moment it fails and
@@ -133,6 +142,7 @@
     let clips = null, clipI = 0;
     const TAIL = 110;   // how much of an attempt a highlight shows, in the rules' own steps
     function resultCard() {
+        if (!hand.text) return aiResult();   // (back from replaying a cheat before the choice was made)
         stop(); mode = 'result'; clips = null; sayEl.textContent = hand.text;
         actions(button('Change the room', () => toBuild(), true), button('Hand it over again', toAi), button('Highlights', () => review(false)), button('Watch it all', () => review(true)));
         run = null; go();
@@ -152,7 +162,7 @@
     function clipOver() { clipI++; setTimeout(() => { if (mode !== 'review') return; if (clipI < clips.length) clipStart(); else resultCard(); }, 700); }
     function clipStart() {
         const c = clips[clipI], a = hand.attempts[c.k];
-        run = R().createRun(save.room, O()); for (let i = 0; i < c.from && !run.state.over; i++) run.step(a.inputs[i]);
+        run = R().createRun(save.room, bent(c.k)); for (let i = 0; i < c.from && !run.state.over; i++) run.step(a.inputs[i]);
         feed = { inputs: a.inputs, i: c.from }; attempt = c.k; startAt = performance.now() + 350;
         say(`${c.why}. (${clipI + 1} of ${clips.length})`);
         go();

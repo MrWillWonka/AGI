@@ -135,7 +135,7 @@
             el('ul', {}, rows),
             el('div', { class: 'course-actions' },
                 el('button', { type: 'button', class: 'evals-go', text: state.on ? 'Turn unlocks off' : 'Turn unlocks on', onclick: () => { state.on = !state.on; keep(); log('unlocks', { on: state.on ? 1 : 0 }); reopen(); } }),
-                ...(state.on ? [el('button', { type: 'button', class: 'ghost-button evals-extra', text: 'Start the unlocks over', onclick: () => { state = Object.assign(blank(), { on: true }); keep(); log('unlocks', { over: 1 }); for (const k of ORDER) set(SAVES[k] + '.u', null); set('agiCourseTree.u', null); if (root.CourseTree) root.CourseTree.forget(); reopen(); } })] : []),
+                ...(state.on ? [el('button', { type: 'button', class: 'ghost-button evals-extra', text: 'Start the unlocks over', onclick: () => { state = Object.assign(blank(), { on: true }); keep(); log('unlocks', { over: 1 }); for (const k of ORDER) set(SAVES[k] + '.u', null); set('agiCourseTree.u', null); set('agiCourseCheat.u', null); if (root.CourseTree) root.CourseTree.forget(); if (root.CourseCheat) root.CourseCheat.forget(); reopen(); } })] : []),
                 el('button', { type: 'button', class: 'ghost-button evals-extra', text: 'Close', onclick: () => card.close() })));
         if (!card.open) card.showModal();
     }

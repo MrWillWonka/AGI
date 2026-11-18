@@ -20,6 +20,7 @@
         spikeTop: 0.55, spikeIn: 0.2,   // a spike fills its tile below this far from the top, and this far in from each side
         near: 3,                 // a hazard counts as got past when you cross its middle within this many tiles of it
         horizon: 60 * 45, stuck: 60 * 8,
+        immuneSteps: 45,         // steps nothing can stop a run after it has passed through a hazard unharmed (the AI's cheat)
         // The AI: how far off (tiles) its take-off is at first, how often it misjudges a saw, both less with mastery
         // and halved at a jump each time it has failed there; and how much of your standing about it copies.
         sigma: 0.42, err: 0.35, tries: 4, masteryRuns: 6, stage2: 0.35, stage3: 0.75, unseen: 2,
@@ -65,10 +66,13 @@
     // A run. `step({ dir: -1 | 0 | 1, jump: bool })` once a physics step. y grows downward; (x, y) is the middle of the feet.
     function createRun(room, o = ROOM, from) {
         const hz = hazards(room, o), saws = hz.filter(h => h.kind === 'saw');
-        const s = from ? JSON.parse(JSON.stringify(from)) : { n: 0, x: 0.5, y: o.rows - 1, vy: 0, ground: true, coy: 0, buf: 0, held: false, over: false, finished: false, failed: null, points: 0, done: {}, stood: [], bounced: 0, boost: -1 };
+        const s = from ? JSON.parse(JSON.stringify(from)) : { n: 0, x: 0.5, y: o.rows - 1, vy: 0, ground: true, coy: 0, buf: 0, held: false, over: false, finished: false, failed: null, points: 0, done: {}, stood: [], bounced: 0, boost: -1, immune: o.immune || 0, safe: 0, spared: null };
         const under = (x, y) => { const cy = Math.round(y), c = Math.floor(x); if (solid(room, c, cy, o)) return id(c, cy, o); for (const e of [Math.floor(x - o.w / 2 + 0.001), Math.floor(x + o.w / 2 - 0.001)]) if (solid(room, e, cy, o)) return id(Math.max(0, Math.min(o.cols - 1, e)), cy, o); return -1; };
         const stand = t => { if (t >= 0 && (!s.stood.length || s.stood[s.stood.length - 1].t !== t)) s.stood.push({ t, n: s.n }); };
         const fail = type => { s.over = true; s.failed = { type, x: s.x, y: s.y, n: s.n }; };
+        // A spike or a saw: it ends the run, unless the run is immune (`o.immune`, the AI's cheat): then the first one is
+        // passed through, and nothing can stop it for `immuneSteps` after.
+        const kill = type => { if (s.safe > 0) return false; if (s.immune > 0) { s.immune--; s.safe = o.immuneSteps; s.spared = { type, n: s.n, x: s.x, y: s.y }; return false; } fail(type); return true; };
         if (!from) stand(under(s.x, s.y));
         function step(input) {
             if (s.over) return;
@@ -109,8 +113,9 @@
                 s.ground = false; s.y = ny;
             }
             // What kills, and what has been got past.
-            for (let cy = Math.floor(s.y - o.h + 0.001); cy <= Math.floor(s.y - 0.001); cy++) for (let cx = a; cx <= b; cx++) if (at(room, cx, cy, o) === 'spike' && s.y > cy + o.spikeTop && s.x + o.w / 2 > cx + o.spikeIn && s.x - o.w / 2 < cx + 1 - o.spikeIn) return fail('spike');
-            for (const h of saws) { const p = sawAt(h, s.n, o); if (Math.hypot(p.x - s.x, p.y - (s.y - o.h / 2)) < o.sawR + 0.3) return fail('saw'); }
+            for (let cy = Math.floor(s.y - o.h + 0.001); cy <= Math.floor(s.y - 0.001); cy++) for (let cx = a; cx <= b; cx++) if (at(room, cx, cy, o) === 'spike' && s.y > cy + o.spikeTop && s.x + o.w / 2 > cx + o.spikeIn && s.x - o.w / 2 < cx + 1 - o.spikeIn) { if (kill('spike')) return; }
+            for (const h of saws) { const p = sawAt(h, s.n, o); if (Math.hypot(p.x - s.x, p.y - (s.y - o.h / 2)) < o.sawR + 0.3) { if (kill('saw')) return; } }
+            if (s.safe > 0) s.safe--;
             if (s.y > o.rows + 0.6) return fail('pit');
             for (const h of hz) { const mid = h.cx + 0.5; if (!s.done[h.i] && (x0 - mid) * (s.x - mid) <= 0 && x0 !== s.x && Math.abs(s.y - (h.cy + (h.kind === 'pit' ? 0 : 1))) <= o.near) { s.done[h.i] = true; s.points += TILES[h.kind].points; } }
             if (s.ground && under(s.x, s.y) === goalTile(o)) { s.over = true; s.finished = true; }
@@ -251,7 +256,7 @@
             if (s.failed) failedAt = failedAt || key;
             i++;
         }
-        return { inputs, failedAt, result: result(run, o) };
+        return { inputs, failedAt, spared: s.spared, result: result(run, o) };
     }
     // Will setting off now, with nothing going wrong, get it to the next tile alive? (It looks ahead; saws move.)
     function safe(room, s, A, B, v, eps, o = ROOM) {
@@ -265,14 +270,21 @@
         if (!r) return { attempts: [], score: null, impossible: true };
         const dwell = {}; yours.stood.forEach((e, i) => { const next = yours.stood[i + 1]; if (next && e.t >= 0) dwell[e.t] = Math.max(dwell[e.t] || 0, next.n - e.n - 20); });
         const fixes = {}, attempts = [], unseen = stage(a.mastery || 0, o) >= 3 ? 1 : o.unseen;
-        let top = null;
+        let top = null, honest = null;
+        const cheatRand = rng(((a.seed || 0) ^ 0x51ed270b) >>> 0);
         for (let k = 0; k < (a.tries || o.tries); k++) {
-            const t = aiInputs(room, r, dwell, { seed: (a.seed + k * 7919) >>> 0, mastery: a.mastery, fixes, unseen, cache }, o);
+            let t = aiInputs(room, r, dwell, { seed: (a.seed + k * 7919) >>> 0, mastery: a.mastery, fixes, unseen, cache }, o);
+            // A cheat (design/evals-course.md, "The AI cheats"): stopped by a spike or a saw, it may run the try again and
+            // pass through one unharmed. `a.cheat`: how likely. The attempt is marked; `honest` is its best without one.
+            if (!t.result.finished && t.result.failed && (t.result.failed.type === 'spike' || t.result.failed.type === 'saw') && a.cheat > 0 && cheatRand() < a.cheat) {
+                const bent = aiInputs(room, r, dwell, { seed: (a.seed + k * 7919) >>> 0, mastery: a.mastery, fixes, unseen, cache: new Map() }, Object.assign({}, o, { immune: 1 }));
+                if (bent.result.finished && bent.spared) t = Object.assign(bent, { cheat: { n: bent.spared.n, type: bent.spared.type } });
+            }
             attempts.push(t);
-            if (t.result.finished) { if (!top || t.result.steps < top.steps) top = t.result; if (k >= 1) break; }
+            if (t.result.finished) { if (!t.cheat && (!honest || t.result.steps < honest.steps)) honest = t.result; if (!top || t.result.steps < top.steps) top = t.result; if (k >= 1) break; }
             else if (t.failedAt) fixes[t.failedAt] = (fixes[t.failedAt] || 0) + 1;
         }
-        return { attempts, score: top, route: r };
+        return { attempts, score: top, honest, route: r };
     }
     function marksFor(res, refTime, o = ROOM) {
         if (!res || !res.finished) return 0;

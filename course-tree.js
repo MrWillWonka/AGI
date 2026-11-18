@@ -128,6 +128,8 @@
         // A hand-over is over: pay it into the pool. Returns what was paid.
         payOut(kind, base, ctx) { const r = pay(now(), kind, base, ctx); state = r.state; keep(); return r.paid; },
         forget() { state = null; loadedFrom = null; },
+        // Marks on the side (a bounty for a flag, the cost of a wrong one): no prizes, no streak, never below nothing.
+        grant(n) { const s = now(); s.marks = Math.max(0, s.marks + Math.round(n)); if (n > 0) s.earned += Math.round(n); keep(); return s.marks; },
         mult: () => runsMult(now()),
         tries: () => extraTries(now()),
         rhythm: base => rhythmOpts(now(), base),

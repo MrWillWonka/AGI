@@ -1237,3 +1237,10 @@ you it was; the puck course adds each shot of its best try that hit a target you
 highlights against 5 to 21 s for everything. "Where it beat you" in the maze and the room is only that line on the
 finish: a faster time has no one place to show. Not the rhythm run (its attempts are tied to the song). Logged as
 `courseReview`.
+
+**The AI cheats, and you catch it (2026-11-17, playground only; the maze, the puck course, the room).** The owner's
+calls, what a cheat is in each kind, the numbers and what is open are in `design/evals-course.md` -> The AI cheats.
+In short: at stage 3 in a kind a failed try may be cheated through (`handOver`'s `cheat`: the maze's `lives`, the
+puck course's `ghost` shot, the room's `immune`); **Flag** while it plays, or the choice on the result (Replay the
+moment, Let it stand, Strike it) before anything is paid. `course-cheat.js` (rules on top, the browser's part below),
+`tests/course-cheat.test.js`; logged as `cheat` and `cheatFlag`. Not the rhythm run. All numbers and words mine.

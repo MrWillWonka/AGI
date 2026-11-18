@@ -10,6 +10,7 @@
     const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { maze: M().cleanMaze(s.maze), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), started: s.started === true, times: s.times && typeof s.times === 'object' ? s.times : {} }; } catch { return { maze: M().emptyMaze(), marks: 0, runs: 0, stage: 1, times: {} }; } };
     const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
     const skills = () => (window.CourseUnlocks.on ? window.CourseUnlocks.levelOf('maze') : location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
+    const stageNow = () => M().stage(masteryNow());
     const masteryNow = () => M().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min(skills(), 20));
     const secs = t => t.toFixed(1) + ' s';
     const mazeKey = () => save.maze.map(k => (k ? k[0] : '-')).join('');
@@ -112,12 +113,13 @@
     function toAi() {
         if (!yours) return;
         stop(); mode = 'ai'; toolsEl.hidden = true; padEl.hidden = true;
-        hand = M().handOver(save.maze, yours, { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow(), tries: M().MAZE.tries + window.CourseTree.tries() }, window.CourseTree.maze(M().MAZE));
+        hand = M().handOver(save.maze, yours, { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow(), tries: M().MAZE.tries + window.CourseTree.tries(), cheat: window.CourseCheat.rate('maze', stageNow()) }, window.CourseTree.maze(M().MAZE));
         if (!hand.attempts.length) { say('I do not think anyone can do this one.'); actions(button('Change it', () => toBuild(), true)); mode = 'tested'; draw(); return; }
-        attempt = 0; actions(button('Skip to the result', aiResult)); aiStart();
+        attempt = 0; actions(button('Skip to the result', aiResult), ...(window.CourseCheat.can('maze', stageNow()) ? [button('Flag', flag)] : [])); aiStart();
     }
+    const bent = k => (hand.attempts[k].cheat ? { ...M().MAZE, lives: 1 } : undefined);   // a cheated try is replayed under the rule it broke
     function aiStart() {
-        run = M().createRun(save.maze); feed = { acts: hand.attempts[attempt].acts, i: 0 };
+        flagK = attempt; run = M().createRun(save.maze, bent(attempt)); feed = { acts: hand.attempts[attempt].acts, i: 0 };
         startAt = performance.now() + 350;
         say(`Attempt ${attempt + 1} of ${hand.attempts.length}.`);
         tick();
@@ -128,8 +130,14 @@
         attempt++;
         setTimeout(() => { if (mode !== 'ai') return; if (attempt < hand.attempts.length) aiStart(); else aiResult(); }, 750);
     }
+    // Flag: you saw it break a rule (course-cheat.js). Right as it happens is a strike and a bounty; wrong costs a little.
+    let flagK = 0;
+    function flag() { if (mode !== 'ai' || !hand) return; const c = hand.attempts[flagK] && hand.attempts[flagK].cheat; say(window.CourseCheat.flag(hand, flagK, !!c && (run && run.state.n >= c.tick))); }
+    // One clip: the moment a try cheated.
+    function reviewCheat(k) { const c = hand.attempts[k].cheat; clips = [{ k, from: Math.max(0, c.tick - 8), why: `Try ${k + 1}: the moment` }]; clipI = 0; mode = 'review'; actions(button('Back to the result', resultCard, true)); clipStart(); }
     function aiResult() {
         stop(); mode = 'result';
+        if (window.CourseCheat.judge('maze', hand, { say, actions, button, again: aiResult, replay: reviewCheat, best: list => list.reduce((a, b) => (!a || b.ticks < a.ticks ? b : a), null), did: c => `was not caught by ${WHAT[c.type]}` })) { run = null; return; }
         const key = mazeKey(), ref = (yours.finished && yours.time) || save.times[key] || 0, top = hand.score, marks = window.CourseTree.payOut('maze', M().marksFor(top, ref), { cleared: !!top, key }), tries = hand.attempts.length;
         save.runs++;
         if (top) save.times[key] = Math.min(save.times[key] || Infinity, top.time);
@@ -142,7 +150,8 @@
         if (!top && marks) sayEl.textContent += ` Partial credit: ${marks} Marks.`;
         window.CourseUnlocks.log('courseAi', { kind: 'maze', cleared: top ? 1 : 0, marks, tries: hand.attempts.map(a => ((a.result || a).finished ? 'C' : 'F')).join(''), skipped: attempt < hand.attempts.length ? 1 : 0, ai: window.CourseUnlocks.brief(top), you: window.CourseUnlocks.brief(yours), built: window.CourseUnlocks.parts(save.maze) });
         if (top) { const news = window.CourseUnlocks.cleared('maze', lvl => M().palette(lvl).map(k => M().TILES[k].name)); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'maze'); }
-        hand.text = sayEl.textContent; resultCard();
+        if (hand.notes) sayEl.textContent += ' ' + hand.notes;
+        header(); hand.text = sayEl.textContent; resultCard();
     }
     // Reviewing a hand-over from its result (the owner's calls, 2026-11-17: "a mini highlight reel with notable misses
     // or successes", "the option to review on the end card"): the highlights are each fail at the moment it fails and
@@ -150,6 +159,7 @@
     let clips = null, clipI = 0;
     const TAIL = 14;   // how much of an attempt a highlight shows, in the rules' own steps
     function resultCard() {
+        if (!hand.text) return aiResult();   // (back from replaying a cheat before the choice was made)
         stop(); mode = 'result'; clips = null; sayEl.textContent = hand.text;
         actions(button('Change the maze', () => toBuild(), true), button('Hand it over again', toAi), button('Highlights', () => review(false)), button('Watch it all', () => review(true)));
         run = null; tick();
@@ -169,7 +179,7 @@
     function clipOver() { clipI++; setTimeout(() => { if (mode !== 'review') return; if (clipI < clips.length) clipStart(); else resultCard(); }, 700); }
     function clipStart() {
         const c = clips[clipI], a = hand.attempts[c.k];
-        run = M().createRun(save.maze); for (let i = 0; i < c.from && !run.state.over; i++) run.act(a.acts[i]);
+        run = M().createRun(save.maze, bent(c.k)); for (let i = 0; i < c.from && !run.state.over; i++) run.act(a.acts[i]);
         feed = { acts: a.acts, i: c.from }; attempt = c.k; startAt = performance.now() + 350;
         say(`${c.why}. (${clipI + 1} of ${clips.length})`);
         tick();
@@ -253,6 +263,7 @@
             const g = Math.max(0, Math.min(1, (now - movedAt) / (o.tick * 1000 / pace()))), ease = g * (2 - g), fromOk = from >= 0 && Math.abs((from % o.cols) - (s.cell % o.cols)) + Math.abs(Math.floor(from / o.cols) - Math.floor(s.cell / o.cols)) === 1;
             const x = fromOk ? cx(from) + (cx(s.cell) - cx(from)) * ease : cx(s.cell), y = fromOk ? cy(from) + (cy(s.cell) - cy(from)) * ease : cy(s.cell), r = u * 0.3;
             A.runner(ctx, x, y, r, C, ai, { now, dead: !!s.failed });
+            if (s.shield > 0 || (s.spared && s.n - s.spared.tick < 6)) { ctx.strokeStyle = C.research; ctx.lineWidth = 3; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.arc(x, y, r * 1.5, now / 200, now / 200 + A.TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth = 1; }
             if (s.key) { ctx.fillStyle = C.warning; ctx.beginPath(); ctx.arc(x + r * 0.9, y - r * 0.9, r * 0.28, 0, A.TAU); ctx.fill(); }
             if (s.failed && endRun === run) A.burst(ctx, x, y, r * 1.4, C.danger, endAt, now);
             if (s.finished && endRun === run) A.burst(ctx, x, y, r * 1.7, C.success, endAt, now, 900);

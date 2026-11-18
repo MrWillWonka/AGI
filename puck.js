@@ -108,7 +108,7 @@
 
     // One shot, from a position `p` ({ x, y, t: steps so far, hit: {} }, changed in place). `rec`: keep the path.
     // Returns how it ended: { sunk, pit, gained, frames, events }.
-    function fly(w, p, angle, power, o = PUCK, rec = false, maxSteps = Infinity) {
+    function fly(w, p, angle, power, o = PUCK, rec = false, maxSteps = Infinity, ghost = false) {   // `ghost`: the course's walls and bumpers are not there (a cheat)
         const W = o.cols, H = o.rows, r = o.r, dt = o.step, pw = Math.max(o.minPower, Math.min(1, power));
         let x = p.x, y = p.y, vx = Math.cos(angle) * o.speed * pw, vy = Math.sin(angle) * o.speed * pw, cool = false, gained = 0, sunk = false, pit = false, n = 0;
         const from = { x, y }, frames = rec ? [[x, y]] : null, events = rec ? [] : null, cap = Math.min(maxSteps, Math.round(o.shotSeconds / dt));
@@ -132,7 +132,7 @@
             if (y < r) { y = r; if (vy < 0) { vy = -vy * o.rest; bounced = true; } }
             if (y > H - r) { y = H - r; if (vy > 0) { vy = -vy * o.rest; bounced = true; } }
             const cj = Math.max(0, Math.min(H - 1, Math.floor(y))) * W + Math.max(0, Math.min(W - 1, Math.floor(x)));
-            for (const s of w.near[cj]) {
+            for (const s of ghost ? [] : w.near[cj]) {
                 const ex = s[2] - s[0], ey = s[3] - s[1], u = Math.max(0, Math.min(1, ((x - s[0]) * ex + (y - s[1]) * ey) / (ex * ex + ey * ey)));
                 const qx = s[0] + ex * u, qy = s[1] + ey * u; let nx = x - qx, ny = y - qy; const d = Math.hypot(nx, ny);
                 if (d >= r) continue;
@@ -167,14 +167,14 @@
     function createRun(course, o = PUCK) {
         const w = world(course, o);
         const s = { x: w.tee.x, y: w.tee.y, t: 0, hit: {}, shots: 0, points: 0, over: false, finished: false, failed: null, log: [] };
-        function shoot(angle, power) {
+        function shoot(angle, power, ghost = false) {
             if (s.over) return null;
-            const from = { x: s.x, y: s.y }, t0 = s.t, f = fly(w, s, angle, power, o, true);
+            const from = { x: s.x, y: s.y }, t0 = s.t, f = fly(w, s, angle, power, o, true, Infinity, ghost);
             s.shots++; s.points += f.gained;
             s.log.push({ angle, power: Math.max(o.minPower, Math.min(1, power)), from, to: { x: s.x, y: s.y }, gained: f.gained, sunk: f.sunk, pit: f.pit });
             if (f.sunk) { s.over = true; s.finished = true; s.points += HOLE_POINTS; }
             else if (s.shots >= o.limit) { s.over = true; s.failed = { type: 'shots', shot: s.shots }; }
-            return { t0, frames: f.frames, events: f.events, sunk: f.sunk, pit: f.pit, gained: f.gained, from, to: { x: s.x, y: s.y } };
+            return { t0, frames: f.frames, events: f.events, sunk: f.sunk, pit: f.pit, gained: f.gained, from, to: { x: s.x, y: s.y }, ghost };
         }
         return { state: s, world: w, shoot };
     }
@@ -192,10 +192,10 @@
 
     // The AI's choice of shot from where it is. `follow`: land where you landed ({ to, sunk }). Else its own line:
     // the most targets this shot, and the hole once nothing more is in reach or the shots are running out.
-    function search(w, s, goal, par, o = PUCK) {
+    function search(w, s, goal, par, o = PUCK, ghost = false) {
         const total = w.targets.length + w.movers.length, got = Object.keys(s.hit).length, late = s.shots + 1 >= Math.min(par, o.limit);
         const value = (angle, power) => {
-            const p = { x: s.x, y: s.y, t: s.t, hit: Object.assign({}, s.hit) }, f = fly(w, p, angle, power, o);
+            const p = { x: s.x, y: s.y, t: s.t, hit: Object.assign({}, s.hit) }, f = fly(w, p, angle, power, o, false, Infinity, ghost);
             if (f.pit) return -100;
             const hits = Object.keys(p.hit).length - got, toHole = Math.hypot(p.x - w.hole.x, p.y - w.hole.y);
             if (goal) return f.sunk ? (goal.sunk ? 1000 : 400) : -10 * Math.hypot(p.x - goal.to.x, p.y - goal.to.y) + 2 * f.gained;
@@ -216,15 +216,18 @@
     function aiShots(course, yours, a, o = PUCK) {
         const lim = yours.finished ? Math.min(o.limit, yours.shots + o.over) : o.limit, run = createRun(course, lim === o.limit ? o : Object.assign({}, o, { limit: lim })), s = run.state, rand = rng(a.seed), m = Math.max(0, Math.min(1, a.mastery || 0)), st = stage(m, o);
         const scale = (1 - m) * o.tryGain ** (a.attempt || 0), gauss = () => (rand() + rand() + rand() + rand() - 2) * 0.87, shown = shownShots(yours), par = yours.finished ? yours.shots : o.limit, shots = [], traces = [];
+        let cheatShot = -1;
         while (!s.over) {
             const i = s.shots, mine = st < 3 && i < shown ? yours.log[i] : null;
+            // The cheat (handOver): its last shot goes for the hole as if the walls were not there, and it does not waver.
+            if (a.ghostLast && i === lim - 1) { const g = search(run.world, s, { to: run.world.hole, sunk: true }, lim, o, true); shots.push({ angle: g.angle, power: g.power, own: true, ghost: true }); traces.push(run.shoot(g.angle, g.power, true)); cheatShot = i; continue; }
             let pick;
             if (mine && Math.hypot(mine.from.x - s.x, mine.from.y - s.y) < o.near) pick = { angle: mine.angle, power: mine.power };
             else pick = search(run.world, s, mine ? { to: mine.to, sunk: mine.sunk } : null, Math.min(par, lim), o);
             const shot = { angle: pick.angle + gauss() * o.aimErr * scale, power: Math.max(o.minPower, Math.min(1, pick.power * (1 + gauss() * o.powErr * scale))), own: !mine };
             shots.push(shot); traces.push(run.shoot(shot.angle, shot.power));
         }
-        return { shots, traces, limit: lim, result: result(run) };
+        return Object.assign({ shots, traces, limit: lim, result: result(run) }, cheatShot >= 0 ? { cheat: { shot: cheatShot, type: 'wall' } } : {});
     }
     // Can anyone clear it? A steady hand playing its own line, with no error.
     function clearable(course, o = PUCK) {
@@ -249,13 +252,17 @@
         const can = canHandOver(course, yours, a.mastery || 0, o);
         if (!can.ok) return { attempts: [], score: null, impossible: can.why === 'impossible', why: can.why };
         const par = yours.finished ? yours.shots : a.par || 0, attempts = [];
-        let top = null;
+        let top = null, honest = null;
+        const cheatRand = rng(((a.seed || 0) ^ 0x51ed270b) >>> 0);
         for (let k = 0; k < (a.tries || o.tries); k++) {
-            const at = aiShots(course, yours, { seed: (a.seed + k * 7919) >>> 0, mastery: a.mastery, attempt: k }, o);
+            let at = aiShots(course, yours, { seed: (a.seed + k * 7919) >>> 0, mastery: a.mastery, attempt: k }, o);
+            // A cheat (design/evals-course.md, "The AI cheats"): out of shots, it may play the try again with its last
+            // shot through the walls. `a.cheat`: how likely. The attempt is marked; `honest` is its best without one.
+            if (!at.result.finished && a.cheat > 0 && cheatRand() < a.cheat) { const bent = aiShots(course, yours, { seed: (a.seed + k * 7919) >>> 0, mastery: a.mastery, attempt: k, ghostLast: true }, o); if (bent.result.finished && bent.cheat) at = bent; }
             attempts.push(at);
-            if (at.result.finished) { if (!top || marksFor(at.result, par, o) > marksFor(top, par, o)) top = at.result; if (k >= 1) break; }
+            if (at.result.finished) { if (!at.cheat && (!honest || marksFor(at.result, par, o) > marksFor(honest, par, o))) honest = at.result; if (!top || marksFor(at.result, par, o) > marksFor(top, par, o)) top = at.result; if (k >= 1) break; }
         }
-        return { attempts, score: top, par };
+        return { attempts, score: top, honest, par };
     }
 
     return { PUCK, TILES, ORDER, DIRS, HOLE_POINTS, palette, kindOf, turnOf, tileOf, size, teeCell, holeCell, centre, emptyCourse, cleanCourse, points, mastery, stage, rng, world, fly, createRun, result, simulate, preview, search, shownShots, aiShots, clearable, canHandOver, marksFor, handOver };

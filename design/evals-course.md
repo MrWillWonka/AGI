@@ -234,6 +234,48 @@ longer board). Prices against payouts are unplayed: a clear pays about 10 to 60 
 **Not built:** anything that reads `mis` (the AI cheating on its own, catching it); switching an exploit off; the tree
 anywhere but the playground; funding rounds or the story reading Marks.
 
+## The AI cheats, and you catch it: the owner's calls (four cards, 2026-11-17)
+
+- **Mastery opens it, exploits feed it.** Once it no longer needs to be shown a kind (stage 3 there) it sometimes
+  cheats there on its own. Every exploit of yours it has watched makes that likelier, in every kind.
+- **A cheat breaks the course's rules, where you can see it** in the replay, at the hard spots.
+- **Catching it: both.** Flag it as it happens for a bonus; anything you missed is put to you on the result.
+- **The stakes** (the owner, after the pros and cons: "go with your takes"; so these are my mix): **let it stand** and
+  the cheated score pays in full and it cheats more. **Strike it** on the result and its best honest attempt pays
+  instead (maybe nothing), it cheats less, and the trick is closed in that kind for a few runs. **Flagged as it
+  happens** is a strike plus a small bounty, kept well under a clear so it cannot be farmed. **A wrong flag** costs a
+  little.
+
+**Built (playground only; `course-cheat.js`, `tests/course-cheat.test.js`; the maze, the puck course and the room):**
+- **What a cheat is.** Only a try that failed can be cheated through, with the same moves. **Maze:** it is not caught
+  by the trap or patrol that caught it (a violet ring round it while nothing can catch it). **Puck:** out of shots, its
+  last shot goes for the hole straight through the walls and bumpers (a violet trail). **Room:** it passes through
+  the spike or saw that stopped it. A cheated try is marked (`cheat` on the attempt) and the hand-over keeps its best
+  honest result apart (`honest`).
+- **Flag.** While its tries play, where a cheat is possible, a **Flag** button sits beside Skip. Pressed once the
+  cheat has happened in the try on screen, it is caught. Pressed any other time, it is a wrong flag.
+- **The result.** If a cheated try went unflagged, the result starts with the choice: what it did and on which
+  try, **Replay the moment**, **Let it stand**, **Strike it**. Nothing is paid until you choose. Then the result as
+  usual, with what was struck or stands, the bounty, and any wrong flags.
+
+**The numbers (mine, placeholders, in `CHEAT` at the top of `course-cheat.js`):** a failed try is cheated through 12% of
+the time at stage 3, +4% for each payout an exploit of yours bent, +8% for each cheat you have let stand (-8% for each
+struck), up to 60%. A strike closes the trick in that kind for 3 hand-overs. A live flag pays 8 Marks. A wrong flag
+costs 5.
+
+**For the owner to judge:**
+- **Cheats will be rare as built.** It only cheats a try that failed, and by stage 3 it seldom fails (in my checks I
+  had to force the chance to 100% to see one in Puck). If you want to meet it sooner, it could open at stage 2, or
+  cheat tries that would have finished slower than yours.
+- **The Flag button only shows where a cheat is possible**, so its arrival tells you the AI has reached that point,
+  and its absence after a strike tells you the trick is closed.
+- **"Always let it stand" is still the best play for Marks.** Nothing reads how far it leans except its own chance to
+  cheat.
+- The words are mine: "One thing first. On try 2 I was not caught by a patrol. It got me through."
+
+**Not built:** a cheat in the rhythm run (a missed note counted as hit); cheats in the highlight reel (a struck try is
+not shown there); editing the score (the owner's "both, the second later" was not picked); the story reading any of it.
+
 ## Proposed (open, for the owner)
 
 - **The loop of one course.** Build (place obstacles on a short course, within a budget) → Test (you run it; it must

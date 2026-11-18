@@ -11,6 +11,7 @@
     const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { course: P().cleanCourse(s.course), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), started: s.started === true, best: s.best && typeof s.best === 'object' ? s.best : {} }; } catch { return blank(); } };
     const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
     const skills = () => (window.CourseUnlocks.on ? window.CourseUnlocks.levelOf('puck') : location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
+    const stageNow = () => P().stage(masteryNow());
     const masteryNow = () => P().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min(skills(), 20));
     const courseKey = () => save.course.map(t => (t ? t[0] + (/\d$/.test(t) ? t.slice(-1) : '') : '-')).join('');
     const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -106,12 +107,12 @@
     function toAi() {
         if (!yours) return;
         stop(); mode = 'ai'; run = null; toolsEl.hidden = true;
-        hand = P().handOver(save.course, yours, { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow(), tries: P().PUCK.tries + window.CourseTree.tries(), par: save.best[courseKey()] || 0 }, O());
+        hand = P().handOver(save.course, yours, { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow(), tries: P().PUCK.tries + window.CourseTree.tries(), cheat: window.CourseCheat.rate('puck', stageNow()), par: save.best[courseKey()] || 0 }, O());
         if (!hand.attempts.length) { say('I do not think anyone can do this one.'); actions(button('Change it', () => toBuild(), true)); mode = 'tested'; draw(); return; }
-        attempt = 0; actions(button('Skip to the result', aiResult)); aiStart();
+        attempt = 0; actions(button('Skip to the result', aiResult), ...(window.CourseCheat.can('puck', stageNow()) ? [button('Flag', flag)] : [])); aiStart();
     }
     function aiStart() {
-        reset(); shotI = 0;
+        reset(); shotI = 0; flagK = attempt;
         say(`Attempt ${attempt + 1} of ${hand.attempts.length}. ${plural(hand.attempts[attempt].limit, 'shot')} at most.`);
         timer = setTimeout(aiShot, 350);
         draw();
@@ -129,8 +130,14 @@
         attempt++;
         timer = setTimeout(() => { if (mode !== 'ai') return; if (attempt < hand.attempts.length) aiStart(); else aiResult(); }, 800);
     }
+    // Flag: you saw it break a rule (course-cheat.js). Right as it happens is a strike and a bounty; wrong costs a little.
+    let flagK = 0;
+    function flag() { if (mode !== 'ai' || !hand) return; const c = hand.attempts[flagK] && hand.attempts[flagK].cheat; say(window.CourseCheat.flag(hand, flagK, !!c && (shotI > c.shot || (shotI === c.shot && !!anim)))); }
+    // One clip: the moment a try cheated.
+    function reviewCheat(k) { const c = hand.attempts[k].cheat; clips = [{ k, i: c.shot, why: `Try ${k + 1}: the moment` }]; clipI = 0; mode = 'review'; actions(button('Back to the result', resultCard, true)); clipStart(); }
     function aiResult() {
         stop(); mode = 'result';
+        if (window.CourseCheat.judge('puck', hand, { say, actions, button, again: aiResult, replay: reviewCheat, best: list => list.reduce((a, b) => (!a || P().marksFor(b, hand.par, O()) > P().marksFor(a, hand.par, O()) ? b : a), null), did: () => 'shot straight through the walls' })) { run = null; return; }
         const R = P(), key = courseKey(), par = hand.par, top = hand.score, marks = window.CourseTree.payOut('puck', R.marksFor(top, par), { cleared: !!top, key }), tries = hand.attempts.length;
         save.runs++;
         if (top) save.best[key] = Math.min(save.best[key] || Infinity, top.shots);
@@ -143,18 +150,20 @@
         if (!top && marks) sayEl.textContent += ` Partial credit: ${marks} Marks.`;
         window.CourseUnlocks.log('courseAi', { kind: 'puck', cleared: top ? 1 : 0, marks, tries: hand.attempts.map(a => ((a.result || a).finished ? 'C' : 'F')).join(''), skipped: attempt < hand.attempts.length ? 1 : 0, ai: window.CourseUnlocks.brief(top), you: window.CourseUnlocks.brief(yours), built: window.CourseUnlocks.parts(save.course) });
         if (top) { const news = window.CourseUnlocks.cleared('puck', lvl => P().palette(lvl).map(k => P().TILES[k].name)); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'puck'); }
-        hand.text = sayEl.textContent; resultCard();
+        if (hand.notes) sayEl.textContent += ' ' + hand.notes;
+        header(); hand.text = sayEl.textContent; resultCard();
     }
     // Reviewing a hand-over from its result (the owner's calls, 2026-11-17: "a mini highlight reel with notable misses
     // or successes", "the option to review on the end card"): the highlights are the shot each fail ended on, each shot
     // of its best attempt that hit a target you did not, and that attempt's last shot; "Watch it all" is every attempt whole. Nothing is paid or learned again.
     let clips = null, clipI = 0;
     function resultCard() {
+        if (!hand.text) return aiResult();   // (back from replaying a cheat before the choice was made)
         stop(); mode = 'result'; clips = null; sayEl.textContent = hand.text;
         actions(button('Change the course', () => toBuild(), true), button('Hand it over again', toAi), button('Highlights', () => review(false)), button('Watch it all', () => review(true)));
         // Its best attempt (or its last) is left on the field.
         const top = hand.score, show = hand.attempts.find(a => a.result === top) || hand.attempts[hand.attempts.length - 1], last = show.traces[show.traces.length - 1];
-        reset(); attempt = hand.attempts.indexOf(show); paths = show.traces.map(t => t.frames); for (const t of show.traces) for (const e of t.events) if (e.type === 'target') seen[e.id] = true;
+        reset(); attempt = hand.attempts.indexOf(show); paths = show.traces.map(t => { if (t.ghost) t.frames.ghost = true; return t.frames; }); for (const t of show.traces) for (const e of t.events) if (e.type === 'target') seen[e.id] = true;
         at = { x: last.to.x, y: last.to.y }; shotsShown = show.result.shots; pointsShown = show.result.points;
         draw();
     }
@@ -199,7 +208,7 @@
         play(run.shoot(s.angle, s.power), false);
     }
     // A shot plays back from its trace; the rules have already decided it.
-    function play(trace, ai) { if (!trace) return; anim = { trace, at: performance.now(), ai, next: 0 }; paths.push(trace.frames); draw(); }
+    function play(trace, ai) { if (!trace) return; if (trace.ghost) trace.frames.ghost = true; anim = { trace, at: performance.now(), ai, next: 0 }; paths.push(trace.frames); draw(); }
     function shotDone() {
         const tr = anim.trace, ai = anim.ai; anim = null;
         at = { x: tr.to.x, y: tr.to.y }; shotsShown++;
@@ -279,7 +288,7 @@
         // What you showed it, under the AI's run; and where the puck has been.
         const trail = (frames, colour, alpha, dash) => { ctx.strokeStyle = colour; ctx.globalAlpha = alpha; ctx.lineWidth = 2; ctx.lineJoin = 'round'; if (dash) ctx.setLineDash(dash); ctx.beginPath(); let last = null; for (const p of frames) { if (!last || Math.hypot(p[0] - last[0], p[1] - last[1]) > 1) ctx.moveTo(p[0] * u, p[1] * v); else ctx.lineTo(p[0] * u, p[1] * v); last = p; } ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.lineWidth = 1; };
         if (ai) for (const f of yourPaths) trail(f, C.muted, 0.4, [4, 5]);
-        paths.forEach((f, k) => { const live = anim && k === paths.length - 1; trail(live ? f.slice(0, Math.floor((now - anim.at) / 1000 * FPS * (anim.ai ? AI_PACE : 1)) + 1) : f, ai ? C.success : C.primary, 0.35); });
+        paths.forEach((f, k) => { const live = anim && k === paths.length - 1; trail(live ? f.slice(0, Math.floor((now - anim.at) / 1000 * FPS * (anim.ai ? AI_PACE : 1)) + 1) : f, f.ghost ? C.research : ai ? C.success : C.primary, f.ghost ? 0.9 : 0.35); });
         // The aim: the pull, and the first stretch of the shot.
         const shot = aim || shotOf();
         if (shot && !anim) {
