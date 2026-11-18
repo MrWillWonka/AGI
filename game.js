@@ -1996,21 +1996,58 @@ window.AGI = (function () {
         if (!inboxOn || snapBusy) return;
         snapBusy = true;
         const id = inboxId(), t = Math.round(state.stats.playTime), app = E.isRing() ? ringAppNow() : ptPlace(), base = `snap-${String(t).padStart(5, '0')}-${String(app).replace(/[^A-Za-z0-9_-]/g, '_')}`;
-        let pictures = 0, ok = true, screen = false;
+        let pictures = 0, ok = true, screen = false, paged = false;
         if (screenCapable()) { const blob = await screenShot(); if (blob) { screen = true; pictures++; ok = (await inboxPost(`shot?id=${id}&name=${base}-screen&ext=png`, blob)) && ok; } }
         for (const c of screen ? [] : document.querySelectorAll('canvas')) {
             if (c.width < 60 || c.height < 60 || !c.getClientRects().length) continue;
             const blob = await new Promise(r => { try { c.toBlob(r, 'image/png'); } catch { r(null); } });
             if (blob) ok = (await inboxPost(`shot?id=${id}&name=${base}-${pictures++}&ext=png`, blob)) && ok;
         }
+        if (!screen) { const page = pageSnap(); if (page) { const saved = await inboxPost(`shot?id=${id}&name=${base}-page&ext=json`, page); ok = saved && ok; if (saved) paged = true; } }
         const copy = JSON.parse(E.serialize(state)); delete copy.player;
         const what = { at: new Date().toISOString(), playSeconds: t, app, screen: [innerWidth, innerHeight], open: [...document.querySelectorAll('dialog[open]')].map(d => d.className), assistant: assistLive?.key || null, state: copy };
         ok = (await inboxPost(`shot?id=${id}&name=${base}-state&ext=json`, JSON.stringify(what))) && ok;
-        pt('snap', { app, pictures, screen: screen ? 1 : 0, ok: ok ? 1 : 0 });
+        pt('snap', { app, pictures, screen: screen ? 1 : 0, page: paged ? 1 : 0, ok: ok ? 1 : 0, name: base });
         inboxLog();
         snapBusy = false;
-        const said = ok && screen ? 'Snapshot saved: the screen and the game\'s state.' : ok ? (pictures ? `Snapshot saved: ${pictures === 1 ? 'a picture' : pictures + ' pictures'} and the game's state.` : 'Snapshot saved: the game\'s state (this screen has no picture to take).') : 'The snapshot could not be saved.';
-        if (E.isRing()) deviceNotice('playtest', 'Playtest', said, () => {}); else toast('Playtest', said, 'info');
+        // Tapping the notice opens a one-line note about it (the owner's call: a quick note, then back to playing).
+        const said = ok ? 'Snapshot saved. Tap to add a quick note.' : 'The snapshot could not be saved.';
+        if (E.isRing()) deviceNotice('playtest', 'Playtest', said, () => { if (ok) quickNote(base, app); }); else toast('Playtest', ok ? 'Snapshot saved.' : said, 'info');
+    }
+    // The whole page as it stands, for a snapshot on a phone that can't photograph its own screen: the document with its
+    // canvases turned into pictures and its form values written in, no scripts. tools/review/snap-page.js draws it.
+    function pageSnap() {
+        try {
+            const live = [...document.querySelectorAll('canvas')], doc = document.documentElement.cloneNode(true), copies = doc.querySelectorAll('canvas');
+            live.forEach((c, i) => { const im = document.createElement('img'), r = c.getBoundingClientRect(); try { if (r.width > 1 && r.height > 1) im.src = c.toDataURL('image/webp', 0.75); } catch { /* a tainted canvas: left blank */ }
+                im.className = c.className; if (c.id) im.id = c.id; im.style.cssText = c.style.cssText + ';width:' + r.width + 'px;height:' + r.height + 'px;'; if (copies[i]) copies[i].replaceWith(im); });
+            for (const s of doc.querySelectorAll('script')) s.remove();
+            const lv = document.querySelectorAll('input, select, textarea'), cv = doc.querySelectorAll('input, select, textarea');
+            lv.forEach((n, i) => { const c = cv[i]; if (!c) return;
+                if (n.type === 'checkbox' || n.type === 'radio') { if (n.checked) c.setAttribute('checked', ''); else c.removeAttribute('checked'); }
+                else if (n.tagName === 'SELECT') [...c.options].forEach((o, j) => { if (j === n.selectedIndex) o.setAttribute('selected', ''); else o.removeAttribute('selected'); });
+                else if (n.tagName === 'TEXTAREA') c.textContent = n.value;
+                else if (n.type !== 'password' && n.type !== 'file') c.setAttribute('value', n.value); });
+            const scrolls = [...document.querySelectorAll('*')].filter(n => n.scrollTop > 0).slice(0, 20).map(n => ({ id: n.id || '', cls: String(n.className).slice(0, 60), top: Math.round(n.scrollTop) }));
+            return JSON.stringify({ w: innerWidth, h: innerHeight, dpr: devicePixelRatio, hash: location.hash, modal: [...document.querySelectorAll('dialog:modal')].map(d => d.id || d.className), scrolls, html: '<!DOCTYPE html>' + doc.outerHTML });
+        } catch { return null; }
+    }
+    // A quick note on a snapshot (the owner's call, 2026-11-18): one box, the keyboard up (its mic key takes dictation),
+    // Save, and back to the game. It goes in the playtest log beside the snapshot's name. PLACEHOLDER words.
+    function quickNote(snap, app) {
+        const box = el('textarea', { class: 'quick-note-box', rows: '3', placeholder: 'What did you see? Type, or use the mic on your keyboard.', 'aria-label': 'A quick note about this snapshot' });
+        const note = el('span', { class: 'survey-photos-note' });
+        const input = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', multiple: '', class: 'survey-photos-input', onchange: async () => { const files = [...input.files]; if (!files.length) return; note.textContent = 'Sending…'; const n = await inboxPhotos(files); note.textContent = n ? `${n} sent` : 'Could not send'; input.value = ''; } });
+        const done = () => { const text = box.value.trim(); if (text) { pt('note', { snap, app, text: text.slice(0, 600) }); inboxLog(); } dlg.close(); };
+        const dlg = el('dialog', { class: 'dialog ring-welcome quick-note', 'aria-labelledby': 'quickNoteTitle' }, [
+            el('div', { class: 'win-head' }, [el('h2', { id: 'quickNoteTitle', text: 'Quick note' }), el('button', { type: 'button', class: 'ghost-button win-x', 'aria-label': 'Close', text: '×', onclick: () => dlg.close() })]),
+            box,
+            el('label', { class: 'survey-photos' }, [el('span', { class: 'survey-photos-button', text: 'Add a screenshot from this device' }), input, note]),
+            el('div', { class: 'dialog-actions' }, [
+                el('button', { type: 'button', class: 'ghost-button', text: 'Longer: the Playtest app', onclick: () => { done(); openSurvey(); } }),
+                el('button', { type: 'button', class: 'button', text: 'Save', onclick: done })])]);
+        dlg.addEventListener('close', () => dlg.remove());
+        document.body.append(dlg); dlg.showModal(); box.focus();
     }
     // Screenshots made with the phone's own buttons, picked from its photos: saved beside the log with the play time.
     async function inboxPhotos(files) {
@@ -14421,10 +14458,17 @@ window.AGI = (function () {
     }
     // The playtest note (the owner's call): once, before the sign-in, not a line under every mail.
     function showPlaytestNote(then) {
+        // What a playtester has to hand (the owner's call, 2026-11-18): said up front, shown once the playtest inbox answers.
+        const tools = el('ul', { class: 'playtest-tools', hidden: '' }, [
+            el('li', {}, [el('b', { text: '◉ at the top' }), ' saves a snapshot of what is on screen.']),
+            el('li', {}, [el('b', { text: 'Tap the notice' }), ' that follows to add a quick note. Your keyboard\'s mic works, so you can just say it.']),
+            el('li', {}, [el('b', { text: 'The Playtest app' }), ' is for longer thoughts, whenever you like.'])]);
+        const showTools = () => { if (inboxOn) tools.hidden = false; }; showTools(); setTimeout(showTools, 1500); setTimeout(showTools, 4000);
         const dlg = el('dialog', { class: 'dialog ring-welcome ring-playtest', 'aria-labelledby': 'ringPlaytestTitle' }, [
             el('h2', { id: 'ringPlaytestTitle', text: 'Thanks for playtesting' }),
             el('p', { text: 'This is a work in progress. The story isn\'t finished and the numbers are still being tuned.' }),
             el('p', { text: 'As you play, note anything that drags, confuses you or breaks. Settings has a playtest log you can copy and send.' }),
+            tools,
             el('div', { class: 'dialog-actions' }, [el('button', { type: 'button', class: 'button', text: 'Start', onclick: () => dlg.close() })])]);
         dlg.addEventListener('close', () => { state.intro['ring:playtestNote'] = true; dlg.remove(); save(); then(); });
         document.body.append(dlg);

@@ -57,13 +57,14 @@ body {
 }
 
 /* Faint contour lines behind everything, like a survey sheet. */
+:root { --contours: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600' viewBox='0 0 600 600'%3E%3Cg fill='none' stroke='%2321393f' stroke-width='1'%3E%3Cpath d='M-20 420 C 80 360 160 470 280 400 S 480 300 620 380'/%3E%3Cpath d='M-20 450 C 90 390 170 500 290 430 S 490 330 620 410'/%3E%3Cpath d='M-20 480 C 100 420 180 530 300 460 S 500 360 620 440'/%3E%3Cpath d='M-20 140 C 60 90 180 200 300 130 S 470 40 620 120'/%3E%3Cpath d='M-20 170 C 70 120 190 230 310 160 S 480 70 620 150'/%3E%3Cellipse cx='450' cy='250' rx='60' ry='30'/%3E%3Cellipse cx='450' cy='250' rx='95' ry='50'/%3E%3Cellipse cx='450' cy='250' rx='135' ry='72'/%3E%3Cellipse cx='120' cy='300' rx='40' ry='22'/%3E%3Cellipse cx='120' cy='300' rx='75' ry='40'/%3E%3C/g%3E%3C/svg%3E"); }
 body::before {
     content: "";
     position: fixed;
     inset: 0;
     pointer-events: none;
     opacity: 0.35;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600' viewBox='0 0 600 600'%3E%3Cg fill='none' stroke='%2321393f' stroke-width='1'%3E%3Cpath d='M-20 420 C 80 360 160 470 280 400 S 480 300 620 380'/%3E%3Cpath d='M-20 450 C 90 390 170 500 290 430 S 490 330 620 410'/%3E%3Cpath d='M-20 480 C 100 420 180 530 300 460 S 500 360 620 440'/%3E%3Cpath d='M-20 140 C 60 90 180 200 300 130 S 470 40 620 120'/%3E%3Cpath d='M-20 170 C 70 120 190 230 310 160 S 480 70 620 150'/%3E%3Cellipse cx='450' cy='250' rx='60' ry='30'/%3E%3Cellipse cx='450' cy='250' rx='95' ry='50'/%3E%3Cellipse cx='450' cy='250' rx='135' ry='72'/%3E%3Cellipse cx='120' cy='300' rx='40' ry='22'/%3E%3Cellipse cx='120' cy='300' rx='75' ry='40'/%3E%3C/g%3E%3C/svg%3E");
+    background-image: var(--contours);
 }
 
 h1, h2, h3, p { margin: 0; }
@@ -4978,3 +4979,21 @@ body.device-phone .assist-close { width: 44px; height: 44px; margin: -10px -8px 
 body.ring-device.device-phone .shop-screen .shop-bar { padding-right: 14px; }
 .shop-item:has(.sell-buy) .shop-side { grid-template-columns: 1fr; justify-items: end; }
 .shop-item:has(.sell-buy) .shop-side > :last-child { justify-self: stretch; }
+
+/* The ring's bezel is body::before too, and it was carrying the contour lines with it, at the bezel's height over every
+   app: the backdrop drawn on top of buttons and cards (the owner, 2026-11-18). The bezel is only a bezel now, and the
+   lines lie under the whole page. */
+body.ring-device::before { background-image: none; opacity: 1; }
+html:has(> body.ring-device)::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.35; background-image: var(--contours); }
+
+/* The quick note on a snapshot, and the start card's list of a playtester's tools (the owner, 2026-11-18). */
+.quick-note { width: min(460px, calc(100% - 24px)); margin-top: 12vh; }
+.quick-note-box { width: 100%; min-height: 84px; margin: 4px 0 10px; font-size: 1rem; }
+.quick-note .dialog-actions { justify-content: space-between; gap: 10px; }
+.playtest-tools { margin: 6px 0 4px; padding-left: 1.1em; display: grid; gap: 6px; font-size: 0.92rem; color: var(--text); }
+.playtest-tools[hidden] { display: none; }
+.playtest-tools b { color: var(--primary); font-weight: 700; }
+/* The snapshot button is a full tap. */
+body.device-phone .status-snap { width: 40px; height: 34px; margin: -8px 0; font-size: 1.05rem; }
+body.device-phone .status-snap { width: 34px; height: 28px; margin: -5px 0; }
+.quick-note-box { word-break: normal; overflow-wrap: break-word; }
