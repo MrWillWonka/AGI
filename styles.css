@@ -4997,3 +4997,37 @@ html:has(> body.ring-device)::before { content: ''; position: fixed; inset: 0; z
 body.device-phone .status-snap { width: 40px; height: 34px; margin: -8px 0; font-size: 1.05rem; }
 body.device-phone .status-snap { width: 34px; height: 28px; margin: -5px 0; }
 .quick-note-box { word-break: normal; overflow-wrap: break-word; }
+
+/* The foot of the screen (the owner, 2026-11-18): a dot, not the line an iPhone reads as "swipe up to leave"; and once
+   the AI is on the device, the AI itself, bottom centre. A tap opens the dock, its row on top. */
+body.ring-device .device-homedot { width: 64px; height: 44px; bottom: calc(4px + env(safe-area-inset-bottom, 0px)); touch-action: manipulation; }
+body.ring-device .device-homedot::before { width: 10px; height: 10px; border-radius: 50%; background: color-mix(in srgb, var(--text) 72%, transparent); box-shadow: none; }
+body.ring-device .device-homedot.is-ai { width: 60px; height: 54px; bottom: calc(2px + env(safe-area-inset-bottom, 0px)); }
+body.ring-device .device-homedot.is-ai::before { width: 44px; height: 44px; background: url("art/orb-calm.webp") center / cover no-repeat, #06110f; border: 1px solid color-mix(in srgb, var(--success) 60%, transparent); box-shadow: 0 0 14px color-mix(in srgb, var(--success) 45%, transparent), 0 4px 14px rgba(0, 0, 0, 0.6); }
+body.ring-device .device-homedot.is-ai:active::before { transform: scale(0.94); }
+body.dock-pinned .device-homedot.is-ai { display: grid !important; }
+body.ring-device.ai-here .device-switch, body.ring-device.device-phone.ai-here .device-switch { bottom: calc(62px + env(safe-area-inset-bottom, 0px)); flex-direction: column; }
+/* Inside a window of its own the handle and the dock sit above its content. */
+dialog[open] > .device-homedot, dialog[open] > .device-switch { z-index: 6; }
+/* The small orb beside the clock is gone on a phone: the AI is at the foot now. The strip's numbers take its room back. */
+body.device-phone .assist-dot.mini { display: none; }
+body.ring-device.device-phone .status-stats, body.ring-device.device-phone dialog[open] .status-stats { padding-left: 0; justify-content: safe center; }
+/* The AI's row on the dock. */
+.device-switch-ai { width: 100%; gap: 8px; padding-bottom: 6px; margin-bottom: 2px; border-bottom: 1px solid var(--border); }
+.device-switch-ai[hidden] { display: none; }
+.device-switch-aimark { flex: none; width: 26px; height: 26px; border-radius: 50%; background: url("art/orb-calm.webp") center / cover no-repeat; }
+.device-switch-aibtn { flex: 1 1 0; min-height: 44px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 12px; background: transparent; color: var(--text); font: 600 0.86rem var(--font-display); cursor: pointer; white-space: nowrap; }
+.device-switch-aibtn:active { border-color: var(--success); color: var(--success); }
+/* The AI at the foot sits clear of the bezel, and every app leaves it a strip of its own. */
+body.ring-device .device-homedot.is-ai { width: 56px; height: 46px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+body.ring-device .device-homedot.is-ai::before { width: 38px; height: 38px; }
+body.ring-device.device-phone.ai-here .device-switch { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+body.ring-device.device-phone.ai-here .feed-screen, body.ring-device.device-phone.ai-here .evals-screen, body.ring-device.device-phone.ai-here .shop-screen { box-sizing: border-box; padding-bottom: calc(54px + env(safe-area-inset-bottom, 0px)); }
+body.ring-device.device-phone.ai-here:not(.snare-live) #moduleView, body.ring-device.device-phone.ai-here #labRoom { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
+body.ring-device.device-phone.ai-here .maze-canvas { width: min(100%, calc((100dvh / var(--zoom, 1) - 440px) * 7 / 9)); }
+body.ring-device.device-phone.ai-here .puck-canvas { width: min(100%, calc((100dvh / var(--zoom, 1) - 520px) * 7 / 9)); }
+body.ring-device.device-phone.ai-here .rooms-canvas { width: min(100%, calc((100dvh / var(--zoom, 1) - 488px) * 12 / 7)); }
+/* In the Lab the AI is at its place at the top, so the foot is the dock itself, open (the owner, 2026-11-18). */
+body.ring-device.ai-in-lab:not(:has(dialog[open])) .device-homedot { display: none !important; }
+body.ring-device.ai-in-lab:not(:has(dialog[open])) .device-switch, body.ring-device.device-phone.ai-in-lab:not(:has(dialog[open])) .device-switch { opacity: 1; transform: translate(-50%, 0) scale(1); pointer-events: auto; visibility: visible; transition-delay: 0s; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+body.ring-device.device-phone.ai-in-lab #labRoom { padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px)); }

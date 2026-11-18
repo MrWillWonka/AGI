@@ -2333,7 +2333,7 @@ window.AGI = (function () {
             // (The owner's notes, 2026-11-15: the dock can be pinned open, and expanded to show your apps for quick
             // navigation, both kept per device; and it stays open while the AI is introducing it, `desk.dockHeld`.)
             const kept = (key, set) => { try { if (set !== undefined) localStorage.setItem(key, set ? '1' : '0'); return localStorage.getItem(key) === '1'; } catch { return false; } };
-            const hideSwitch = () => { if (desk.dockHeld || kept('agiDockPin')) return; sw.classList.remove('open'); clearTimeout(desk.switchTimer); };
+            const hideSwitch = force => { if (force !== true && (desk.dockHeld || kept('agiDockPin'))) return; sw.classList.remove('open'); clearTimeout(desk.switchTimer); };
             const showSwitch = () => { desk.dockRefresh(); sw.classList.add('open'); clearTimeout(desk.switchTimer); if (!fine()) desk.switchTimer = setTimeout(hideSwitch, 5000); };
             desk.showSwitch = showSwitch; desk.hideSwitch = hideSwitch; desk.sw = sw;
             const switchButton = (key, label, svg, act) => { const b = el('button', { type: 'button', class: `device-switch-button device-switch-${key}${key === 'home' ? ' device-homebar' : ''}`, 'aria-label': label, title: label, onclick: () => { hideSwitch(); pt('switch', { to: key }); act(); } }); b.innerHTML = svg; return b; };
@@ -2378,7 +2378,14 @@ window.AGI = (function () {
                 for (const [k, b] of Object.entries(appButtons)) { b.hidden = !have[k]; b.classList.toggle('here', k === now); }
             };
             const mainRow = el('div', { class: 'device-switch-row' });
-            sw.append(appsRow, mainRow);
+            // The AI's row, once it is on the device (the owner's card, 2026-11-18): what to do now, and its sheet (what it
+            // said earlier, "what is this?"). PLACEHOLDER words.
+            const aiRow = el('div', { class: 'device-switch-row device-switch-ai' }, [
+                el('span', { class: 'device-switch-aimark', 'aria-hidden': 'true' }),
+                el('button', { type: 'button', class: 'device-switch-aibtn', text: 'What now?', onclick: () => { hideSwitch(true); const [text] = assistWhatNow(); pt('assistAsk', { now: 'dock' }); assist('whatNow', text, { again: true }); } }),
+                el('button', { type: 'button', class: 'device-switch-aibtn', text: 'Ask · earlier', onclick: () => { hideSwitch(true); assistSheetToggle(); } })]);
+            aiRow.hidden = true; desk.aiRow = aiRow;
+            sw.append(aiRow, appsRow, mainRow);
             mainRow.append(
                 pin,
                 switchButton('playtest', 'Playtest survey', HOME_ICONS.playtest, () => openSurvey()),
@@ -2395,6 +2402,10 @@ window.AGI = (function () {
             for (const n of [dot, sw]) { n.addEventListener('pointerenter', stay); n.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') leave(); }); }
             document.addEventListener('pointerdown', e => { if (isOpen() && !e.target.closest('.device-switch, .device-homedot')) hideSwitch(); });
             document.body.append(sw, dot);
+            desk.dot = dot;
+            // The dock and its handle go with you into an app that is a window of its own (The Feed, Evals, Parcel are
+            // modal: anything left on the page is under them).
+            desk.dockHost = host => { if (sw.parentNode !== host) host.append(sw, dot); };
             desk.dockRefresh();
             // The status bar: the device's own thin row over every app, in place of the old game's top bar (the owner's
             // call): the clock, what you hold, the signal. When the stats don't fit it shows them one at a time.
@@ -3042,7 +3053,7 @@ window.AGI = (function () {
             el('h4', { class: 'assist-sheet-title', text: 'Earlier' }),
             ...(past.length ? past.reverse() : [el('p', { class: 'assist-answer', text: ASSIST_LINES.empty })])]);
         (assistMode === 'lab' ? document.body : assistDot.parentNode).append(assistSheet);
-        { const k = pageZoom(), d = assistDot.getBoundingClientRect(), w = Math.min(440 * k, innerWidth - 20), below = innerHeight - d.bottom - 16, above = d.top - 16, under = below >= Math.min(320 * k, above) || below >= above;
+        { const k = pageZoom(), d = (assistDot.getClientRects().length ? assistDot : desk?.dot || assistDot).getBoundingClientRect(), w = Math.min(440 * k, innerWidth - 20), below = innerHeight - d.bottom - 16, above = d.top - 16, under = below >= Math.min(320 * k, above) || below >= above;
             const st = assistSheet.style; st.margin = '0'; st.right = 'auto'; st.width = w / k + 'px'; st.maxWidth = 'none';
             st.left = Math.max(10, Math.min(innerWidth - w - 10, d.left + d.width / 2 - w / 2)) / k + 'px';
             st.maxHeight = Math.max(160, (under ? below : above)) / k + 'px';
@@ -3074,8 +3085,15 @@ window.AGI = (function () {
         const app = ringAppNow(), mode = top ? 'mini' : app === 'home' ? 'float' : app === 'lab' && aiHome?.isConnected ? 'lab' : 'mini';
         const host = top && mine ? top : mode === 'lab' ? aiHome.firstChild : document.body;
         if (assistDot.hidden === mine) { assistDot.hidden = !mine; if (!mine && assistSheet) assistSheetToggle(); }
+        if (desk?.dot) { desk.dockHost(top && mine ? top : document.body); if (!desk.dot.classList.contains('is-ai')) { desk.dot.classList.add('is-ai'); desk.dot.setAttribute('aria-label', 'The assistant: the dock, and what it can tell you'); document.body.classList.add('ai-here'); } if (desk.aiRow.hidden) desk.aiRow.hidden = false; }
         if (assistDot.parentNode !== host) { host.append(assistDot); if (assistSheet) (host === aiHome.firstChild ? document.body : host).append(assistSheet); }
         if (mode !== assistMode) {
+            // Into the Lab the AI rises from the foot of the screen to its place and grows (the owner, 2026-11-18): the dock
+            // takes the foot there, open, so there is one AI on screen and the way out is still to hand.
+            const rise = mode === 'lab' && assistMode === 'mini' && desk?.dot?.getClientRects().length && !reducedMotion() ? desk.dot.getBoundingClientRect() : null;
+            document.body.classList.toggle('ai-in-lab', mode === 'lab'); if (mode === 'lab' && desk?.dockRefresh) desk.dockRefresh();
+            if (rise) requestAnimationFrame(() => { const to = assistDot.getBoundingClientRect(); if (!to.width) return; const dx = rise.left + rise.width / 2 - (to.left + to.width / 2), dy = rise.top + rise.height / 2 - (to.top + to.height / 2), k = Math.max(0.2, 38 / to.width);
+                try { assistDot.animate([{ transform: 'translate(' + dx + 'px, ' + dy + 'px) scale(' + k + ')' }, { transform: 'none' }], { duration: 620, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }); } catch { /* no animations: it is simply there */ } });
             assistMode = mode;
             assistDot.classList.toggle('docked', mode === 'lab'); assistDot.classList.toggle('mini', mode === 'mini');
             if (mode === 'float') assistDot._restore(); else for (const p of ['left', 'top', 'right', 'bottom']) assistDot.style.removeProperty(p);
@@ -3108,7 +3126,7 @@ window.AGI = (function () {
     // saying, turning in soft elbowed corners rather than cutting straight across (the owner's call, 2026-11-15).
     let assistWire = null;
     function assistThreadTick(on) {
-        const bubble = on && assistLive?.node, shown = bubble && assistDot && !assistDot.hidden && !assistBox.classList.contains('away') && !assistBox.classList.contains('in-shop') && bubble.getClientRects().length;
+        const bubble = on && assistLive?.node, shown = bubble && assistDot && !assistDot.hidden && assistDot.getClientRects().length && !assistBox.classList.contains('away') && !assistBox.classList.contains('in-shop') && bubble.getClientRects().length;
         if (!shown) { if (assistWire) assistWire.style.display = 'none'; return; }
         if (!assistWire) {
             const NS = 'http://www.w3.org/2000/svg', mk = cls => { const p = document.createElementNS(NS, 'path'); p.setAttribute('class', cls); return p; };
