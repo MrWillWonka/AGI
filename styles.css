@@ -4794,6 +4794,7 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 .maze-tools { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .maze-tools[hidden], .maze-pad[hidden] { display: none; }
 .maze-tool { min-height: 40px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; font-size: 0.86rem; cursor: pointer; }
+.maze-tool.starter { border-color: var(--primary); }
 .maze-tool.on { border-color: var(--success); color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
 .maze-pad { display: grid; grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(2, 56px); gap: 6px; justify-content: center; }
 .maze-dir { border-radius: 12px; border: 1px solid var(--primary); background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--text); font-size: 1.2rem; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }

@@ -7,7 +7,7 @@
     const R = () => window.Rooms;
     const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'text') n.textContent = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k !== '' && k != null)); return n; };
     const KEY = 'agiRooms';
-    const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { room: R().cleanRoom(s.room), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), times: s.times && typeof s.times === 'object' ? s.times : {} }; } catch { return { room: R().emptyRoom(), marks: 0, runs: 0, stage: 1, times: {} }; } };
+    const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { room: R().cleanRoom(s.room), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), started: s.started === true, times: s.times && typeof s.times === 'object' ? s.times : {} }; } catch { return { room: R().emptyRoom(), marks: 0, runs: 0, stage: 1, times: {} }; } };
     const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
     const skills = () => (window.CourseUnlocks.on ? window.CourseUnlocks.levelOf('rooms') : location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
     const O = () => window.CourseTree.room(R().ROOM);   // the rules as the tree has changed them: grace at a ledge, the AI's take-off
@@ -51,14 +51,25 @@
         if (want && !R().allowed(want, i)) { say(R().fixed(i) ? 'That place is kept clear.' : R().TILES[want].floor ? 'A pit goes in the floor, the bottom row.' : 'Only pits go in the floor.'); return; }
         next[i] = want; save.room = R().cleanRoom(next); yours = null; keep(); toBuild();
     }
+    // A ready-made course to start from (course-starters.js; the owner's call, 2026-11-17: a blank field with every part
+    // open gave no direction): offered the first time a kind is opened, and from the Starters button after.
+    let starting = false;
+    function startPick() {
+        const S = window.CourseStarters, take = cells => { save.room = cells; save.started = true; starting = false; yours = null; keep(); window.CourseUnlocks.log('courseStart', { kind: 'rooms', built: window.CourseUnlocks.parts(cells) }); toBuild(); };
+        toolsEl.replaceChildren(...S.offered('rooms', skills()).map(s => el('button', { type: 'button', class: 'maze-tool starter', text: s.name, onclick: () => take(S.build('rooms', s.index, R())) })),
+            el('button', { type: 'button', class: 'maze-tool', text: 'Blank', onclick: () => take(R().emptyRoom()) }));
+        say('Pick a course to start from, or a blank one. Every part of it is yours to change.');
+        actions(); header(); go();
+    }
     function toBuild(text) {
         stop(); mode = 'build'; run = null; hand = null; padEl.hidden = true; toolsEl.hidden = false;
+        if (starting || (!save.started && !save.room.some(Boolean))) return startPick();
         const have = [...R().palette(skills()), 'erase'];
         if (!have.includes(tool)) tool = have[0];
         toolsEl.replaceChildren(...have.map(k => el('button', { type: 'button', class: 'maze-tool' + (k === tool ? ' on' : ''), 'aria-pressed': String(k === tool), text: k === 'erase' ? 'Erase' : R().TILES[k].name + (R().TILES[k].points ? ' ' + R().TILES[k].points : ''), onclick: () => { tool = k; toBuild(); } })));
         const pts = R().points(save.room);
         say(text || (pts ? `There are ${pts} points in this room. I only score what I get past, and only if I reach the flag. Show me the way up.` : 'Pick something and tap the room to place it. The flag is on the ledge, top right: I will need blocks or a spring to get up there.'));
-        actions(button('Run it yourself', toTest, true), ...(yours ? [button(yours.finished ? 'Hand it to the AI' : 'Let the AI try', toAi)] : []), button('Clear', () => { save.room = R().emptyRoom(); yours = null; keep(); toBuild(); }));
+        actions(button('Run it yourself', toTest, true), ...(yours ? [button(yours.finished ? 'Hand it to the AI' : 'Let the AI try', toAi)] : []), button('Starters', () => { starting = true; toBuild(); }), button('Clear', () => { save.room = R().emptyRoom(); yours = null; keep(); toBuild(); }));
         header(); go();
     }
     function toTest() {

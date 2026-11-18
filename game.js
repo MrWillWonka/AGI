@@ -117,7 +117,7 @@ window.AGI = (function () {
     let playtestSampleAt = 0;
     // Rare progression events are written at once: the log is otherwise flushed every 30 s of play and on
     // hide, so a crash or a killed tab lost the funnel's steps since the last sample.
-    const PT_FLUSH = new Set(['skill', 'unlock', 'phase', 'ship', 'transcend', 'challenge', 'perk', 'ending', 'mailAccepted', 'setting', 'save', 'evals', 'course', 'courseTest', 'courseAi', 'courseUnlock', 'treeBuy', 'unlocks']);
+    const PT_FLUSH = new Set(['skill', 'unlock', 'phase', 'ship', 'transcend', 'challenge', 'perk', 'ending', 'mailAccepted', 'setting', 'save', 'evals', 'course', 'courseStart', 'courseTest', 'courseAi', 'courseUnlock', 'treeBuy', 'unlocks']);
     // The Feed (feed.js, feed-ui.js): the swarm eats on the game's clock, so it eats (at a quarter speed, with nobody
     // leading it) while you are elsewhere with the page open. It runs under the ring, or while its screen is open (the test door). What it earns is research.
     function feedTick(dt) {

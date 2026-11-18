@@ -1190,3 +1190,12 @@ stay. A fresh press steps at once (never closer than a third of a tick to the la
 press to step, it was up to 160). **The AI's attempts play at 1.5x** in the maze, the puck course and the room, and the
 pauses round them are shorter (the owner: "watching is too long"). Not the rhythm run: its attempts are tied to the
 song. Still to come from the same finding: the highlight reel and a review on the end card.
+
+**Fixes from the owner's playtest, round 3 (2026-11-17): starter courses.** The owner, on a blank puck field with
+everything open: "hard to choose ... no direction"; the call: a few ready-made courses to pick from in each kind.
+`course-starters.js`: three each for the maze (First steps, Night watch, Lock and key), the puck course (First bank,
+Slow lane, Shortcut) and the room (Stairs, Mind the gap, Workshop), each naming the ladder step it needs, so with the
+unlocks on only what you could build is offered. The picker shows the first time a kind is opened (a save with nothing
+built and nothing picked) and from a **Starters** button beside Clear; **Blank** is one of the choices.
+`tests/course-starters.test.js` holds each to its step's parts and to being clearable. All courses and names mine.
+The rhythm run already starts from the game's songs.

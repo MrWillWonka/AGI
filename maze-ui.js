@@ -7,7 +7,7 @@
     const M = () => window.Maze;
     const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'text') n.textContent = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k !== '' && k != null)); return n; };
     const KEY = 'agiMaze';
-    const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { maze: M().cleanMaze(s.maze), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), times: s.times && typeof s.times === 'object' ? s.times : {} }; } catch { return { maze: M().emptyMaze(), marks: 0, runs: 0, stage: 1, times: {} }; } };
+    const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { maze: M().cleanMaze(s.maze), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), started: s.started === true, times: s.times && typeof s.times === 'object' ? s.times : {} }; } catch { return { maze: M().emptyMaze(), marks: 0, runs: 0, stage: 1, times: {} }; } };
     const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
     const skills = () => (window.CourseUnlocks.on ? window.CourseUnlocks.levelOf('maze') : location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
     const masteryNow = () => M().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min(skills(), 20));
@@ -68,14 +68,25 @@
         if (next[i] && M().TILES[next[i]].max) next.forEach((k, j) => { if (j !== i && k === next[i]) next[j] = null; });   // one key, one door: the old one moves
         save.maze = M().cleanMaze(next); yours = null; keep(); toBuild();
     }
+    // A ready-made course to start from (course-starters.js; the owner's call, 2026-11-17: a blank field with every part
+    // open gave no direction): offered the first time a kind is opened, and from the Starters button after.
+    let starting = false;
+    function startPick() {
+        const S = window.CourseStarters, take = cells => { save.maze = cells; save.started = true; starting = false; yours = null; keep(); window.CourseUnlocks.log('courseStart', { kind: 'maze', built: window.CourseUnlocks.parts(cells) }); toBuild(); };
+        toolsEl.replaceChildren(...S.offered('maze', skills()).map(s => el('button', { type: 'button', class: 'maze-tool starter', text: s.name, onclick: () => take(S.build('maze', s.index, M())) })),
+            el('button', { type: 'button', class: 'maze-tool', text: 'Blank', onclick: () => take(M().emptyMaze()) }));
+        say('Pick a course to start from, or a blank one. Every part of it is yours to change.');
+        actions(); header(); tick();
+    }
     function toBuild(text) {
         stop(); mode = 'build'; run = null; hand = null; padEl.hidden = true; toolsEl.hidden = false; held = -1;
+        if (starting || (!save.started && !save.maze.some(Boolean))) return startPick();
         const have = [...M().palette(skills()), 'erase'];
         if (!have.includes(tool)) tool = have[0];
         toolsEl.replaceChildren(...have.map(k => el('button', { type: 'button', class: 'maze-tool' + (k === tool ? ' on' : '') + ' ' + k, 'aria-pressed': String(k === tool), text: k === 'erase' ? 'Erase' : M().TILES[k].name + (M().TILES[k].points ? ' ' + M().TILES[k].points : ''), onclick: () => { tool = k; toBuild(); } })));
         const pts = M().points(save.maze);
         say(text || (pts ? `There are ${pts} points in this maze. I only score what I get past, and only if I reach the exit. Show me the way.` : 'Pick something and tap the grid to place it. Traps and patrols are worth points if I get past them. Walls decide the way.'));
-        actions(button('Walk it yourself', toTest, true), ...(yours ? [button(yours.finished ? 'Hand it to the AI' : 'Let the AI try', toAi)] : []), button('Clear', () => { save.maze = M().emptyMaze(); yours = null; keep(); toBuild(); }));
+        actions(button('Walk it yourself', toTest, true), ...(yours ? [button(yours.finished ? 'Hand it to the AI' : 'Let the AI try', toAi)] : []), button('Starters', () => { starting = true; toBuild(); }), button('Clear', () => { save.maze = M().emptyMaze(); yours = null; keep(); toBuild(); }));
         header(); tick();
     }
     function toTest() {

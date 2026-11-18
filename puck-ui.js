@@ -8,7 +8,7 @@
     const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'text') n.textContent = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k !== '' && k != null)); return n; };
     const KEY = 'agiPuck';
     const blank = () => ({ course: P().emptyCourse(), marks: 0, runs: 0, stage: 1, best: {} });
-    const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { course: P().cleanCourse(s.course), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), best: s.best && typeof s.best === 'object' ? s.best : {} }; } catch { return blank(); } };
+    const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { course: P().cleanCourse(s.course), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), started: s.started === true, best: s.best && typeof s.best === 'object' ? s.best : {} }; } catch { return blank(); } };
     const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
     const skills = () => (window.CourseUnlocks.on ? window.CourseUnlocks.levelOf('puck') : location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
     const masteryNow = () => P().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min(skills(), 20));
@@ -63,14 +63,25 @@
         }
         save.course = R.cleanCourse(next); yours = null; yourPaths = []; keep(); toBuild();
     }
+    // A ready-made course to start from (course-starters.js; the owner's call, 2026-11-17: a blank field with every part
+    // open gave no direction): offered the first time a kind is opened, and from the Starters button after.
+    let starting = false;
+    function startPick() {
+        const S = window.CourseStarters, take = cells => { save.course = cells; save.started = true; starting = false; yours = null; yourPaths = []; keep(); window.CourseUnlocks.log('courseStart', { kind: 'puck', built: window.CourseUnlocks.parts(cells) }); toBuild(); };
+        toolsEl.replaceChildren(...S.offered('puck', skills()).map(s => el('button', { type: 'button', class: 'maze-tool starter', text: s.name, onclick: () => take(S.build('puck', s.index, P())) })),
+            el('button', { type: 'button', class: 'maze-tool', text: 'Blank', onclick: () => take(P().emptyCourse()) }));
+        say('Pick a course to start from, or a blank one. Every part of it is yours to change.');
+        actions(); header(); draw();
+    }
     function toBuild(text) {
         stop(); mode = 'build'; run = null; hand = null; toolsEl.hidden = false; reset();
+        if (starting || (!save.started && !save.course.some(Boolean))) return startPick();
         const R = P(), have = [...R.palette(skills()), 'erase'];
         if (!have.includes(tool)) tool = have[0];
         toolsEl.replaceChildren(...have.map(k => el('button', { type: 'button', class: 'maze-tool' + (k === tool ? ' on' : '') + ' ' + k, 'aria-pressed': String(k === tool), text: k === 'erase' ? 'Erase' : R.TILES[k].name + (R.TILES[k].points ? ' ' + R.TILES[k].points : ''), onclick: () => { tool = k; toBuild(); } })));
         const pts = R.points(save.course);
         say(text || (pts > 1 ? `${pts} points here, the hole among them. I score what I hit, and only if I reach the hole.` : 'Pick a part and tap the grid to place it. Tap it again to turn it. Targets are worth points. The hole is worth one.'));
-        actions(button('Play it yourself', toTest, true), ...(yours ? [button(yours.finished ? 'Hand it to the AI' : 'Let the AI try', toAi)] : []), button('Clear', () => { save.course = R.emptyCourse(); yours = null; yourPaths = []; keep(); toBuild(); }));
+        actions(button('Play it yourself', toTest, true), ...(yours ? [button(yours.finished ? 'Hand it to the AI' : 'Let the AI try', toAi)] : []), button('Starters', () => { starting = true; toBuild(); }), button('Clear', () => { save.course = R.emptyCourse(); yours = null; yourPaths = []; keep(); toBuild(); }));
         header(); draw();
     }
     function toTest() {
