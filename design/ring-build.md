@@ -1302,3 +1302,10 @@ arrangement is let in, and the pick card held it at 0.4. With your board up it i
 Chords block is heard alone, and a beat, a bass line or a melody block is heard over its chord, as I had said it was
 and it was not. Still true, and not changed: **chords give you no notes to hit in a run** (the lanes are the kick, the
 bass and the melody; on Hard a 4-bar board has 28 notes with any chords, and a board of chords alone has none).
+
+**Chord holds in the rhythm run (2026-11-17, playground only).** The owner's calls and what was built are in
+`design/evals-course.md` -> Chord holds: a held note from the Chords row, anywhere, from Medium up, moved side to side
+to open and close the music's tone (`SFX.wah`), with a small flair for swinging it. Checked in a browser on a touch
+screen, in lanes and on the whole field: held, swept, the flair given, 32 sweeps sent to the engine, no faults; not
+heard. **Also fixed, an older fault found on the way:** letting go of a held note lost what it had just done (its hit
+or its miss never reached the screen), because `release` emptied the list twice.

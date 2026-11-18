@@ -156,6 +156,8 @@
         padEl = el('div', { class: 'rhythm-pad', hidden: '' }, lane(0), lane(1), lane(2));
         hook(canvas, e => { if (mouse() && !inFree()) return dueLane(); const r = canvas.getBoundingClientRect(); return Math.max(0, Math.min(2, Math.floor((e.clientX - r.left) / (r.width / 3)))); });
         hookField();
+        // A chord held with a key (lanes, on a desktop): the mouse over the field opens and closes its tone.
+        canvas.addEventListener('pointermove', e => { if (mode !== 'test' || save.field || !run || run.state.over || pending.size) return; const r = canvas.getBoundingClientRect(), x = Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width))); for (const k of Object.keys(run.state.holding)) if (run.state.holding[k] && run.state.holding[k].kind === 'chord') show(run.move(isNaN(+k) ? k : +k, now(), x)); });
 
         actionsEl = el('div', { class: 'course-actions' });
         dlg = el('dialog', { class: 'evals-screen course-screen rhythm-screen', 'aria-label': 'Evals: the rhythm run' },
@@ -238,6 +240,7 @@
         feed = by === 'ai' ? { events: hand.attempts[attempt].events.slice().sort((a, b) => a.t - b.t), i: 0 } : null;
         if (by === 'you' && save.field) { say(mouse() ? 'Aim with the mouse and click each note as it reaches the line; the spacebar hits too. Keep the button down on a long one and follow it as it slides. W, or a flick, for a slash.' : 'Tap each note where it reaches the line. Keep your finger on a long one and follow it as it slides. Swipe the diamonds. In a freestyle bar, tap a beat of your own.'); actions(button('Stop', () => toPick())); }
         else if (by === 'you') { say(mouse() ? 'A, S and D are the lanes; a click or the spacebar takes whichever note is due. Hold the long ones. W, or a flick of the mouse, for a slash. In a freestyle bar, play a beat of your own.' : 'Tap each note at the line and hold the long ones. Swipe the diamonds. In a freestyle bar, tap a beat of your own.'); actions(button('Stop', () => toPick())); }
+        if (by === 'you' && R().modeOf(save.level).chordEvery && !(save.field && mouse())) sayEl.textContent += mouse() ? ' Hold a violet chord and move the mouse to open and close its tone.' : ' Hold a violet chord and slide side to side to open and close its tone.';
         cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
     }
     function start(at) {
@@ -256,7 +259,7 @@
     function hook(node, laneOf) {
         node.addEventListener('pointerdown', e => { if (mode !== 'test' || save.field) return; e.preventDefault(); const l = laneOf(e), t = now(), due = run && run.state.notes.find(n => !n.free && n.lane === l && n.state === 'wait' && Math.abs(n.t - t) <= R().RHYTHM.good + 0.08);
             if (due && due.kind === 'slash') pending.set(e.pointerId, { lane: l, x: e.clientX, y: e.clientY, sent: false }); else { pending.set(e.pointerId, { lane: l, sent: true }); press(l); } });
-        node.addEventListener('pointermove', e => { const p = pending.get(e.pointerId); if (!p || p.sent) return; if (Math.hypot(e.clientX - p.x, e.clientY - p.y) >= SWIPE) { p.sent = true; press(p.lane, 'slash'); } });
+        node.addEventListener('pointermove', e => { const p = pending.get(e.pointerId); if (p && p.sent && mode === 'test' && run && !run.state.over && run.state.holding[p.lane] && run.state.holding[p.lane].kind === 'chord') { const r = canvas.getBoundingClientRect(); show(run.move(p.lane, now(), Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width))))); return; } if (!p || p.sent) return; if (Math.hypot(e.clientX - p.x, e.clientY - p.y) >= SWIPE) { p.sent = true; press(p.lane, 'slash'); } });
         const up = e => { const p = pending.get(e.pointerId); if (!p) return; e.preventDefault(); pending.delete(e.pointerId); if (!p.sent) press(p.lane); release(p.lane); };
         node.addEventListener('pointerup', up); node.addEventListener('pointercancel', up); node.addEventListener('pointerleave', up);
     }
@@ -307,6 +310,7 @@
             } else if (e.type === 'miss') { window.SFX?.play?.('error'); /* the AI's misses too: the owner likes hearing them (2026-11-17) */ pops.push({ lane: e.lane, x: e.x, text: 'MISS', at, good: false }); fx.push({ kind: 'miss', lane: e.lane, x: e.x, at }); }
             else if (e.type === 'slipped') pops.push({ lane: e.lane, x: e.x, text: 'SLIPPED', at: at + 1, good: false });
             else if (e.type === 'stray') pops.push({ lane: e.lane, x: e.x, text: '·', at, good: false });
+            else if (e.type === 'wah') { try { window.SFX?.wah?.(e.v); } catch { /* no engine */ } }
             else if (e.type === 'flair') { pops.push({ lane: 1, text: 'NICE', at, good: true }); fx.push({ kind: 'flair', at }); }
             else if (e.type === 'fell') fx.push({ kind: 'fell', at });
         }
@@ -480,7 +484,7 @@
         // ---- The notes.
         if (run) for (const n of s.notes) {
             if (n.free || n.t - t > look || (n.state !== 'wait' && n.state !== 'held')) continue;
-            const held = n.state === 'held', x = field && n.x != null ? R().xAt(n, held ? t : n.t) * W : laneX(n.lane), xe = field && n.x2 != null ? n.x2 * W : x, y = held ? hitY : yOf(n.t), c = tint(n.lane);
+            const held = n.state === 'held', x = field && n.x != null ? R().xAt(n, held ? t : n.t) * W : laneX(n.lane), xe = field && n.x2 != null ? n.x2 * W : x, y = held ? hitY : yOf(n.t), c = n.kind === 'chord' ? C.research : tint(n.lane);
             if (n.hold > 0) {
                 // A packet, pointing the way it is going: forward, up the lane. Its tail is the path still to write;
                 // while you hold, the written part burns bright behind the head as it is pushed on.
@@ -494,6 +498,7 @@
                 }
                 ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(x, y - r * 1.15); ctx.lineTo(x + r * 1.05, y + r * 0.85); ctx.lineTo(x, y + r * 0.3); ctx.lineTo(x - r * 1.05, y + r * 0.85); ctx.closePath(); ctx.fill();
                 ctx.fillStyle = C.bg; ctx.globalAlpha = 0.55; ctx.beginPath(); ctx.arc(x, y - r * 0.15, r * 0.22, 0, A.TAU); ctx.fill(); ctx.globalAlpha = 1;
+                if (n.kind === 'chord') { ctx.strokeStyle = c; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; for (const d of [-1, 1]) { ctx.beginPath(); ctx.moveTo(x + d * r * 1.5, y); ctx.lineTo(x + d * r * 2.3, y); ctx.moveTo(x + d * r * 1.95, y - r * 0.35); ctx.lineTo(x + d * r * 2.3, y); ctx.lineTo(x + d * r * 1.95, y + r * 0.35); ctx.stroke(); } ctx.lineWidth = 1; }   // it can be moved, side to side
             } else if (n.kind === 'slash') {
                 const cs = gold ? C.warning : C.danger; A.glow(ctx, x, y, r, cs, 0.8 + 0.4 * pulse);
                 ctx.fillStyle = cs; ctx.beginPath(); ctx.moveTo(x, y - r * 1.2); ctx.lineTo(x + r * 1.2, y); ctx.lineTo(x, y + r * 1.2); ctx.lineTo(x - r * 1.2, y); ctx.closePath(); ctx.fill();

@@ -1466,6 +1466,9 @@
     let soft = 1;
     const musicLevel = () => musicVolume * 0.55 * soft;
     function setSoft(v, seconds = 0.25) { soft = Math.max(0, Math.min(1, Number(v))); if (!(soft >= 0)) soft = 1; if (music && ctx) music.bus.gain.setTargetAtTime(musicLevel(), ctx.currentTime, Math.max(0.01, seconds / 3)); }
+    // The music's tone opened and closed by hand (the rhythm run's chord holds): 0 dark, 1 bright. The hand owns the
+    // filter for a moment after each move, then the music's own mood takes it back.
+    function wah(v) { if (!music || !ctx) return; const now = ctx.currentTime, x = Math.max(0, Math.min(1, Number(v) || 0)); music.filter.frequency.setTargetAtTime(350 * Math.pow(12000 / 350, x), now, 0.04); music.hold = Math.max(music.hold || 0, now + 0.35); }
     // One pitched note of a played instrument (the rhythm run with the music off: each note you hit sounds). `lane`: 0
     // the kick, 1 the bass, 2 the melody; `p`: its step in the scale. In the track's key, like every effect.
     const PENT = [0, 3, 5, 7, 10];
@@ -1796,6 +1799,6 @@
     // For tests (tests/audio.test.js): the song builders, and a look at the running music.
     const lab = { parseMelody, parseChord, buildSong, harmNote, melNote, songs: SONGS, music: () => music, clock: () => (clock ? { ...clock } : null), areaSongs: a => areaSongs(a), master: () => master, gridMul: () => gridMul(), scales: { AEOL, PHRY, DOR, HARM, ION } };
 
-    return { tick, setPolicy, get catalog() { return catalog(); }, lab, get voices() { return { ...voices }; }, get context() { return ctx; }, get faults() { return { ...faults }; }, get sounds() { return Object.keys(SOUNDS); }, play, held, setArea, setDepth, setTraining, songCmd, get song() { return songNow(); }, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, setSoft, note: laneNote, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
+    return { tick, setPolicy, get catalog() { return catalog(); }, lab, get voices() { return { ...voices }; }, get context() { return ctx; }, get faults() { return { ...faults }; }, get sounds() { return Object.keys(SOUNDS); }, play, held, setArea, setDepth, setTraining, songCmd, get song() { return songNow(); }, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, setSoft, wah, note: laneNote, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
     }
 })();

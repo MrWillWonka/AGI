@@ -144,3 +144,56 @@ test('the board: a stretch of it, and one block alone, are songs of their own (f
         assert.equal(R.cleanBoard(song, board).beat[0], board.beat[0], name + ': the board itself is untouched');
     });
 });
+// ---- Chord holds (the owner's calls, 2026-11-17).
+test('chord holds: none on Easy or with one hand; from Medium a held chord starts some bars, in a lane it has to itself', () => {
+    every((e, song, name) => {
+        const N = song.steps, chords = m => R.chartFor(song, m).filter(n => n.chord);
+        assert.equal(chords(0).length, 0, name + ': Easy');
+        assert.equal(R.chartFor(song, 2, undefined, { ...R.RHYTHM, hands: 1 }).filter(n => n.chord).length, 0, name + ': one hand');
+        for (const m of [1, 2, 3]) {
+            const all = R.chartFor(song, m), list = all.filter(n => n.chord), every = R.MODES[m].chordEvery;
+            assert.ok(list.length >= 1, `${name} mode ${m}: at least one`);
+            for (const c of list) {
+                assert.equal(c.kind, 'chord'); assert.equal(c.step % (N * every), 0, `${name}: at the start of a bar`); assert.equal(c.len, N - R.RHYTHM.chordRest);
+                assert.ok(c.lane >= 0 && c.lane < R.RHYTHM.lanes, name);
+                assert.ok(!all.some(n => n !== c && !n.free && n.lane === c.lane && n.step + Math.max(0, n.len) >= c.step && n.step <= c.step + c.len), `${name} mode ${m}: nothing else in its lane while it is held`);
+            }
+            // Never more down at once than two thumbs.
+            for (const n of all) if (!n.free) { const busy = all.filter(q => !q.free && q !== n && ((q.len > 0 && q.step < n.step && q.step + q.len > n.step) || (q.step === n.step))).length; assert.ok(busy <= 1, `${name} mode ${m}: step ${n.step} needs ${busy + 1} hands`); }
+        }
+        const f = R.fieldFor(song, 2).filter(n => n.chord);
+        for (const c of f) { assert.ok(R.RHYTHM.chordX.includes(c.x), name); assert.equal(c.x2, c.x, name + ': a chord does not slide'); }
+    });
+});
+
+test('chord holds: held, it is a hit; moved back and forth it is heard and earns a flair, in lanes and on the whole field', () => {
+    for (const field of [false, true]) {
+        const o = { ...R.rulesFor(2), field }, chart = [{ t: 1, lane: 1, hold: 1.5, kind: 'chord', ...(field ? { x: 0.5, x2: 0.5 } : {}) }], key = field ? 'h' : 1;
+        const still = R.simulate(chart, [{ t: 1, lane: key, down: true, x: 0.5 }, { t: 2.52, lane: key, down: false }], 3, o);
+        assert.deepEqual([still.hits, still.wahs, still.miss], [1, 0, 0], 'held still');
+        const moves = []; for (let i = 0; i < 10; i++) moves.push({ t: 1.1 + i * 0.12, lane: key, move: true, x: i % 2 ? 0.75 : 0.25 });
+        const run = R.createRun(chart, o), seen = [];
+        seen.push(...run.press(key, 1, undefined, 0.5)); for (const m of moves) seen.push(...run.move(m.lane, m.t, m.x)); seen.push(...run.release(key, 2.52)); seen.push(...run.advance(3));
+        const res = R.result(run, o);
+        assert.equal(seen.filter(e => e.type === 'wah').length, 10, 'every move is heard');
+        assert.ok(seen.some(e => e.type === 'flair' && e.chord), 'the flair');
+        assert.deepEqual([res.hits, res.wahs, res.miss], [1, 1, 0], field ? 'the whole field: a wandering hand does not drop a chord' : 'lanes');
+        assert.ok(res.score > still.score, 'worth a little more');
+        assert.equal(res.accuracy, still.accuracy, 'the flair is not accuracy');
+        // A little movement one way is not a flair.
+        const nudge = R.simulate(chart, [{ t: 1, lane: key, down: true, x: 0.5 }, { t: 1.3, lane: key, move: true, x: 0.6 }, { t: 2.52, lane: key, down: false }], 3, o);
+        assert.equal(nudge.wahs, 0);
+        // Let go early and it is a miss, as any hold.
+        assert.equal(R.simulate(chart, [{ t: 1, lane: key, down: true, x: 0.5 }, { t: 1.4, lane: key, down: false }], 3, o).miss, 1);
+    }
+});
+
+test('chord holds: a practised AI works the chord; a new one only holds it', () => {
+    const e = engine('classic', 'lab'), song = e.sfx.lab.areaSongs('lab')[0];
+    for (const field of [false, true]) {
+        const o = { ...R.rulesFor(2), field, bars: 8 }, chart = R.timed((field ? R.fieldFor : R.chartFor)(song, 2, undefined, o), 0.125, o), end = R.lengthOf(song, 0.125, o);
+        const wahs = m => { let n = 0; for (let s = 1; s <= 10; s++) n += R.simulate(chart, R.aiEvents(chart, null, { seed: s * 977, mastery: m }, o).events, end, o).wahs; return n; };
+        assert.equal(wahs(0), 0, 'a new one');
+        assert.ok(wahs(1) >= 10, 'a practised one: ' + wahs(1));
+    }
+});

@@ -118,6 +118,31 @@ closes in with mastery, and follows slides.
 out notes that are two at once or too far across to reach in time (Extreme on Night Survey: 28 notes with a mouse, 56
 with two thumbs); the reach of each mode; how far a held note slides (up to 22% of the width).
 
+### Chord holds: the owner's calls (2026-11-17)
+
+"Chords aren't giving me anything to play from the board." Both halves were true: a Chords block made no sound when
+tapped (fixed: see `design/ring-build.md`), and chords gave no notes to hit. The calls:
+- **A chord is a held note you can move back and forth for an effect.**
+- **No lane of its own:** "I don't think there's a reason for us to split lanes like that so they can go anywhere."
+- **Moving it opens and closes the tone** (a filter sweep).
+- **Moving is a small flair bonus**, not required.
+- **From Medium up.**
+
+**Built (playground only; `rhythm.js`, `rhythm-ui.js`, `sfx.js` `wah`; tests in `tests/rhythm-board.test.js`):** a violet
+held note with an arrow each side, at the start of some bars, held for all but the bar's last beat. In lanes it takes
+the lane with the least in its way, and whatever was in its way there is left out. On the whole field it sits wherever
+is clearest and does not slide, and your hand may wander on it. Moving sideways while you hold it sweeps the music's
+tone, dark to the left and bright to the right. On a phone: slide the holding finger. On a desktop in lanes: hold the
+lane's key and move the mouse over the field. Swung back and forth it earns the flair ("NICE").
+
+**The numbers (mine, placeholders, `RHYTHM` and `MODES` in `rhythm.js`):** Medium has a chord hold every 4th bar, Hard
+and Extreme every 2nd, Easy none. The flair is half a perfect hit, for two turns after swings of at least 18% of the
+width and half the width of movement in all. It is not counted in accuracy. A practised AI works the chord too.
+
+**For the owner to judge:** the sweep is on the whole of the music, not the chord alone (the engine has one filter for
+the music). With a mouse on the whole field there are no chord holds (one hand). A chord hold takes a thumb for most of
+a bar, so the other thumb plays alone meanwhile and some notes are thinned out to fit. I CANNOT HEAR the sweep.
+
 ## The third kind: the owner's call (2026-11-16)
 
 "A version of the puck physics we have where it's a mix of mini golf and target practice": Packet Snare's flung mine

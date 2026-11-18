@@ -44,6 +44,11 @@
         // hand lands at first (one standard deviation).
         field: false, reach: 0.13, slide: 0.22, slip: 1.6, slipTime: 0.2, travel: 0.2, aim: 0.06,
         kickX: 0.1, bassX: [0.22, 0.42], melX: [0.5, 0.92],
+        // Chord holds (the owner's calls, 2026-11-17: "held notes you can move back and forth for reverb or effects";
+        // they "can go anywhere", in no lane of their own; from Medium up; moving is "a small flair bonus"). A chord is
+        // held from the start of its bar to `chordRest` steps before the bar's end. Moved back and forth while it is
+        // held (`chordTravel` of the width in all, turning round `chordTurns` times after a swing of `chordSwing` each) it earns `chordFlair` extra.
+        chordRest: 4, chordFlair: 0.5, chordTravel: 0.5, chordTurns: 2, chordSwing: 0.18, chordX: [0.5, 0.3, 0.7, 0.16, 0.84],
     };
     // How much of the song is notes when the instruments are taken one by one (the first cut; kept for the mixing below).
     const LEVELS = [{ name: 'Kick', lanes: [0] }, { name: 'Kick and bass', lanes: [0, 1] }, { name: 'With the melody', lanes: [0, 1, 2] }];
@@ -52,10 +57,11 @@
     // `chords`: bars' worth of two-at-once allowed; `holds`: the share of held notes kept; `slash`: the share of single
     // notes that are slashes; `free`: which bars are freestyle; `miss`: what a miss costs the meter.
     const MODES = [
-        { key: 'easy', name: 'Easy', perBar: 5, apart: 4, chords: 0, holds: 0.5, slash: 0, free: [3, 7], miss: 0.045, reach: 0.16 },
-        { key: 'medium', name: 'Medium', perBar: 8, apart: 2, chords: 1, holds: 1, slash: 0, free: [7], miss: 0.06, reach: 0.13 },
-        { key: 'hard', name: 'Hard', perBar: 11, apart: 2, chords: 2, holds: 1, slash: 0.25, free: [7], miss: 0.075, reach: 0.11 },
-        { key: 'extreme', name: 'Extreme', perBar: 99, apart: 1, chords: 99, holds: 1, slash: 0.4, free: [7], miss: 0.09, reach: 0.09 },
+        // `chordEvery`: a chord hold at the start of every so many bars (0: none).
+        { key: 'easy', name: 'Easy', perBar: 5, apart: 4, chords: 0, holds: 0.5, slash: 0, free: [3, 7], miss: 0.045, reach: 0.16, chordEvery: 0 },
+        { key: 'medium', name: 'Medium', perBar: 8, apart: 2, chords: 1, holds: 1, slash: 0, free: [7], miss: 0.06, reach: 0.13, chordEvery: 4 },
+        { key: 'hard', name: 'Hard', perBar: 11, apart: 2, chords: 2, holds: 1, slash: 0.25, free: [7], miss: 0.075, reach: 0.11, chordEvery: 2 },
+        { key: 'extreme', name: 'Extreme', perBar: 99, apart: 1, chords: 99, holds: 1, slash: 0.4, free: [7], miss: 0.09, reach: 0.09, chordEvery: 2 },
     ];
     const modeOf = m => MODES[Math.max(0, Math.min(MODES.length - 1, m | 0))];
     // The rules a mode is played by: the table above with the mode's cost of a miss.
@@ -120,11 +126,19 @@
                 picked.push({ step: n.step, lane: n.lane, len, p: n.p });
             }
             out.push(...picked);
+            // A chord hold: one thumb stays down on it for most of the bar while the other plays (so not with one hand).
+            if (M.chordEvery && b % M.chordEvery === 0 && o.hands >= 2 && steps - o.chordRest >= 2 && song.prog && song.prog[sectionAt(song, (from + b) % song.bars).chords]) out.push({ step: b * steps, lane: -1, len: steps - o.chordRest, p: 0, chord: true });
         }
         const notes = playable(out.filter(n => !n.free), o.hands, o).sort((a, b) => a.step - b.step || a.lane - b.lane);
+        // It goes in the lane with the least in its way, and what is in its way there is left out (a lane's key is down).
+        for (const c of notes.filter(n => n.chord)) {
+            const inWay = l => notes.filter(n => n !== c && !n.chord && n.lane === l && n.step + Math.max(0, n.len) >= c.step && n.step <= c.step + c.len);
+            c.lane = [1, 0, 2].reduce((a, l) => (inWay(l).length < inWay(a).length ? l : a), 1);
+            for (const n of inWay(c.lane)) notes.splice(notes.indexOf(n), 1);
+        }
         let singles = 0;
         for (const n of notes) {
-            n.kind = n.len > 0 ? 'hold' : 'tap';
+            n.kind = n.chord ? 'chord' : n.len > 0 ? 'hold' : 'tap';
             if (n.kind === 'tap' && M.slash > 0 && !notes.some(m => m !== n && m.step === n.step) && Math.floor(++singles * M.slash) > Math.floor((singles - 1) * M.slash)) n.kind = 'slash';
         }
         return [...notes, ...out.filter(n => n.free)].sort((a, b) => a.step - b.step || (a.free ? -1 : b.free ? 1 : a.lane - b.lane));
@@ -138,7 +152,8 @@
         let lo = Infinity, hi = -Infinity;
         for (const arr of Object.values(song.mel || {})) for (const e of arr) if (e) { lo = Math.min(lo, e.deg || 0); hi = Math.max(hi, e.deg || 0); }
         const span = Math.max(1, hi - lo), at = (r, k) => r[0] + (r[1] - r[0]) * clamp(k, 0, 1);
-        for (const n of all) if (!n.free) n.x = n.lane === 0 ? o.kickX : n.lane === 1 ? at(o.bassX, ((n.p || 0) + 3) / 10) : at(o.melX, ((n.p || 0) - lo) / span);
+        for (const n of all) if (n.chord) n.x = o.chordX[0];   // (its place is chosen below, once the others have theirs)
+        for (const n of all) if (!n.free && !n.chord) n.x = n.lane === 0 ? o.kickX : n.lane === 1 ? at(o.bassX, ((n.p || 0) + 3) / 10) : at(o.melX, ((n.p || 0) - lo) / span);
         const kept = [];
         let last = null;
         for (const n of all) {
@@ -148,6 +163,7 @@
         }
         const notes = kept.filter(n => !n.free);
         notes.forEach((n, i) => {
+            if (n.chord) { const others = notes.filter(m => !m.chord && m.step >= n.step && m.step <= n.step + n.len), clear = x => Math.min(1, ...others.map(m => Math.abs(m.x - x))); n.x = n.x2 = o.chordX.reduce((a, x) => (clear(x) > clear(a) + 1e-9 ? x : a), o.chordX[0]); return; }
             if (!(n.len > 0)) return;
             const next = notes.find((m, j) => j > i && m.step >= n.step + n.len), to = next ? next.x : 0.5;
             n.x2 = clamp(n.x + clamp(to - n.x, -o.slide, o.slide), 0.06, 0.94);
@@ -246,13 +262,16 @@
     // On the whole field (`o.field`): `press(hand, t, kind, x)`, `move(hand, t, x)` and `release(hand, t)`, a hand
     // being any name for the finger or the mouse; a press takes the note due within `reach` of `x`.
     function createRun(chart, o = RHYTHM) {
-        const s = { meter: o.meterStart, combo: 0, best: 0, perfect: 0, good: 0, miss: 0, stray: 0, acc: 0, freeTaps: 0, flairs: 0, over: false, failed: false, finished: false, t: 0, failT: null,
+        const s = { meter: o.meterStart, combo: 0, best: 0, perfect: 0, good: 0, miss: 0, stray: 0, acc: 0, freeTaps: 0, flairs: 0, wahs: 0, over: false, failed: false, finished: false, t: 0, failT: null,
             notes: chart.map(n => (n.free ? { ...n, state: 'free', taps: [], done: false } : { ...n, state: 'wait', off: null })), holding: {}, handX: {} };
         const field = !!o.field;
         const out = [], frees = s.notes.filter(n => n.free);
         const bump = d => { s.meter = Math.max(0, Math.min(1, s.meter + d)); if (s.meter <= 0 && !s.over) { s.over = true; s.failed = true; s.failT = s.t; out.push({ type: 'fell', t: s.t }); } };
         const credit = (grade, lane, t, off, extra) => { s[grade]++; s.combo++; s.best = Math.max(s.best, s.combo); s.acc += grade === 'perfect' ? 1 : 0.6; bump(grade === 'perfect' ? o.meterPerfect : o.meterGood); out.push({ type: grade, lane, t, off, combo: s.combo, gold: s.combo >= o.goldCombo, ...extra }); };
-        const hit = (n, grade, off) => { n.state = grade; n.off = off; credit(grade, n.lane, n.t, off, { kind: n.kind, ...(field ? { x: n.hold > 0 ? n.x2 : n.x } : {}) }); };
+        const hit = (n, grade, off) => {
+            n.state = grade; n.off = off; credit(grade, n.lane, n.t, off, { kind: n.kind, ...(field ? { x: n.hold > 0 ? n.x2 : n.x } : {}) });
+            if (n.kind === 'chord' && (n.travel || 0) >= o.chordTravel && (n.turns || 0) >= o.chordTurns) { s.acc += o.chordFlair; s.wahs++; out.push({ type: 'flair', t: n.t + n.hold, chord: true }); }
+        };
         const lose = (n, lane, t) => { if (n) n.state = 'miss'; s.miss++; s.combo = 0; out.push({ type: 'miss', lane, t, ...(field && n ? { x: xAt(n, s.t) } : {}) }); bump(-o.meterMiss); };
         const drop = n => { delete s.holding[n.key]; if (s.t >= n.t + n.hold - o.holdSlack) hit(n, n.grade, n.off); else { n.off = null; lose(n, n.lane, n.t); } };
         const take = () => out.splice(0, out.length);
@@ -270,7 +289,7 @@
                     }
                 } else if (n.state === 'wait' && t - n.t > o.good) lose(n, n.lane, n.t);
                 else if (n.state === 'held' && t >= n.t + n.hold - 1e-9) { hit(n, n.grade, n.off); delete s.holding[n.key]; }
-                else if (n.state === 'held' && field) {   // the hand has to stay with a sliding note
+                else if (n.state === 'held' && field && n.kind !== 'chord') {   // the hand has to stay with a sliding note (a chord's hand may wander)
                     if (Math.abs((s.handX[n.key] ?? n.x) - xAt(n, t)) <= o.reach * o.slip) n.slipT = null;
                     else if (n.slipT == null) n.slipT = t;
                     else if (t - n.slipT > o.slipTime) { out.push({ type: 'slipped', lane: n.lane, t, x: xAt(n, t) }); drop(n); }
@@ -306,7 +325,7 @@
             const off = t - pick.t;
             // A slash note wants a slash: tapped, it is good at best.
             const grade = Math.abs(off) <= o.perfect && (pick.kind !== 'slash' || kind === 'slash') ? 'perfect' : 'good';
-            if (pick.hold > 0) { pick.state = 'held'; pick.grade = grade; pick.off = off; pick.key = key; pick.slipT = null; s.holding[key] = pick; out.push({ type: 'hold', lane: pick.lane, t: pick.t, off }); }
+            if (pick.hold > 0) { pick.state = 'held'; pick.grade = grade; pick.off = off; pick.key = key; pick.slipT = null; pick.wx = field ? x : null; s.holding[key] = pick; out.push({ type: 'hold', lane: pick.lane, t: pick.t, off }); }
             else hit(pick, grade, off);
             return take();
         }
@@ -314,18 +333,28 @@
             if (s.over) return take();
             const n = s.holding[key];
             if (n) { s.t = Math.max(s.t, t); drop(n); }
-            advance(t);
-            return take();
+            const first = take();   // (what letting go did, kept: dvance hands back and empties the list, and this used to be lost)
+            return first.concat(advance(t));
         }
         // The hand moved (the whole field): where it is now, for a held note that slides.
-        function move(key, t, x) { if (s.over || !field) return take(); s.handX[key] = Math.max(0, Math.min(1, +x || 0)); return advance(t); }
+        // (And, in lanes too, the hand on a chord: how far it has gone back and forth, and where it is, to be heard.)
+        function move(key, t, x) {
+            if (s.over) return take();
+            const v = Math.max(0, Math.min(1, +x || 0)), n = s.holding[key];
+            if (n && n.kind === 'chord') {
+                if (n.wx != null) { const d = v - n.wx; if (Math.abs(d) > 0.004) { n.travel = (n.travel || 0) + Math.abs(d); const dir = d > 0 ? 1 : -1; if (n.dir && dir !== n.dir) { if ((n.leg || 0) >= o.chordSwing) n.turns = (n.turns || 0) + 1; n.leg = 0; } n.leg = (n.leg || 0) + Math.abs(d); n.dir = dir; } }   // (a turn counts after a real swing one way: a shaky hand is not a flair)
+                n.wx = v; out.push({ type: 'wah', v, t });
+            }
+            if (!field) return take();
+            s.handX[key] = v; return advance(t);
+        }
         return { state: s, press, release, move, advance, freeAt, field };
     }
     // What a run came to. `score`: the hits by how well, with the longest combo's bonus; nothing if the song fell apart.
     function result(run, o = RHYTHM) {
-        const s = run.state, notes = s.notes.filter(n => !n.free), total = notes.length, hits = s.perfect + s.good, accuracy = hits ? (s.acc - o.flair * s.flairs) / hits : 0;
+        const s = run.state, notes = s.notes.filter(n => !n.free), total = notes.length, hits = s.perfect + s.good, accuracy = hits ? (s.acc - o.flair * s.flairs - o.chordFlair * s.wahs) / hits : 0;
         const score = s.failed || !(total + s.freeTaps) ? 0 : s.acc * (1 + o.comboBonus * Math.min(1, s.best / Math.max(1, total)));
-        return { finished: s.finished, failed: s.failed, failT: s.failT, total, hits, perfect: s.perfect, good: s.good, miss: s.miss, stray: s.stray, combo: s.best, accuracy, score, meter: s.meter, freeTaps: s.freeTaps, flairs: s.flairs,
+        return { finished: s.finished, failed: s.failed, failT: s.failT, total, hits, perfect: s.perfect, good: s.good, miss: s.miss, stray: s.stray, combo: s.best, accuracy, score, meter: s.meter, freeTaps: s.freeTaps, flairs: s.flairs, wahs: s.wahs,
             offs: s.notes.map(n => (!n.free && (n.state === 'perfect' || n.state === 'good') ? n.off : null)) };
     }
     // The whole run from a list of events ({ t, lane, down, kind }), in time order; `end`: when the track is over.
@@ -355,14 +384,16 @@
             if (r() < o.missRate * scale) return;
             const off = (shown ? yours.offs[i] : 0) * (1 - m) + (o.sigma * scale + o.sigmaFloor) * bell(r);
             const kind = n.kind === 'slash' && r() >= o.slashSlip * scale ? 'slash' : undefined;
+            const wig = n.kind === 'chord' && r() < m;   // (drawn only for a chord, so the other notes' luck is as it was)
             if (!field) {
+                if (wig) for (let q = n.t + off + 0.1, i2 = 0; q < n.t + off + n.hold; q += 0.1, i2++) events.push({ t: q, lane: n.lane, move: true, x: 0.5 + 0.2 * (i2 % 4 < 2 ? 1 : -1) * (i2 % 2 ? 1 : 0.5) });
                 events.push({ t: n.t + off, lane: n.lane, down: true, kind });
                 events.push({ t: n.t + off + (n.hold > 0 ? n.hold + 0.02 : 0.06), lane: n.lane, down: false });
                 return;
             }
             const key = 'n' + i, wide = o.aim * scale, err = wide * bell(r), up = n.t + off + (n.hold > 0 ? n.hold + 0.02 : 0.06);
             events.push({ t: n.t + off, lane: key, down: true, kind, x: n.x + err });
-            if (n.hold > 0) for (let q = n.t + off + 0.08; q < up; q += 0.08) events.push({ t: q, lane: key, move: true, x: xAt(n, q) + err + wide * 0.5 * bell(r) });
+            if (n.hold > 0) for (let q = n.t + off + 0.08, i2 = 0; q < up; q += 0.08, i2++) events.push({ t: q, lane: key, move: true, x: xAt(n, q) + err + wide * 0.5 * bell(r) + (wig ? 0.16 * (i2 % 4 < 2 ? 1 : -1) : 0) });
             events.push({ t: up, lane: key, down: false });
         });
         return { events };
