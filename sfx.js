@@ -1581,9 +1581,15 @@
     // How far ahead the music is laid down, and how late a step may be and still be played. Ahead was 0.12 s: any stall
     // of the page longer than that left the music behind.
     const AHEAD_S = 0.25, LATE_S = 0.04;
+    // For finding garbled sound on a device (the owner's iPhone, 2026-11-17): steps of music skipped because the page fell
+    // behind, the furthest behind it was, and the longest wait between two turns of the scheduler (seconds). `takeTiming`
+    // hands them to the playtest log with what the device's audio is doing, and starts the count again.
+    const timing = { skipped: 0, worst: 0, tick: 0 };
+    function takeTiming() { const out = { skipped: timing.skipped, worst: timing.worst, tick: timing.tick, peak: voices.peak, music: voices.music, rate: ctx ? ctx.sampleRate : 0, lat: ctx ? (ctx.outputLatency || ctx.baseLatency || 0) : 0, state: ctx ? ctx.state : 'none', faults: faults.count }; timing.skipped = 0; timing.worst = 0; timing.tick = 0; return out; }
     function schedule() {
         if (!music || !live() || (!env.offline && document.hidden)) return;
         const now = ctx.currentTime;
+        timing.tick = Math.max(timing.tick, now - (music.last ?? now));
         const dt = Math.min(0.5, now - (music.last ?? now));
         music.last = now;
         // Back from a hidden tab or a long stall: pick the song up from now. The steps that were missed are
@@ -1593,6 +1599,7 @@
         // run ended, 2026-11-17: the page stalls 100 to 300 ms there on a slow device.)
         if (music.nextStep < now - LATE_S) {
             const k = Math.ceil((now + 0.02 - music.nextStep) / clock.len);
+            timing.skipped += k; timing.worst = Math.max(timing.worst, now - music.nextStep);
             music.step += k;
             music.nextStep += k * clock.len;
         }
@@ -1799,6 +1806,6 @@
     // For tests (tests/audio.test.js): the song builders, and a look at the running music.
     const lab = { parseMelody, parseChord, buildSong, harmNote, melNote, songs: SONGS, music: () => music, clock: () => (clock ? { ...clock } : null), areaSongs: a => areaSongs(a), master: () => master, gridMul: () => gridMul(), scales: { AEOL, PHRY, DOR, HARM, ION } };
 
-    return { tick, setPolicy, get catalog() { return catalog(); }, lab, get voices() { return { ...voices }; }, get context() { return ctx; }, get faults() { return { ...faults }; }, get sounds() { return Object.keys(SOUNDS); }, play, held, setArea, setDepth, setTraining, songCmd, get song() { return songNow(); }, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, setSoft, wah, note: laneNote, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
+    return { tick, setPolicy, get catalog() { return catalog(); }, lab, get voices() { return { ...voices }; }, get context() { return ctx; }, get faults() { return { ...faults }; }, get sounds() { return Object.keys(SOUNDS); }, play, held, setArea, setDepth, setTraining, songCmd, get song() { return songNow(); }, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, setSoft, wah, note: laneNote, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; }, get timing() { return { ...timing }; }, takeTiming };
     }
 })();

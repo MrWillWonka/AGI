@@ -118,7 +118,7 @@ window.AGI = (function () {
     let playtestSampleAt = 0;
     // Rare progression events are written at once: the log is otherwise flushed every 30 s of play and on
     // hide, so a crash or a killed tab lost the funnel's steps since the last sample.
-    const PT_FLUSH = new Set(['skill', 'unlock', 'phase', 'ship', 'transcend', 'challenge', 'perk', 'ending', 'mailAccepted', 'setting', 'save', 'evals', 'course', 'courseStart', 'courseReview', 'courseTest', 'cheat', 'cheatFlag', 'courseAi', 'courseUnlock', 'treeBuy', 'unlocks']);
+    const PT_FLUSH = new Set(['skill', 'unlock', 'phase', 'ship', 'transcend', 'challenge', 'perk', 'ending', 'mailAccepted', 'setting', 'save', 'evals', 'course', 'courseStart', 'courseReview', 'courseTest', 'cheat', 'cheatFlag', 'audio', 'courseAi', 'courseUnlock', 'treeBuy', 'unlocks']);
     // The Feed (feed.js, feed-ui.js): the swarm eats on the game's clock, so it eats (at a quarter speed, with nobody
     // leading it) while you are elsewhere with the page open. It runs under the ring, or while its screen is open (the test door). What it earns is research.
     function feedTick(dt) {
@@ -145,6 +145,21 @@ window.AGI = (function () {
         if (PT_FLUSH.has(type)) playtest.flush();
     }
     const r2 = x => Math.round(x * 100) / 100;
+    // Garbled sound on a device (the owner's iPhone, 2026-11-17: not reproduced, not measurable off the device): the log
+    // carries what the audio and the page were doing. `au` on every sample (music steps skipped, how far behind, the
+    // scheduler's longest wait, voices at once, the device's sample rate and latency, the longest stall of the page); and
+    // an `audio` line at the moment the music skips or the page stalls a quarter of a second, saying where and whether
+    // the AI was speaking.
+    let stallLast = performance.now(), stallMax = 0, audioSaidAt = 0, skippedSeen = 0;
+    const audioNote = () => { const t = window.SFX?.takeTiming?.(); const gap = Math.round(stallMax); stallMax = 0; skippedSeen = 0; return t ? { sk: t.skipped, late: r2(t.worst), tick: r2(t.tick), v: t.peak, hz: t.rate, lat: Math.round(t.lat * 1000), st: t.state, f: t.faults, gap } : { gap }; };
+    setInterval(() => {
+        const now = performance.now(), gap = now - stallLast; stallLast = now;
+        if (document.hidden) return;
+        stallMax = Math.max(stallMax, gap);
+        const t = window.SFX?.timing, skipped = t ? t.skipped : 0;
+        if ((gap > 250 || skipped > skippedSeen) && now - audioSaidAt > 5000 && state) { audioSaidAt = now; pt('audio', { gap: Math.round(gap), sk: skipped, late: t ? r2(t.worst) : 0, st: window.SFX?.state, at: ptPlace(), ...(assistLive ? { ai: assistLive.key } : {}) }); }
+        skippedSeen = skipped;
+    }, 50);
     let playtestView = null;
     const ptPlace = () => (openBay === 'training' && path.view === 'dev' ? 'tree' : currentPlace());
     // Investor offers: when each arrives, is finished, and leaves (claimed and dismissed are logged by their buttons).
@@ -181,7 +196,7 @@ window.AGI = (function () {
         const r = state.res;
         pt('sample', { cp: Math.round(r.cp), dp: Math.round(r.dp), rp: Math.round(r.rp), xp: Math.round(r.xp),
             cpNet: r2(d.cpNet), dpNet: r2(d.dpNet), rpRate: r2(d.rpPerSec), xpRate: r2(d.xpPerSec),
-            int: r2(state.attr.intelligence), skills: state.path.learned, phase: E.phaseIndex(state), ver: E.currentVersion(state), at: ptPlace(),
+            int: r2(state.attr.intelligence), skills: state.path.learned, phase: E.phaseIndex(state), ver: E.currentVersion(state), at: ptPlace(), au: audioNote(),
             // What the badges said: new lab cards, investor offers (open / done), skill-tree nodes you could buy.
             labNew: labUnseen().length, offers: state.projects.offers.length,
             offersDone: state.projects.offers.filter(o => E.projectProgress(state, o) >= o.target).length, treeReady: treeReady(),
@@ -15018,6 +15033,8 @@ window.AGI = (function () {
             // Evals, the third minigame (stage 1: its own screen, opened from here or with #evals).
             openEvals: () => window.EvalsUI?.open(),
             // A rival passed without playing (the ring's funding rounds): the next one on the score sheet.
+            // The AI says a line now (for checking how it sounds and looks while it types).
+            say: text => assist('debug:' + Date.now(), text || 'This is a test line. I am saying it so that you can hear what happens while I talk. It is a little longer than most.', {}),
             // A tear, as a run that beat that sector's boss would leave it (the first boss sector if none is named): the scene, the notice, the trickle.
             tear: (sector, packets = 120) => { let k = sector; if (k == null) for (k = 0; k < 60 && !E.isSnareBossSector(k); k++);  state.snare.sector = Math.max(state.snare.sector, k + 1); state.snare.bosses = Math.max(state.snare.bosses || 0, 1); const t = E.tearWin(state, k, packets); if (t) tearNews(t); afterChange(); return t; },
             fundRound: () => { const b = state.evals.passed; if (b >= window.Evals.RIVALS.length) return b; state.evals.passed = b + 1; fundingRound(b, b + 1); afterChange(); return b + 1; },

@@ -1350,3 +1350,18 @@ calls are at the top of `design/build4-drafts.md`: actions not replies, Report s
 something later (a quiet change, then a real person's line), a few forks among plain mail, the AI never writes as
 itself, strangers then your people, laughably bad to nearly perfect, about 8 short mails, family written like the
 brother's mail. One small draft of the first fork is there for the owner to react to. Nothing is wired.
+
+**Garbled sound again (the owner, 2026-11-17, nine screenshots from 21:23 to 21:29 of a new game's first minutes): still
+not found; the log now carries the evidence.** What the screenshots share: the AI is speaking in every one (it was
+also speaking when the Feed run ended). What I measured in a browser slowed 4 and 8 times while it types a line: no
+note started late, no step of music skipped, stalls of the page up to 375 ms. So the scheduler falling behind is not
+shown to be the cause, and the fix of round "crackle at the end of a Feed run" may have changed nothing the owner can
+hear. I cannot hear the phone or make a desktop browser do what it does. **Added, so the next log can say:**
+- `sample` lines carry `au`: music steps skipped (`sk`), how far behind (`late`, s), the scheduler's longest wait
+  (`tick`, s), voices at once (`v`), the device's sample rate (`hz`) and output latency (`lat`, ms), the audio
+  context's state (`st`), faults (`f`), and the page's longest stall (`gap`, ms).
+- An `audio` line at the moment the music skips or the page stalls over 250 ms: where, and `ai` if the AI was
+  speaking (at most one every 5 s). `SFX.takeTiming`, `SFX.timing`.
+- `AGI.debug.say(text)` makes the AI say a line, to try it on the device.
+If a garble comes with no `audio` line and `sk` 0, the cause is not the page falling behind: then the suspects are
+the phone's own audio thread under the orb's animated filters, or iOS's audio after an interruption.
