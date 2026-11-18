@@ -1374,3 +1374,20 @@ browser as a phone against a desktop over eight seconds of full music: 0 convolv
 untouched. Found on the way: the lower voice count for phones (70) had never applied on a real phone, because it
 read a flag only the tools set. The log's `au` says `light: 1` where this is on. If the crackle goes, put the reverb
 back in a cheaper form; if it does not, take this out and look at the phone's audio session.
+
+**The audio looked through for causes of crackle (the owner, 2026-11-17: "go ahead and look at the audio for potential
+issues").** Found and fixed:
+- **Automation events piled up for ever.** On every turn of the scheduler (40 a second) the music asked four controls
+  that last as long as the music does (its filter, the drive's wet and dry levels, the delay's time) to go where they
+  already were: **160 events a second, measured, with the music idle**, about 580,000 an hour. Browsers keep these on
+  a list for each control and walk it while rendering; Safari is the one known to slow down on a long list. Now a
+  control is told only when where it is going changes (`steer`): **0 a second idle**, measured.
+- **A phone is asked for a larger audio buffer** (`latencyHint: 'balanced'`; the default, `interactive`, is the
+  smallest and the first to crackle when the phone is busy). The log's `lat` will show what the phone gave.
+Looked at and left: every note's envelope starts and ends at silence; the limiter and the peaks (nothing over -5 dBTP
+in the renders); nodes made a second (16 idle, 60 with everything in), which are let go when their sound ends.
+**Measured for clicks in the rendered sound itself** (a count of single-sample jumps far above the signal round them,
+28 renders of Classic and Soft): Soft has none at all; Classic's are the edges of its square and saw waves, the same
+before and after. So the engine's own output is clean, and the crackle is the phone failing to keep up in real time,
+which is what the two fixes and the lighter music are aimed at. Tried and taken back out: a 6 ms ramp on the tones'
+dip at each kick (it measured no different, and it changes sound the owner has approved). Still unheard by me.

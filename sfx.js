@@ -43,7 +43,9 @@
         if (ctx || (volume <= 0 && musicVolume <= 0)) return ctx;
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!env.ctx && !AC) return null;
-        ctx = env.ctx || new AC();
+        // On a phone the device is asked for a larger audio buffer (`balanced`, not the default `interactive`). The default
+        // is the smallest there is: the least delay, and the first to crackle when the phone is busy with anything else.
+        ctx = env.ctx || (LIGHT ? (() => { try { return new AC({ latencyHint: 'balanced' }); } catch { return new AC(); } })() : new AC());
         master = ctx.createGain();
         master.gain.value = volume * 0.6;
         // The mixer: effects and music on a bus each, meeting at a limiter.
@@ -1591,6 +1593,13 @@
     // hands them to the playtest log with what the device's audio is doing, and starts the count again.
     const timing = { skipped: 0, worst: 0, tick: 0 };
     function takeTiming() { const out = { skipped: timing.skipped, worst: timing.worst, tick: timing.tick, peak: voices.peak, music: voices.music, rate: ctx ? ctx.sampleRate : 0, lat: ctx ? (ctx.outputLatency || ctx.baseLatency || 0) : 0, state: ctx ? ctx.state : 'none', faults: faults.count, light: LIGHT ? 1 : 0 }; timing.skipped = 0; timing.worst = 0; timing.tick = 0; return out; }
+    // Send a control toward a value, once: asked again for the same place (within 1%) and at the same pace, nothing is added.
+    function steer(param, value, now, pace) {
+        const was = param.steered;
+        if (was && was.pace === pace && Math.abs(was.value - value) <= Math.abs(value) * 0.01 + 1e-7) return;
+        param.steered = { value, pace };
+        param.setTargetAtTime(value, now, pace);
+    }
     function schedule() {
         if (!music || !live() || (!env.offline && document.hidden)) return;
         const now = ctx.currentTime;
@@ -1668,10 +1677,13 @@
         // the filter until it has landed (`music.hold`).
         const cut = music.songs[music.song]?.cut;
         const cutoff = slow ? 600 : st.cutoff(k) * (cut ? cut + (1 - cut) * k : 1);
-        if (!(music.hold > now)) music.filter.frequency.setTargetAtTime(cutoff, now, slow ? 0.6 : 0.5);
-        music.wet.gain.setTargetAtTime(mode === 'crunch' ? 0.55 : simple ? 0 : st.drive || 0, now, 0.15);
-        music.dry.gain.setTargetAtTime(mode === 'crunch' ? 0.6 : 1, now, 0.15);
-        if (music.space.delay) music.space.delay.delayTime.setTargetAtTime(music.space.steps * clock.len, now, 0.2);
+        // (`steer`: only when where it is going has changed. These four were asked again on every turn of the scheduler,
+        // 160 automation events a second on controls that last as long as the music does, piling up for the whole session.)
+        if (!(music.hold > now)) steer(music.filter.frequency, cutoff, now, slow ? 0.6 : 0.5);
+        else music.filter.frequency.steered = null;   // a swell or a hand has it: whatever it was told before no longer holds
+        steer(music.wet.gain, mode === 'crunch' ? 0.55 : simple ? 0 : st.drive || 0, now, 0.15);
+        steer(music.dry.gain, mode === 'crunch' ? 0.6 : 1, now, 0.15);
+        if (music.space.delay) steer(music.space.delay.delayTime, music.space.steps * clock.len, now, 0.2);
     }
 
     // Where the player is (game.js): 'lab' (the lab, Surveillance, R&D), 'server' (the server room and its bays) or
