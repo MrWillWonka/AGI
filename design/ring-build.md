@@ -1295,3 +1295,10 @@ previews still start within a beat (their return to the song now asks 0.42 s bef
 the crackle itself happen or hear that it is gone. If it comes back, the stall is the next thing to cut.
 
 **The rhythm run's miss sound plays for the AI's misses too** (the owner, 2026-11-17: "I like hearing the error sound for AI"). I had limited it to yours; that is undone.
+
+**The board: a Chords block played nothing when tapped (the owner, 2026-11-17: "chords aren't giving me anything to
+play from the board").** Measured: no note at all started. A song's chords only sound once about 0.7 of the
+arrangement is let in, and the pick card held it at 0.4. With your board up it is 0.85 now (as Listen had it), so a
+Chords block is heard alone, and a beat, a bass line or a melody block is heard over its chord, as I had said it was
+and it was not. Still true, and not changed: **chords give you no notes to hit in a run** (the lanes are the kick, the
+bass and the melody; on Hard a 4-bar board has 28 notes with any chords, and a board of chords alone has none).

@@ -197,7 +197,9 @@
         const all = tracks(), tr = trackNow();
         if (!tr) { say('There is no music to play. The game\'s tracks did not load.'); actions(); return; }
         if (!save.own) listening = false;
-        if (!listening) { restore(tr); music = { area: tr.area, level: 0.4 }; if (!previewT) soften(SOFT, 1.2); }
+        // (With your board up, the whole arrangement is let in: a song's chords only sound from about 0.7, so at 0.4 a
+        // Chords block tapped on the board played nothing at all.)
+        if (!listening) { restore(tr); music = { area: tr.area, level: save.own ? 0.85 : 0.4 }; if (!previewT) soften(SOFT, 1.2); }
         const can = window.CourseUnlocks.can;
         if (save.own && !can('board')) save.own = false;
         if (save.field && !can('field')) save.field = false;
