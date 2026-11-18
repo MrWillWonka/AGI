@@ -4867,3 +4867,15 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 /* "Start at" kept on one line beside its picker (it broke in two on a phone: the visual sweep, 2026-11-17). */
 .snare-sector-row > span { white-space: nowrap; flex: none; }
 .snare-sector-row .snare-sector-pick { min-width: 0; flex: 0 1 auto; text-overflow: ellipsis; }
+
+/* A notice drops in under the status strip on a phone, not over its clock and numbers (the visual sweep, 2026-11-17). */
+body.ring-device.device-phone .device-notices, body.ring-device.device-phone .device-notices[popover] { top: calc(42px + env(safe-area-inset-top, 0px)); }
+
+/* In Parcel the line takes its own row under the list, so the list ends above it and scrolls clear (it sat on the
+   last card, the Monitor: the owner's screenshots, 2026-11-17). */
+.assist.in-shop, body.device-laptop .assist.in-shop, :root:has(.device-notice) .assist.in-shop { position: static; inset: auto; flex: none; order: 99; margin: 0 14px 14px; }
+.assist.in-shop:not(:has(.assist-bubble)) { display: none; }
+
+/* The small orb sits just after the strip's clock on a phone: the numbers start past it in every app, and stay
+   centred only while they fit (it covered the money figure: the visual sweep, 2026-11-17). */
+body.ring-device.device-phone .status-stats { padding-left: 40px; justify-content: safe center; }

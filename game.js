@@ -3085,7 +3085,18 @@ window.AGI = (function () {
         const toBox = r => {
             const inX = ox > r.l + 10 * k && ox < r.r - 10 * k, inY = oy > r.t + 6 * k && oy < r.b - 6 * k;
             if (inX && inY) return '';
-            if (inX) { const up = oy > r.b; return `M${n(ox)} ${n(oy + (up ? -R : R))}V${n(up ? r.b : r.t)}`; }
+            if (inX) {
+                // Straight down (or up). Where that crosses an app on the home screen it is not pointing at, the line
+                // breaks and picks up on the far side, as if it ran behind the app (the owner's screenshots,
+                // 2026-11-17: it ran through the Lab's picture and its name).
+                const up = oy > r.b, y1 = oy + (up ? -R : R), y2 = up ? r.b : r.t, lo = Math.min(y1, y2), hi = Math.max(y1, y2), g = 5 * k;
+                const cuts = [...document.querySelectorAll('.home-icon')].filter(i => i !== assistLive.ringed && i.getClientRects().length).map(i => i.getBoundingClientRect())
+                    .filter(c => ox > c.left - 2 * k && ox < c.right + 2 * k && c.bottom + g > lo && c.top - g < hi).sort((a, c) => up ? c.top - a.top : a.top - c.top);
+                let d = '', y = y1;
+                for (const c of cuts) { const near = up ? c.bottom + g : c.top - g, far = up ? c.top - g : c.bottom + g; if (up ? near < y : near > y) d += `M${n(ox)} ${n(y)}V${n(near)}`; y = up ? Math.min(y, far) : Math.max(y, far); }
+                if (up ? y2 < y : y2 > y) d += `M${n(ox)} ${n(y)}V${n(y2)}`;
+                return d;
+            }
             if (inY) { const left = ox > r.r; return `M${n(ox + (left ? -R : R))} ${n(oy)}H${n(left ? r.r : r.l)}`; }
             const sx = ox < r.l ? 1 : -1, sy = oy < r.t ? 1 : -1, tx = clamp(ox,r.l + Math.min(24 * k, (r.r - r.l) / 2), r.r - Math.min(24 * k, (r.r - r.l) / 2)), ty = sy > 0 ? r.t : r.b;
             // A box further off to the side than it is above or below (an app on the home screen's column): down first,
@@ -13808,7 +13819,7 @@ window.AGI = (function () {
         ctx.fillStyle = tone;
         if (X(hillNow.peak) <= w - PAD_X) {
             // A cleared hill in view is already named by its marker.
-            if (!cleared) ctx.fillText(skillName, Math.min(w - 70, Math.max(70, X(hillNow.peak))), Math.max(16, Y(hillNow.height) - 34));
+            if (!cleared) { const half = ctx.measureText(skillName).width / 2 + 6; ctx.textAlign = 'center'; ctx.fillText(skillName, Math.min(w - half, Math.max(half, X(hillNow.peak))), Math.max(16, Y(hillNow.height) - 34)); }   // kept whole inside the trail, whatever the name's length (a phone cut 'Tokenization' short)
         } else {
             const ahead = hillNow.start - roll.ball.x;
             ctx.textAlign = 'right';
