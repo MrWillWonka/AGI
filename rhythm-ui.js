@@ -186,7 +186,7 @@
         listening = false; cancelAnimationFrame(headRaf); headRaf = 0;
         if (!sel) pickSel();
         const sfx = engine();
-        audio = !!sfx; fellAt = 0;
+        audio = !!sfx; fellAt = 0; canvas.classList.toggle('field', !!save.field);
         music = { area: sel.area, level: 0.5 }; clearTimeout(previewT); previewT = 0;
         soften(0.15, 0.2); setTimeout(() => { if (dlg.open && (mode === 'test' || mode === 'ai')) soften(1, 0.9); }, 350);
         t0 = null; wait = performance.now(); run = null; chart = null;   // (cleared before the song is called: cleared after, a run with no engine was thrown away as it began and the screen sat)
@@ -524,7 +524,7 @@
         if (s && E < 0.4 && !still) { ctx.fillStyle = C.bg; ctx.globalAlpha = (0.4 - E) * 0.9; ctx.fillRect(0, 0, W, hitY * 0.5 * (0.4 - E) * 2.5); ctx.fillRect(0, 0, W * 0.5 * (0.4 - E), H); ctx.fillRect(W - W * 0.5 * (0.4 - E), 0, W * 0.5 * (0.4 - E), H); ctx.globalAlpha = 1; }
         if (t0 == null || t < 0) {
             ctx.fillStyle = C.text; ctx.textAlign = 'center'; ctx.font = '700 20px ' + C.display; ctx.fillText(t0 == null ? 'Listen' : t > -beatLen * 3.5 ? String(Math.max(1, Math.ceil(-t / beatLen))) : 'Ready', W / 2, H * 0.4);
-            if (!audio && t0 != null) { ctx.font = '12px ' + C.mono; ctx.fillStyle = C.muted; ctx.fillText('The music is off: no sound', W / 2, H * 0.4 + 24); }
+            if (!audio && t0 != null) { ctx.font = '12px ' + C.mono; ctx.fillStyle = C.muted; ctx.fillText('The music is off: your hits play the notes', W / 2, H * 0.4 + 24); }
         }
     }
 

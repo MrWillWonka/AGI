@@ -4435,8 +4435,14 @@ body.snare-live .assist { display: none; }
 /* The status bar shows over the home screen, Parcel and The Feed; the home screen's own clock row gives way to it. */
 body.ring-device .device-status { z-index: 3400; }
 body.ring-device .home-status { visibility: hidden; }
-body.ring-device .feed-screen .feed-bar { padding-top: 30px; }
-body.ring-device .evals-screen .evals-bar { padding-top: 30px; }
+/* An app's bar starts under the status strip (the strip ends 36 to 38 px down; at 30 the bar's buttons ran into it: the
+   owner's screenshots, 2026-11-17, the close button over the strip's snapshot button and its signal). */
+body.ring-device .feed-screen .feed-bar { padding-top: 44px; }
+body.ring-device .evals-screen .evals-bar { padding-top: 44px; }
+/* The small orb sits just after the strip's clock: the numbers start past it (it covered the first of them on a phone). */
+body.ring-device dialog[open] .status-stats { padding-left: 40px; justify-content: flex-start; }
+/* The rhythm run's whole field has no pad under it, so it takes that room. */
+.rhythm-canvas.field { height: clamp(260px, calc(100dvh / var(--zoom, 1) - 330px), 680px); }
 .device-notice { touch-action: none; }
 /* Upright phones: the apps sit in three even columns across the screen (they hugged the left). */
 @media (orientation: portrait) {
@@ -4760,7 +4766,7 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 /* The maze course (maze-ui.js; a prototype), in the course's screen. */
 .course-switch { min-height: 36px; padding: 4px 12px; font-size: 0.82rem; }
 .maze-canvas { display: block; align-self: center; width: min(100%, calc((100dvh / var(--zoom, 1) - 330px) * 7 / 9)); aspect-ratio: 7 / 9; min-width: 210px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); touch-action: none; user-select: none; -webkit-user-select: none; }
-.puck-canvas { width: min(100%, calc((100dvh / var(--zoom, 1) - 380px) * 7 / 9)); cursor: crosshair; }
+.puck-canvas { width: min(100%, calc((100dvh / var(--zoom, 1) - 398px) * 7 / 9)); cursor: crosshair; }
 .course-lock { padding: 4px 8px; }
 .course-marks { cursor: pointer; padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px; }
 .course-marks[data-ready] { border-color: var(--success); color: var(--success); }

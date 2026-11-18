@@ -1244,3 +1244,12 @@ In short: at stage 3 in a kind a failed try may be cheated through (`handOver`'s
 puck course's `ghost` shot, the room's `immune`); **Flag** while it plays, or the choice on the result (Replay the
 moment, Let it stand, Strike it) before anything is paid. `course-cheat.js` (rules on top, the browser's part below),
 `tests/course-cheat.test.js`; logged as `cheat` and `cheatFlag`. Not the rhythm run. All numbers and words mine.
+
+**Layout fixes from the owner's two screenshots (2026-11-17, the rhythm run on an iPhone).** (1) An app's bar started 30 px
+down and the status strip ends 36 to 38 px down, so the bar's buttons ran into the strip (the close button over the
+snapshot button and the signal): Evals' and The Feed's bars now start 44 px down. (2) The small orb covered the first
+number in the strip (the money): with an app open the numbers start past the orb. (3) The whole field left a third of
+the screen empty under Stop: with no pad under it, it is taller (544 px on a 874 px screen, it was 474). (4) The
+count-in said "The music is off: no sound"; it says the hits play the notes, as they now do. The puck course's field
+is 18 px shorter so its buttons stay on screen under the taller bar. The Feed's taller bar is unseen by me on a phone.
+The first screenshot (an empty field after Play) is the run that was thrown away with the music off, fixed in round 4.
