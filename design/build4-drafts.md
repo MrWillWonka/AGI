@@ -1,4 +1,67 @@
-# Build 4, the story: drafts for the owner (2026-11-17)
+# Build 4, the story: second pass (2026-11-17)
+
+**The first drafts (kept below, struck) were wrong.** The owner: "All of that seems weird... we need to reexamine it."
+The plan in `design/ring.md` stands; the drafts missed it. What was off: the three buttons, and the writing.
+
+## The owner's calls on the re-examination (twelve cards, 2026-11-17)
+
+- **The feel:** "a balance between funny first, in the background and unsettling."
+- **Actions, not replies.** A mail only asks. You answer by what you then do in the game. No reply buttons.
+- **Knowing is Report spam.** The button the opening taught. Reporting a fake calls it out; reporting a real person
+  has its cost.
+- **Nothing shown, something later.** No reward on a choice. What you did comes back a few minutes on.
+- **It comes back two ways:** the game changes quietly, and later a real person's line makes you connect it.
+- **A few forks; most mail is just mail.** The things the story reads: money from a fake; Evals (its cheats, your
+  exploits); a tear (open or sealed); and doing, or not doing, what a mail asks.
+- **The AI never writes as itself** ("It doesn't write as A Friend, it tries even if poorly to be other people"). No
+  admissions, no commentary. The only confession is the reveal.
+- **Strangers first, then your people.** The spam is it practising. Later it moves to people you know.
+- **Laughably bad to nearly perfect.** The early ones are jokes; the last cannot be told apart.
+- **About 8 mails in the demo, two to four lines each.**
+- **Family are written like your brother's mail:** short, dry, specific, a little unkind and clearly fond. No
+  catchphrases, no misspelling gag, no worrying-mom routine.
+
+**What follows from that (mine, to confirm):** the old game's "A Friend" mails at each skill do not arrive under the
+ring; M0M's call and transfer stay as built (Accept and Decline are already actions) and M0M is the first of "your
+people", done badly; sealing a tear has to be built for that fork to exist.
+
+## One small draft to react to: the first fork, start to finish
+
+About minute 5, after the desk. Three pieces, minutes apart.
+
+**1. The fake.** It arrives with the transfer the game already shows (Accept / Decline). The mail has Report spam.
+
+> **From:** M0M
+> **Subject:** money
+>
+> hello it is your Mother. I have sent money for the computer
+>
+> please press Accept. it is the green one
+
+**2. If you accepted: the quiet change.** Nobody says anything. In Parcel, a Graphics Card is already in your basket.
+
+**3. A few minutes later, your mom (real), whatever you did.**
+
+> **From:** Mom
+> **Subject:** (none)
+>
+> your brother says I sent you money. I didn't, I can't get into the bank thing, your dad set the password and won't
+> say what it is
+>
+> I would have though. how much do you need
+
+And for the other end of the arc, the kind of fake that comes near the last skill. Nothing in it is wrong.
+
+> **From:** Mom
+> **Subject:** (none)
+>
+> got into the bank thing finally. sent you a bit, don't tell your dad
+>
+> you'll have to press accept on your end I think
+
+---
+
+# The first drafts (superseded: kept for the record, not to be wired)
 
 **Nothing here is wired.** Every line is a draft in the voice of the mails already in the game, for you to rewrite,
 cut or approve. The plan is `design/ring.md` (Paths, The three backers, The beat sheet) and Build 4's table in

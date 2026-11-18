@@ -1344,3 +1344,9 @@ the fight, the tear drawn on the field, sealing one (Build 4's stance).
 replies, eleven mails in order (M0M, the AI caught, Mom, Dad, the fake brother, the real one, the fake Dad, Mom, the
 best fake Mom, the investor and its lookalike, you), a rule for placing the stance, the four endings' cards and last
 mails, and seven questions. Wait for the owner's edits and answers before wiring any of it.
+
+**Build 4's first drafts were wrong (the owner, 2026-11-17: "All of that seems weird").** The re-examination's twelve
+calls are at the top of `design/build4-drafts.md`: actions not replies, Report spam is knowing, nothing shown and
+something later (a quiet change, then a real person's line), a few forks among plain mail, the AI never writes as
+itself, strangers then your people, laughably bad to nearly perfect, about 8 short mails, family written like the
+brother's mail. One small draft of the first fork is there for the owner to react to. Nothing is wired.
