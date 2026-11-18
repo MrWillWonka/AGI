@@ -1339,3 +1339,8 @@ time at 15 a minute, 22.5 with the agent, bigger on a second win with no second 
 boss fight by me**: the run's end calls the same code, but I drove it from the debug door.
 **Build 3 is done but for the owner's play of it.** Not built from the design: the Antivirus trying to shut a tear in
 the fight, the tear drawn on the field, sealing one (Build 4's stance).
+
+**Build 4, the story: drafts shown to the owner (2026-11-17), nothing wired.** `design/build4-drafts.md`: the three
+replies, eleven mails in order (M0M, the AI caught, Mom, Dad, the fake brother, the real one, the fake Dad, Mom, the
+best fake Mom, the investor and its lookalike, you), a rule for placing the stance, the four endings' cards and last
+mails, and seven questions. Wait for the owner's edits and answers before wiring any of it.
