@@ -14555,7 +14555,7 @@ window.AGI = (function () {
         const ring = el('span', { class: 'capture-ring', 'aria-hidden': 'true' });
         const NS = 'http://www.w3.org/2000/svg', line = document.createElementNS(NS, 'svg'), path = document.createElementNS(NS, 'path'); line.setAttribute('class', 'capture-line'); line.setAttribute('aria-hidden', 'true'); line.append(path);
         const art = el('span', { class: 'device-notice-art' }); art.innerHTML = HOME_ICONS.playtest;
-        const sample = el('div', { class: 'device-notice capture-sample', 'aria-hidden': 'true' }, [art, el('span', { class: 'device-notice-app', text: 'Feedback' }), el('span', { class: 'device-notice-text', text: 'Snapshot saved. Tap to add a quick note.' })]);
+        const sample = el('div', { class: 'device-notice device-notice-playtest capture-sample', 'aria-hidden': 'true' }, [art, el('span', { class: 'device-notice-app', text: 'Feedback' }), el('span', { class: 'device-notice-text', text: 'Snapshot saved. Tap to add a quick note.' })]);
         const card = el('div', { class: 'capture-card', role: 'dialog', 'aria-labelledby': 'captureTipTitle' }, [
             el('h2', { id: 'captureTipTitle', text: 'See something? Capture it' }),
             el('ul', { class: 'playtest-tools' }, [
@@ -14565,7 +14565,8 @@ window.AGI = (function () {
             el('div', { class: 'dialog-actions' }, [el('button', { type: 'button', class: 'button', text: 'Next', onclick: () => done() })])]);
         veil.append(line, sample, card, ring);
         const place = () => { const k = pageZoom(), r = snap.getBoundingClientRect(), c = card.getBoundingClientRect(); if (!r.width) return;
-            ring.style.left = (r.left - 6) / k + 'px'; ring.style.top = (r.top - 6) / k + 'px'; ring.style.width = (r.width + 12) / k + 'px'; ring.style.height = (r.height + 12) / k + 'px';
+            { const edge = 16 * k, t = Math.max(edge, r.top - 4), bt = r.bottom + 4;   // (kept inside the bezel: its top was cut off on a phone)
+                ring.style.left = (r.left - 4) / k + 'px'; ring.style.top = t / k + 'px'; ring.style.width = (r.width + 8) / k + 'px'; ring.style.height = (bt - t) / k + 'px'; }
             line.setAttribute('viewBox', '0 0 ' + innerWidth + ' ' + innerHeight); line.style.width = innerWidth / k + 'px'; line.style.height = innerHeight / k + 'px';
             const x1 = r.left + r.width / 2, y1 = r.bottom + 8, x2 = Math.min(c.right - 40, Math.max(c.left + 40, x1)), y2 = c.top;
             path.setAttribute('d', 'M' + x1 + ' ' + y1 + 'V' + (y1 + (y2 - y1) * 0.5) + 'Q' + x1 + ' ' + (y2 - 10) + ' ' + x2 + ' ' + y2); };

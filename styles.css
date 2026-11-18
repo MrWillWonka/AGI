@@ -5090,3 +5090,4 @@ body.tip-up .device-notices { display: none; }
 .setting-row input[type="range"]::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--success); }
 .setting-row input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--bg); background: var(--success); box-shadow: 0 0 10px color-mix(in srgb, var(--success) 55%, transparent); }
 .setting-row input[type="range"]::-webkit-slider-runnable-track { background: linear-gradient(to right, var(--success) var(--p, 0%), color-mix(in srgb, var(--text) 16%, transparent) var(--p, 0%)); }
+.capture-sample .device-notice-art { color: var(--warning); }
