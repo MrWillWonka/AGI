@@ -4780,8 +4780,8 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 
 /* The maze course (maze-ui.js; a prototype), in the course's screen. */
 .course-switch { min-height: 36px; padding: 4px 12px; font-size: 0.82rem; }
-.maze-canvas { display: block; align-self: center; width: min(100%, calc((100dvh / var(--zoom, 1) - 330px) * 7 / 9)); aspect-ratio: 7 / 9; min-width: 210px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); touch-action: none; user-select: none; -webkit-user-select: none; }
-.puck-canvas { width: min(100%, calc((100dvh / var(--zoom, 1) - 398px) * 7 / 9)); cursor: crosshair; }
+.maze-canvas { display: block; align-self: center; width: min(100%, calc((100dvh / var(--zoom, 1) - 384px) * 7 / 9)); aspect-ratio: 7 / 9; min-width: 210px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); touch-action: none; user-select: none; -webkit-user-select: none; }
+.puck-canvas { width: min(100%, calc((100dvh / var(--zoom, 1) - 464px) * 7 / 9)); cursor: crosshair; }
 /* The first tear (a placeholder scene): the screen rips across once, in the research violet. */
 .tear-rip { position: fixed; inset: 0; z-index: 5000; pointer-events: none; background: linear-gradient(to bottom, transparent calc(50% - 2px), var(--research) calc(50% - 2px), #fff 50%, var(--research) calc(50% + 2px), transparent calc(50% + 2px)); clip-path: polygon(0 48%, 12% 51%, 27% 46%, 41% 53%, 58% 47%, 73% 52%, 88% 46%, 100% 50%, 100% 54%, 88% 50%, 73% 56%, 58% 51%, 41% 57%, 27% 50%, 12% 55%, 0 52%); filter: drop-shadow(0 0 14px var(--research)); animation: tear-rip 2.5s ease-out forwards; transform-origin: left center; }
 @keyframes tear-rip { 0% { transform: scaleX(0); opacity: 1; } 22% { transform: scaleX(1); opacity: 1; } 70% { transform: scaleX(1) scaleY(2.2); opacity: 0.9; } 100% { transform: scaleX(1) scaleY(0.2); opacity: 0; } }
@@ -4826,7 +4826,7 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 .maze-dir-0 { grid-column: 2; grid-row: 1; } .maze-dir-3 { grid-column: 1; grid-row: 2; } .maze-dir-2 { grid-column: 2; grid-row: 2; } .maze-dir-1 { grid-column: 3; grid-row: 2; }
 
 /* The platformer room (rooms-ui.js; a prototype), in the course's screen. */
-.rooms-canvas { display: block; align-self: center; width: min(100%, calc((100dvh / var(--zoom, 1) - 380px) * 12 / 7)); aspect-ratio: 12 / 7; min-width: 280px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); touch-action: none; user-select: none; -webkit-user-select: none; }
+.rooms-canvas { display: block; align-self: center; width: min(100%, calc((100dvh / var(--zoom, 1) - 432px) * 12 / 7)); aspect-ratio: 12 / 7; min-width: 280px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); touch-action: none; user-select: none; -webkit-user-select: none; }
 .rooms-pad { display: flex; justify-content: space-between; align-items: stretch; gap: 12px; }
 .rooms-pad[hidden] { display: none; }
 .rooms-move { display: flex; gap: 8px; }
@@ -4898,7 +4898,7 @@ body:not(.ring-device) .module-bar .window-close { display: none; }
 .music-parts .setting-row, .sound-groups .setting-row { grid-template-columns: minmax(3.6em, 9.5em) minmax(0, 1fr) 3.4em; }
 .setting-row input[type="range"] { width: 100%; max-width: 220px; min-width: 0; }
 .setting-row:has(> input[type="range"]) > span { text-align: right; white-space: nowrap; }
-[data-section="settings"] { padding-bottom: 18px; }
+section[data-section="settings"] { padding-bottom: 18px; }
 /* Start over is set apart and reads as what it is. */
 .ghost-button.danger { border-color: color-mix(in srgb, var(--danger) 60%, var(--border)); color: var(--danger); margin-left: auto; }
 /* The survey's Save has room over it. */
@@ -4924,3 +4924,43 @@ body.device-phone .home-icon .home-badge { top: 0; }
 .course-tab { min-height: 44px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 10px 10px 0 0; border-bottom-color: transparent; background: transparent; color: var(--muted); font: 600 0.86rem var(--font-display); letter-spacing: 0.04em; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .course-tab.on { color: var(--success); border-color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); cursor: default; }
 .course-tab.locked { opacity: 0.6; }
+
+/* Round two of the screenshot reviews (the owner's cards, 2026-11-18). */
+/* The × shares a bar and never has a row to itself: over the corner of the Training tree and Packet Snare's tree, whose
+   own top rows leave that corner free. */
+body.ring-device.device-phone #moduleView:has(#devView:not([hidden])) > .module-bar,
+body.ring-device.device-phone #moduleView:has(#snareTree:not([hidden])) > .module-bar { position: relative; z-index: 6; height: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; overflow: visible; justify-content: flex-end; align-items: flex-start; pointer-events: none; }
+body.ring-device.device-phone #moduleView:has(#devView:not([hidden])) > .module-bar > .window-close,
+body.ring-device.device-phone #moduleView:has(#snareTree:not([hidden])) > .module-bar > .window-close { pointer-events: auto; background: color-mix(in srgb, var(--bg) 85%, transparent); }
+body.ring-device.device-phone #devView .dev-actions { padding-right: 52px; }
+/* The Lab keeps the room of the AI's longest line (three lines and a button), so its cards never slide as it speaks. */
+body.ring-device.device-phone .ai-home-line { min-height: 168px; }
+/* Rhythm's rows of choices are named. */
+.rhythm-row[data-cap]::before { content: attr(data-cap); flex: 0 0 100%; font: 700 0.66rem var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+/* Packet Snare's tree bar on a phone: the sector picker has a row of its own, whole, over Signal, Back and Start run. */
+body.ring-device.device-phone .snare-tree-bar { flex-wrap: wrap; }
+body.ring-device.device-phone .snare-tree-bar .snare-tree-pick { order: -1; flex: 1 1 100%; display: flex; }
+body.ring-device.device-phone .snare-tree-bar .snare-sector-row > span { display: inline; }
+body.ring-device.device-phone .snare-tree-bar .snare-tree-signal { margin-right: auto; }
+/* The trees' zoom buttons: one corner on both trees, down the left edge from the top, clear of the branch names. */
+body.device-phone .tree-zoom, body.ring-device.device-phone .snare-tree-zoom { top: 8px; bottom: auto; left: 8px; flex-direction: column; }
+body.device-phone .tree-zoom button { width: 44px; height: 44px; }
+body.device-phone .detail-close { min-width: 44px; min-height: 44px; top: 0; right: 0; font-size: 1.3rem; }
+/* Tap sizes in the apps' bars. */
+body.device-phone .module-bar #treeButton, body.device-phone .module-bar #snareTreeButton, body.device-phone .course-switch, body.device-phone .evals-marks { min-height: 44px; }
+body.device-phone.snare-live .snare-pause { min-width: 44px; min-height: 44px; }
+/* Parcel is a whole screen on a phone, like The Feed and Evals: nothing of the home screen shows round it. */
+body.ring-device.device-phone .shop-screen { width: calc(100vw / var(--zoom, 1)); height: calc(100dvh / var(--zoom, 1)); max-height: none; margin: 0; border: 0; border-radius: 0; box-shadow: none; }
+body.ring-device.device-phone .shop-screen .shop-bar { padding-top: 44px; }
+/* Settings: one grid for every slider (the indented ones' names give up the indent), tracks ending together. */
+.setting-row:has(> input[type="range"]) { grid-template-columns: 66px minmax(0, 1fr) 3.4em; }
+.music-parts .setting-row { grid-template-columns: 52px minmax(0, 1fr) 3.4em; }
+.setting-row input[type="range"] { max-width: none; }
+.setting-row:has(> select) { display: grid; grid-template-columns: 66px auto; justify-content: start; }
+/* (Parcel is a modal, so the status strip is under it: its top 40px is left clear and undimmed for the strip to show.) */
+body.ring-device.device-phone .shop-screen { background: linear-gradient(to bottom, transparent 40px, var(--bg) 40px); }
+body.ring-device.device-phone .shop-screen::backdrop { background: var(--bg); clip-path: inset(40px 0 0 0); }
+body.ring-device.device-phone .shop-screen .shop-bar { background: transparent; }
+/* Settings: the indented sliders share the others' grid exactly. */
+.music-parts .setting-row { padding-left: 0; grid-template-columns: 66px minmax(0, 1fr) 3.4em; }
+.music-parts .setting-row { text-indent: 10px; } .music-parts .setting-row > * { text-indent: 0; }
