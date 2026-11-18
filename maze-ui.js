@@ -14,8 +14,10 @@
     const secs = t => t.toFixed(1) + ' s';
     const mazeKey = () => save.maze.map(k => (k ? k[0] : '-')).join('');
     const WHAT = { trap: 'a trap', patrol: 'a patrol', time: 'the clock' };
+    const AI_PACE = 1.5;   // the AI's attempts play this much faster than your run (the owner's call, 2026-11-17: watching was too long)
+    const pace = () => (mode === 'ai' ? AI_PACE : 1);
 
-    let dlg, canvas, sayEl, marksEl, toolsEl, padEl, actionsEl, save, tool = 'wall', mode = 'build', run = null, feed = null, yours = null, hand = null, attempt = 0, timer = 0, held = -1, preview = 0, startAt = 0;
+    let dlg, canvas, sayEl, marksEl, toolsEl, padEl, actionsEl, save, tool = 'wall', mode = 'build', run = null, feed = null, yours = null, hand = null, attempt = 0, timer = 0, held = -1, finger = -1, tickedAt = 0, preview = 0, startAt = 0;
 
     function build() {
         canvas = el('canvas', { class: 'maze-canvas', 'aria-label': 'The maze' });
@@ -26,7 +28,11 @@
             b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('pointerleave', off); return b; };
         padEl = el('div', { class: 'maze-pad', hidden: '' }, dir(0, '▲', 'Up'), dir(3, '◀', 'Left'), dir(1, '▶', 'Right'), dir(2, '▼', 'Down'));
         actionsEl = el('div', { class: 'course-actions' });
-        canvas.addEventListener('pointerdown', e => { if (mode !== 'build') return; e.preventDefault(); const r = canvas.getBoundingClientRect(), o = M().MAZE, x = Math.floor((e.clientX - r.left) / (r.width / o.cols)), y = Math.floor((e.clientY - r.top) / (r.height / o.rows)); place(y * o.cols + x); });
+        const cellAt = e => { const r = canvas.getBoundingClientRect(), o = M().MAZE, x = Math.max(0, Math.min(o.cols - 1, Math.floor((e.clientX - r.left) / (r.width / o.cols)))), y = Math.max(0, Math.min(o.rows - 1, Math.floor((e.clientY - r.top) / (r.height / o.rows)))); return y * o.cols + x; };
+        canvas.addEventListener('pointerdown', e => { if (mode === 'build') { e.preventDefault(); place(cellAt(e)); return; } if (mode !== 'test') return; e.preventDefault(); try { canvas.setPointerCapture(e.pointerId); } catch { /* an old browser */ } finger = cellAt(e); nudge(); });
+        canvas.addEventListener('pointermove', e => { if (mode === 'test' && finger >= 0) { e.preventDefault(); finger = cellAt(e); } });
+        const lift = () => { finger = -1; };
+        canvas.addEventListener('pointerup', lift); canvas.addEventListener('pointercancel', lift);
         dlg = el('dialog', { class: 'evals-screen course-screen maze-screen', 'aria-label': 'Evals: the maze' },
             el('div', { class: 'evals-bar' }, el('span', { class: 'evals-title', text: 'Evals' }),
                 window.CourseUnlocks.switchButton('maze'),
@@ -34,7 +40,7 @@
             el('div', { class: 'course-body maze-body' }, sayEl, canvas, toolsEl, padEl, actionsEl));
         dlg.addEventListener('close', stop);
         const KEYS = { ArrowUp: 0, ArrowRight: 1, ArrowDown: 2, ArrowLeft: 3, w: 0, d: 1, s: 2, a: 3 };
-        dlg.addEventListener('keydown', e => { if (mode === 'test' && e.key in KEYS) { e.preventDefault(); held = KEYS[e.key]; } });
+        dlg.addEventListener('keydown', e => { if (mode === 'test' && e.key in KEYS) { e.preventDefault(); const fresh = held !== KEYS[e.key]; held = KEYS[e.key]; if (fresh) nudge(); } });
         dlg.addEventListener('keyup', e => { if (mode === 'test' && KEYS[e.key] === held) held = -1; });
         document.body.append(dlg);
         addEventListener('resize', () => { if (dlg.open) draw(); });
@@ -44,6 +50,17 @@
     const actions = (...list) => actionsEl.replaceChildren(...list);
     function header() { window.CourseTree.refresh(dlg, () => { if (dlg.open) header(); }); window.CourseUnlocks.refresh(dlg, 'maze'); }   // the Marks are the pool's (course-tree.js)
 
+    // The way to step from a cell toward the finger: the first step of the shortest open way there (walls, and the
+    // door without the key, in the way); straight at it if there is none.
+    function toward(from, to, key) {
+        if (from === to || to < 0) return -1;
+        const R = M(), o = R.MAZE, prev = new Map([[from, -1]]), queue = [from];
+        for (let q = 0; q < queue.length; q++) { const c = queue[q]; if (c === to) { let at = c; while (prev.get(at) !== from) at = prev.get(at); return R.dirOf(from, at); } for (let d = 0; d < 4; d++) { const t = R.step(c, d); if (t < 0 || prev.has(t) || save.maze[t] === 'wall' || (save.maze[t] === 'door' && !key)) continue; prev.set(t, c); queue.push(t); } }
+        const dx = (to % o.cols) - (from % o.cols), dy = Math.floor(to / o.cols) - Math.floor(from / o.cols);
+        return Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0);
+    }
+    // A fresh press steps at once, not at the next tick (but never two steps closer together than a third of a tick).
+    function nudge() { if (mode !== 'test' || !run || run.state.over || performance.now() < startAt) return; const third = M().MAZE.tick * 1000 / 3, since = performance.now() - tickedAt; if (since > third) tick(); else { stop(); timer = setTimeout(tick, third - since); } }
     function place(i) {
         const o = M().MAZE;
         if (i < 0 || i >= M().size() || i === M().startCell() || i === M().exitCell()) return;
@@ -62,9 +79,9 @@
         header(); tick();
     }
     function toTest() {
-        stop(); mode = 'test'; run = M().createRun(save.maze, { ...M().MAZE, lives: window.CourseTree.lives() }); feed = null; held = -1; padEl.hidden = false; toolsEl.hidden = true;
+        stop(); mode = 'test'; run = M().createRun(save.maze, { ...M().MAZE, lives: window.CourseTree.lives() }); feed = null; held = -1; finger = -1; padEl.hidden = true; toolsEl.hidden = true;
         startAt = performance.now() + 700;
-        say('Hold a direction to walk. Let go to stand still.');
+        say('Hold a finger on the maze and you walk toward it. Lift it to stand still. W A S D on a keyboard.');
         actions(button('Back to building', () => toBuild()));
         tick();
     }
@@ -90,7 +107,7 @@
     }
     function aiStart() {
         run = M().createRun(save.maze); feed = { acts: hand.attempts[attempt].acts, i: 0 };
-        startAt = performance.now() + 600;
+        startAt = performance.now() + 350;
         say(`Attempt ${attempt + 1} of ${hand.attempts.length}.`);
         tick();
     }
@@ -98,7 +115,7 @@
         const r = hand.attempts[attempt].result;
         say(r.finished ? `Out, in ${secs(r.time)}.` : `Caught by ${WHAT[r.failed.type]}. I will wait for a better moment there.`);
         attempt++;
-        setTimeout(() => { if (mode !== 'ai') return; if (attempt < hand.attempts.length) aiStart(); else aiResult(); }, 1200);
+        setTimeout(() => { if (mode !== 'ai') return; if (attempt < hand.attempts.length) aiStart(); else aiResult(); }, 750);
     }
     function aiResult() {
         stop(); mode = 'result';
@@ -125,11 +142,12 @@
         if (!dlg || !dlg.open) return;
         const o = M().MAZE;
         if (run && !run.state.over && performance.now() >= startAt) {
-            run.act(feed ? (feed.i < feed.acts.length ? feed.acts[feed.i++] : -1) : held);
+            tickedAt = performance.now();
+            run.act(feed ? (feed.i < feed.acts.length ? feed.acts[feed.i++] : -1) : finger >= 0 ? toward(run.state.cell, finger, run.state.key) : held);
             if (run.state.over) { draw(); if (mode === 'test') testOver(); else if (mode === 'ai') aiOver(); return; }
         } else if (!run) preview++;
         draw();
-        timer = setTimeout(tick, o.tick * 1000);
+        timer = setTimeout(tick, o.tick * 1000 / pace());
     }
 
     // Drawing (course-art.js for the runner, the burst and the theme's colours). Nothing here decides anything.
@@ -145,7 +163,7 @@
         const ctx = canvas.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
         const cw = W / o.cols, ch = H / o.rows, s = run ? run.state : null, n = s ? s.n : preview, w = run ? run.world : M().world(save.maze), ai = mode === 'ai' || (mode === 'result' && !!s);
         if (n !== lastN) { lastN = n; tickAt = now; }
-        const frac = s && s.over ? 1 : Math.max(0, Math.min(1, (now - tickAt) / (o.tick * 1000)));
+        const frac = s && s.over ? 1 : Math.max(0, Math.min(1, (now - tickAt) / (o.tick * 1000 / pace())));
         const X = i => (i % o.cols) * cw, Y = i => Math.floor(i / o.cols) * ch, cx = i => X(i) + cw / 2, cy = i => Y(i) + ch / 2, u = Math.min(cw, ch);
         // The floor: a quiet checker.
         for (let i = 0; i < M().size(); i++) { ctx.fillStyle = C.text; ctx.globalAlpha = ((i % o.cols) + Math.floor(i / o.cols)) % 2 ? 0.025 : 0.05; ctx.fillRect(X(i), Y(i), cw, ch); }
@@ -192,7 +210,7 @@
         if (s) {
             if (s.cell !== shown) { from = shown < 0 ? s.cell : shown; shown = s.cell; movedAt = now; }
             if (s.over && endRun !== run) { endRun = run; endAt = now; }
-            const g = Math.max(0, Math.min(1, (now - movedAt) / (o.tick * 1000))), ease = g * (2 - g), fromOk = from >= 0 && Math.abs((from % o.cols) - (s.cell % o.cols)) + Math.abs(Math.floor(from / o.cols) - Math.floor(s.cell / o.cols)) === 1;
+            const g = Math.max(0, Math.min(1, (now - movedAt) / (o.tick * 1000 / pace()))), ease = g * (2 - g), fromOk = from >= 0 && Math.abs((from % o.cols) - (s.cell % o.cols)) + Math.abs(Math.floor(from / o.cols) - Math.floor(s.cell / o.cols)) === 1;
             const x = fromOk ? cx(from) + (cx(s.cell) - cx(from)) * ease : cx(s.cell), y = fromOk ? cy(from) + (cy(s.cell) - cy(from)) * ease : cy(s.cell), r = u * 0.3;
             A.runner(ctx, x, y, r, C, ai, { now, dead: !!s.failed });
             if (s.key) { ctx.fillStyle = C.warning; ctx.beginPath(); ctx.arc(x + r * 0.9, y - r * 0.9, r * 0.28, 0, A.TAU); ctx.fill(); }
@@ -200,6 +218,8 @@
             if (s.finished && endRun === run) A.burst(ctx, x, y, r * 1.7, C.success, endAt, now, 900);
             A.pill(ctx, `${secs(s.n * o.tick)}  ${s.points} ${s.points === 1 ? 'pt' : 'pts'}`, 6, 6, C);
             if (ai && hand) A.pill(ctx, `try ${Math.min(attempt + 1, hand.attempts.length)} of ${hand.attempts.length}`, W - 6, H - 26, C, 'right');
+            // Where your finger is asking to go.
+            if (mode === 'test' && finger >= 0 && finger !== s.cell) { ctx.strokeStyle = C.primary; ctx.globalAlpha = 0.7; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(cx(finger), cy(finger), u * 0.4, 0, A.TAU); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.lineWidth = 1; }
         } else { shown = -1; ctx.globalAlpha = 0.6; A.ball(ctx, cx(st), cy(st), u * 0.28, C); ctx.globalAlpha = 1; }
     }
 
@@ -211,5 +231,5 @@
         toBuild();
     }
     function close() { if (dlg && dlg.open) { stop(); dlg.close(); } }
-    window.MazeUI = { open, close, get isOpen() { return !!(dlg && dlg.open); }, get mode() { return mode; }, get run() { return run; }, get hand() { return hand; }, get save() { return save; }, hold(d) { held = d; } };
+    window.MazeUI = { open, close, get isOpen() { return !!(dlg && dlg.open); }, get mode() { return mode; }, get run() { return run; }, get hand() { return hand; }, get save() { return save; }, hold(d) { held = d; }, drag(cell) { finger = cell; if (cell >= 0) nudge(); } };
 })();

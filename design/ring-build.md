@@ -1182,3 +1182,11 @@ nothing). The owner's order: fix the findings, then the AI cheating round. First
 built), `courseAi` (cleared, marks, each try as C or F, `skipped` if Skip to the result was pressed, its best and
 yours), `courseUnlock`, `unlocks` (the switch), `treeOpen`, `treeBuy`; written at once (`PT_FLUSH`). All through
 `CourseUnlocks.log` -> `AGI.playtest`.
+
+**Fixes from the owner's playtest, round 2 (2026-11-17).** **The maze follows a finger** (the owner: the pad "had a delay
+before a one step would be accepted", then "replace with a finger dragging", "realtime following"): hold a finger on the
+maze and the runner walks toward it by the shortest open way, a cell a tick; lift to stand. The pad is gone; W A S D
+stay. A fresh press steps at once (never closer than a third of a tick to the last step; measured 6 to 50 ms from
+press to step, it was up to 160). **The AI's attempts play at 1.5x** in the maze, the puck course and the room, and the
+pauses round them are shorter (the owner: "watching is too long"). Not the rhythm run: its attempts are tied to the
+song. Still to come from the same finding: the highlight reel and a review on the end card.

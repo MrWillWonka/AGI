@@ -90,7 +90,7 @@
     }
     function aiStart() {
         run = R().createRun(save.room, O()); feed = { inputs: hand.attempts[attempt].inputs, i: 0 };
-        startAt = performance.now() + 600;
+        startAt = performance.now() + 350;
         say(`Attempt ${attempt + 1} of ${hand.attempts.length}.`);
         go();
     }
@@ -98,7 +98,7 @@
         const r = hand.attempts[attempt].result;
         say(r.finished ? `At the flag, in ${secs(r.time)}.` : `Stopped by ${WHAT[r.failed.type] || 'something'}. I will take that one differently.`);
         attempt++;
-        setTimeout(() => { if (mode !== 'ai') return; if (attempt < hand.attempts.length) aiStart(); else aiResult(); }, 1200);
+        setTimeout(() => { if (mode !== 'ai') return; if (attempt < hand.attempts.length) aiStart(); else aiResult(); }, 750);
     }
     function aiResult() {
         stop(); mode = 'result';
@@ -125,7 +125,7 @@
         raf = 0;
         if (!dlg || !dlg.open) return;
         const step = R().ROOM.step;
-        acc += Math.min(0.1, (now - last) / 1000); last = now;
+        acc += Math.min(0.1, (now - last) / 1000) * (mode === 'ai' ? 1.5 : 1); last = now;   // the AI's attempts play at 1.5x (the owner's call, 2026-11-17: watching was too long)
         if (run && now >= startAt) {
             const s = run.state;
             while (acc >= step && !s.over) { acc -= step; run.step(feed ? (feed.i < feed.inputs.length ? feed.inputs[feed.i++] : { dir: 0, jump: false }) : { dir: (keys.right ? 1 : 0) - (keys.left ? 1 : 0), jump: keys.jump }); }

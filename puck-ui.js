@@ -18,6 +18,7 @@
     const SLING = 0.4;          // a pull this share of the field's width is a full shot
     const AIM_SECONDS = 0.35;   // how much of the shot the aim line shows
     const FPS = 60;             // a trace keeps a frame every two physics steps
+    const AI_PACE = 1.5;        // the AI's shots play this much faster than yours (the owner's call, 2026-11-17: watching was too long)
 
     let dlg, canvas, sayEl, marksEl, toolsEl, actionsEl, save, tool = 'wall', mode = 'build', run = null, yours = null, yourPaths = [], hand = null, attempt = 0, shotI = 0, timer = 0;
     // What is on screen while a shot plays: `anim` is the shot, `seen` the targets lit so far, `at` where the puck rests.
@@ -101,7 +102,7 @@
     function aiStart() {
         reset(); shotI = 0;
         say(`Attempt ${attempt + 1} of ${hand.attempts.length}. ${plural(hand.attempts[attempt].limit, 'shot')} at most.`);
-        timer = setTimeout(aiShot, 600);
+        timer = setTimeout(aiShot, 350);
         draw();
     }
     // The AI's shot: its aim shown for a moment, then the shot.
@@ -109,13 +110,13 @@
         if (mode !== 'ai') return;
         const a = hand.attempts[attempt], s = a.shots[shotI], tr = a.traces[shotI];
         aim = { angle: s.angle, power: s.power }; draw();
-        timer = setTimeout(() => { aim = null; play(tr, true); }, 450);
+        timer = setTimeout(() => { aim = null; play(tr, true); }, 300);
     }
     function aiOver() {
         const r = hand.attempts[attempt].result;
         say(r.finished ? `In, in ${plural(r.shots, 'shot')}, with ${plural(r.points, 'point')}.` : 'Out of shots. I will aim more carefully.');
         attempt++;
-        timer = setTimeout(() => { if (mode !== 'ai') return; if (attempt < hand.attempts.length) aiStart(); else aiResult(); }, 1300);
+        timer = setTimeout(() => { if (mode !== 'ai') return; if (attempt < hand.attempts.length) aiStart(); else aiResult(); }, 800);
     }
     function aiResult() {
         stop(); mode = 'result';
@@ -184,7 +185,7 @@
         // Where the shot being played has got to.
         let px = at.x, py = at.y, steps = 0;
         if (anim) {
-            const f = (now - anim.at) / 1000 * FPS, fr = anim.trace.frames, i = Math.min(fr.length - 1, Math.floor(f)), j = Math.min(fr.length - 1, i + 1), g = Math.min(1, f - i);
+            const f = (now - anim.at) / 1000 * FPS * (anim.ai ? AI_PACE : 1), fr = anim.trace.frames, i = Math.min(fr.length - 1, Math.floor(f)), j = Math.min(fr.length - 1, i + 1), g = Math.min(1, f - i);
             const jump = Math.hypot(fr[j][0] - fr[i][0], fr[j][1] - fr[i][1]) > 1;   // a portal: no gliding across the field
             px = jump ? fr[i][0] : fr[i][0] + (fr[j][0] - fr[i][0]) * g; py = jump ? fr[i][1] : fr[i][1] + (fr[j][1] - fr[i][1]) * g; steps = anim.trace.t0 + Math.min(f, fr.length - 1) * 2;
             const ev = anim.trace.events;
@@ -237,7 +238,7 @@
         // What you showed it, under the AI's run; and where the puck has been.
         const trail = (frames, colour, alpha, dash) => { ctx.strokeStyle = colour; ctx.globalAlpha = alpha; ctx.lineWidth = 2; ctx.lineJoin = 'round'; if (dash) ctx.setLineDash(dash); ctx.beginPath(); let last = null; for (const p of frames) { if (!last || Math.hypot(p[0] - last[0], p[1] - last[1]) > 1) ctx.moveTo(p[0] * u, p[1] * v); else ctx.lineTo(p[0] * u, p[1] * v); last = p; } ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.lineWidth = 1; };
         if (ai) for (const f of yourPaths) trail(f, C.muted, 0.4, [4, 5]);
-        paths.forEach((f, k) => { const live = anim && k === paths.length - 1; trail(live ? f.slice(0, Math.floor((now - anim.at) / 1000 * FPS) + 1) : f, ai ? C.success : C.primary, 0.35); });
+        paths.forEach((f, k) => { const live = anim && k === paths.length - 1; trail(live ? f.slice(0, Math.floor((now - anim.at) / 1000 * FPS * (anim.ai ? AI_PACE : 1)) + 1) : f, ai ? C.success : C.primary, 0.35); });
         // The aim: the pull, and the first stretch of the shot.
         const shot = aim || shotOf();
         if (shot && !anim) {
