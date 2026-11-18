@@ -1318,3 +1318,24 @@ still opens the captchas: `E.setCourses(RING_DEV)`); what they keep is in the sa
 `tests/ring-courses.test.js` (3). Checked in a browser on `#ring`: saved, reloaded, two rounds at 325 Marks, the
 agent paid through the game's own loop; the playground and the playtest link unchanged. Of Build 3, the first tear
 and the Packet Snare agent's job are what is left.
+
+**Build 3, the last piece: the AI's tears, and the Packet Snare agent (2026-11-17; every ring link).** The owner's four
+cards: a tear pays into **its own sector's stockpile**; it pulls **your best winning run against that boss every ten
+minutes**; the first cut is **open, pay, grow and the scene** (the Antivirus attacking it in the fight waits); and **the
+Packet Snare agent now**. Built (`engine.js`, save v47 `snare.tears` and `tearShut`; `tests/ring-tears.test.js`, 4):
+- A run that beat a boss's sector ends: its tear opens (`tearWin`), sized by the packets that run caught. It adds
+  packets to that sector's stockpile while you play, five at a time, as far as there is room (`tearsTick`).
+- Beaten again, the tear is a quarter bigger a win (`TEAR_GROW`), and a better winning run raises it too. While that
+  boss is being fought again the tear is shut (`tearFight`); lost, it is back at its old size.
+- **The scene, a placeholder:** the first time, the screen rips across once in the research violet and the AI says
+  "Don't mind me." (the line from the design; the rip is mine and is not on the Snare field). After that a notice says
+  a tear opened or grew, with its packets a minute.
+- **The Packet Snare agent:** the roster's Packet Snare button opens with the first tear; an agent there makes every
+  tear pull half as much again (`AGENT_SNARE_PULL`).
+- `AGI.debug.tear(sector, packets)` opens one as a winning run would, to see the scene and the trickle.
+- With a funding round from Marks the AI's line no longer says it passed a rival (`fundingMarks`, a placeholder).
+Checked in a browser on `#ring`: the scene and the line, 30 packets into sector 3's stockpile in two minutes of game
+time at 15 a minute, 22.5 with the agent, bigger on a second win with no second scene. **Not played through a real
+boss fight by me**: the run's end calls the same code, but I drove it from the debug door.
+**Build 3 is done but for the owner's play of it.** Not built from the design: the Antivirus trying to shut a tear in
+the fight, the tear drawn on the field, sealing one (Build 4's stance).

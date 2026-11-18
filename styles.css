@@ -4776,6 +4776,9 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 .course-switch { min-height: 36px; padding: 4px 12px; font-size: 0.82rem; }
 .maze-canvas { display: block; align-self: center; width: min(100%, calc((100dvh / var(--zoom, 1) - 330px) * 7 / 9)); aspect-ratio: 7 / 9; min-width: 210px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); touch-action: none; user-select: none; -webkit-user-select: none; }
 .puck-canvas { width: min(100%, calc((100dvh / var(--zoom, 1) - 398px) * 7 / 9)); cursor: crosshair; }
+/* The first tear (a placeholder scene): the screen rips across once, in the research violet. */
+.tear-rip { position: fixed; inset: 0; z-index: 5000; pointer-events: none; background: linear-gradient(to bottom, transparent calc(50% - 2px), var(--research) calc(50% - 2px), #fff 50%, var(--research) calc(50% + 2px), transparent calc(50% + 2px)); clip-path: polygon(0 48%, 12% 51%, 27% 46%, 41% 53%, 58% 47%, 73% 52%, 88% 46%, 100% 50%, 100% 54%, 88% 50%, 73% 56%, 58% 51%, 41% 57%, 27% 50%, 12% 55%, 0 52%); filter: drop-shadow(0 0 14px var(--research)); animation: tear-rip 2.5s ease-out forwards; transform-origin: left center; }
+@keyframes tear-rip { 0% { transform: scaleX(0); opacity: 1; } 22% { transform: scaleX(1); opacity: 1; } 70% { transform: scaleX(1) scaleY(2.2); opacity: 0.9; } 100% { transform: scaleX(1) scaleY(0.2); opacity: 0; } }
 .course-lock { padding: 4px 8px; }
 .course-marks { cursor: pointer; padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px; }
 .course-marks[data-ready] { border-color: var(--success); color: var(--success); }

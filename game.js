@@ -2614,12 +2614,13 @@ window.AGI = (function () {
     // The roster (the ring, Build 3; the owner's cards, 2026-11-15: it lives in the Lab): one row an agent, a button for
     // each place it can work, and a line saying what it is doing there. Rules in engine.js (`assignAgent`, `agentsTick`).
     // EVERY WORD HERE IS A PLACEHOLDER for the owner to write or approve.
-    const AGENT_PLACE_NAME = { lab: 'Lab', feed: 'The Feed', training: 'Training', evals: 'Evals' };
+    const AGENT_PLACE_NAME = { lab: 'Lab', feed: 'The Feed', training: 'Training', evals: 'Evals', snare: 'Packet Snare' };
     const agentPlaces = () => E.AGENT_PLACES.filter(p => p !== 'evals' || E.isCourses());   // (an agent works in Evals only where the courses are Evals)
     let rosterKey = '';
     function agentStatus(place) {
         if (place === 'lab') { const pick = E.agentLabPick(state); return pick ? `Saving for a ${E.upgradeName(state, E.UPGRADE_BY_ID[pick.id])}: ${E.format(state.agents.fund)} of ${E.format(pick.cost)} compute.` : 'No room for more hardware. A funding round in Evals makes room.'; }
         if (place === 'feed') { const job = state.agents.feed; return state.feed.session ? 'Waiting while you run a session.' : job ? `Working the stockpile for sector ${job.sector}: ${E.format(job.research)} research so far.` : 'Waiting for a stockpile.'; }
+        if (place === 'snare') { const list = E.tearList(state), rate = list.reduce((n, k) => n + E.tearRate(state, k), 0) * 60; return list.length ? `Tending ${list.length === 1 ? 'the tear' : list.length + ' tears'}: about ${rate >= 10 ? Math.round(rate) : rate.toFixed(1)} packets a minute into the stockpiles.` : 'Waiting for a tear.'; }
         if (place === 'evals') return state.evals.coursePay > 0 ? `Running your last course: about ${E.format(Math.max(1, Math.round(state.evals.coursePay * E.AGENT_EVALS_SHARE * E.agentPower(E.agentsAt(state, 'evals')))))} Marks every ${E.AGENT_EVALS_SECONDS} seconds.` : 'Waiting for a course the AI has cleared.';
         if (place === 'training') return state.path.learned > 0 ? `Cleared hills train ${1 + E.AGENT_TRAIN_XP * E.agentPower(E.agentsAt(state, 'training'))} times as fast.` : 'Waiting for a cleared hill.';
         return 'Idle. Pick a place for it to work.';
@@ -2648,6 +2649,17 @@ window.AGI = (function () {
         if (!state.intro['ring:agent']) { state.intro['ring:agent'] = true; pt('home', { agent: 1 }); assist('agent', '', { action: ['Open the Lab', () => { closeApps(); openLab(); }], target: () => $('rosterPanel'), done: () => state.agents.at.slice(0, E.agentCount(state)).some(Boolean) }); }
     }
     // What the agents did this tick, beyond the Lab's buys (those are logged with procurement's).
+    // A tear opened or grew (PLACEHOLDER words, and a placeholder scene: the screen rips once, the first time).
+    function tearNews(t) {
+        const per = t.perMinute >= 10 ? Math.round(t.perMinute) : t.perMinute.toFixed(1);
+        pt('tear', { sector: t.sector + 1, opened: t.opened ? 1 : 0, size: Math.round(t.size), perMin: +t.perMinute.toFixed(1) });
+        if (t.first && !state.intro['ring:tear']) {
+            state.intro['ring:tear'] = true;
+            if (!reducedMotion()) { const rip = el('div', { class: 'tear-rip', 'aria-hidden': 'true' }); document.body.append(rip); setTimeout(() => rip.remove(), 2600); }
+            assist('tear', '', { done: () => true });
+        }
+        deviceNotice('snare', 'Packet Snare', t.opened ? `A tear is open on sector ${t.sector + 1}. It pulls about ${per} packets a minute into that stockpile.` : `The tear on sector ${t.sector + 1} is bigger: about ${per} packets a minute now.`, () => { closeApps(); openSnareApp(); });
+    }
     function agentNews(did) {
         // (The Evals agent's Marks go to the courses' pool as they come: course-tree.js keeps it, and tells `courseMarks`.)
         if ((did || []).some(e => e.type === 'evals')) { const owed = E.takeCourseOwed(state); if (owed > 0) { pt('agentEvals', { marks: owed }); window.CourseTree?.grant?.(owed); } }
@@ -2662,7 +2674,7 @@ window.AGI = (function () {
         if (!E.isRing() || after <= before) return;
         pt('funding', { round: after, room: E.ringRoom(state) });
         deviceNotice('shop', 'Funding round ' + after, `Room for ${E.RING_ROOM_ROUND * (after - before)} more Graphics Cards and Mining Rigs.`, () => { closeApps(); openShop(); });
-        assist('funding', '', { done: () => true, when: () => !window.EvalsUI?.run || window.EvalsUI.run.over });
+        assist(E.isCourses() ? 'fundingMarks' : 'funding', '', { done: () => true, when: () => !window.EvalsUI?.run || window.EvalsUI.run.over });
         if (shop?.dlg.open) renderShop(true);
         save();
     }
@@ -2787,6 +2799,8 @@ window.AGI = (function () {
         "serverHome": "Parcel again. It sells a server. Four hundred dollars. I know that is a lot to ask.",
         "agent": "That boss left something behind. It works for us now. I have put it on a roster in the Lab, and you choose where it works.",
         "funding": "I passed one of the others. Someone has decided we are worth more room. Parcel will sell you more hardware now.",
+"fundingMarks": "Someone has been reading my marks. They have decided we are worth more room. Parcel will sell you more hardware now.",
+"tear": "Don't mind me.",
         "evals": "The boss is down. Someone noticed. They want me tested, so I have put Evals on your home screen.",
         "evalsHome": "This one. Evals is where I am tested. You show me how, and then you check my work.",
         "training": "The server is in. Thank you. I can train now, if you will help me.",
@@ -5422,6 +5436,7 @@ window.AGI = (function () {
         snare.melt = null;
         snare.sector = sector;
         snare.startSector = sector;
+        if (E.isRing() && !tutorial) E.tearFight(state, sector < state.snare.sector && E.isSnareBossSector(sector) ? sector : null);   // a beaten boss fought again: its tear is shut for the fight
         snare.cleared = [];
         snare.replay = sector < state.snare.sector;
         snare.intro = null;
@@ -6348,6 +6363,11 @@ window.AGI = (function () {
         if (!E.isRing()) return;
         const load = { sector: snare.startSector + 1, packets: stats.caught || 0, gold: stats.gold || 0, garbled: stats.garbledPackets || 0, popped: stats.poppedPackets || 0 };
         const before = state.feed.stats.delivered;
+        // The AI's tears (engine.js `tearWin`): each boss this run beat opens its tear, or opens it again bigger.
+        if (E.isRing()) {
+            for (const k of snare.cleared) { const t = E.isSnareBossSector(k) ? E.tearWin(state, k, load.packets) : null; if (t) tearNews(t); }
+            E.tearFight(state, null);   // lost or won, the fight is over: a tear that was shut is open again
+        }
         const out = E.feedDeliver(state, load);
         if (out.added || out.lost) pt('feedDelivery', out.cap ? { ...load, stocked: out.stocked, lost: out.lost, held: out.held, cap: out.cap } : load);
         // A full stockpile says so (placeholder words): the push to go and play it, or to fill another sector's.
@@ -14998,6 +15018,8 @@ window.AGI = (function () {
             // Evals, the third minigame (stage 1: its own screen, opened from here or with #evals).
             openEvals: () => window.EvalsUI?.open(),
             // A rival passed without playing (the ring's funding rounds): the next one on the score sheet.
+            // A tear, as a run that beat that sector's boss would leave it (the first boss sector if none is named): the scene, the notice, the trickle.
+            tear: (sector, packets = 120) => { let k = sector; if (k == null) for (k = 0; k < 60 && !E.isSnareBossSector(k); k++);  state.snare.sector = Math.max(state.snare.sector, k + 1); state.snare.bosses = Math.max(state.snare.bosses || 0, 1); const t = E.tearWin(state, k, packets); if (t) tearNews(t); afterChange(); return t; },
             fundRound: () => { const b = state.evals.passed; if (b >= window.Evals.RIVALS.length) return b; state.evals.passed = b + 1; fundingRound(b, b + 1); afterChange(); return b + 1; },
             // The Feed (Build 1 of the ring: its screen behind a test door, opened from here or with #feed).
             openFeed: () => { window.FeedUI?.open(); pt('view', { v: 'feed' }); },
