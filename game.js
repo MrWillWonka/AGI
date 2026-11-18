@@ -2044,7 +2044,7 @@ window.AGI = (function () {
             box,
             el('label', { class: 'survey-photos' }, [el('span', { class: 'survey-photos-button', text: 'Add a screenshot from this device' }), input, note]),
             el('div', { class: 'dialog-actions' }, [
-                el('button', { type: 'button', class: 'ghost-button', text: 'Longer: the Playtest app', onclick: () => { done(); openSurvey(); } }),
+                el('button', { type: 'button', class: 'ghost-button', text: 'Full survey', onclick: () => { done(); openSurvey(); } }),
                 el('button', { type: 'button', class: 'button', text: 'Save', onclick: done })])]);
         dlg.addEventListener('close', () => dlg.remove());
         document.body.append(dlg); dlg.showModal(); box.focus();
