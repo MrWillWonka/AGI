@@ -125,8 +125,37 @@
         if (!top && marks) sayEl.textContent += ` Partial credit: ${marks} Marks.`;
         window.CourseUnlocks.log('courseAi', { kind: 'rooms', cleared: top ? 1 : 0, marks, tries: hand.attempts.map(a => ((a.result || a).finished ? 'C' : 'F')).join(''), skipped: attempt < hand.attempts.length ? 1 : 0, ai: window.CourseUnlocks.brief(top), you: window.CourseUnlocks.brief(yours), built: window.CourseUnlocks.parts(save.room) });
         if (top) { const news = window.CourseUnlocks.cleared('rooms', lvl => R().palette(lvl).map(k => R().TILES[k].name)); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'rooms'); }
-        actions(button('Change the room', () => toBuild(), true), button('Hand it over again', toAi));
+        hand.text = sayEl.textContent; resultCard();
+    }
+    // Reviewing a hand-over from its result (the owner's calls, 2026-11-17: "a mini highlight reel with notable misses
+    // or successes", "the option to review on the end card"): the highlights are each fail at the moment it fails and
+    // the finish of its best attempt; "Watch it all" is every attempt whole. Nothing is paid or learned again.
+    let clips = null, clipI = 0;
+    const TAIL = 110;   // how much of an attempt a highlight shows, in the rules' own steps
+    function resultCard() {
+        stop(); mode = 'result'; clips = null; sayEl.textContent = hand.text;
+        actions(button('Change the room', () => toBuild(), true), button('Hand it over again', toAi), button('Highlights', () => review(false)), button('Watch it all', () => review(true)));
         run = null; go();
+    }
+    function review(all) {
+        const top = hand.score, list = [];
+        hand.attempts.forEach((a, k) => {
+            const r = a.result, n = a.inputs.length;
+            if (all) list.push({ k, from: 0, why: `Try ${k + 1} of ${hand.attempts.length}` });
+            else if (!r.finished) list.push({ k, from: Math.max(0, n - TAIL), why: `Try ${k + 1}: stopped by ${WHAT[r.failed.type] || 'something'}` });
+            else if (r === top) list.push({ k, from: Math.max(0, n - TAIL), why: yours.finished && yours.time - r.time > 0.05 ? `The finish, ${secs(yours.time - r.time)} faster than you` : 'The finish' });
+        });
+        if (!list.length) return;
+        clips = list; clipI = 0; mode = 'review'; window.CourseUnlocks.log('courseReview', { kind: 'rooms', all: all ? 1 : 0, clips: list.length });
+        actions(button('Back to the result', resultCard, true)); clipStart();
+    }
+    function clipOver() { clipI++; setTimeout(() => { if (mode !== 'review') return; if (clipI < clips.length) clipStart(); else resultCard(); }, 700); }
+    function clipStart() {
+        const c = clips[clipI], a = hand.attempts[c.k];
+        run = R().createRun(save.room, O()); for (let i = 0; i < c.from && !run.state.over; i++) run.step(a.inputs[i]);
+        feed = { inputs: a.inputs, i: c.from }; attempt = c.k; startAt = performance.now() + 350;
+        say(`${c.why}. (${clipI + 1} of ${clips.length})`);
+        go();
     }
 
     // The loop: the rules' fixed step, paced by the clock. With no run, the saws are shown keeping time.
@@ -136,11 +165,11 @@
         raf = 0;
         if (!dlg || !dlg.open) return;
         const step = R().ROOM.step;
-        acc += Math.min(0.1, (now - last) / 1000) * (mode === 'ai' ? 1.5 : 1); last = now;   // the AI's attempts play at 1.5x (the owner's call, 2026-11-17: watching was too long)
+        acc += Math.min(0.1, (now - last) / 1000) * (mode === 'ai' || mode === 'review' ? 1.5 : 1); last = now;   // the AI's attempts play at 1.5x (the owner's call, 2026-11-17: watching was too long)
         if (run && now >= startAt) {
             const s = run.state;
             while (acc >= step && !s.over) { acc -= step; run.step(feed ? (feed.i < feed.inputs.length ? feed.inputs[feed.i++] : { dir: 0, jump: false }) : { dir: (keys.right ? 1 : 0) - (keys.left ? 1 : 0), jump: keys.jump }); }
-            if (s.over) { draw(); if (mode === 'test') testOver(); else if (mode === 'ai') aiOver(); return; }
+            if (s.over) { draw(); if (mode === 'test') testOver(); else if (mode === 'ai') aiOver(); else if (mode === 'review') clipOver(); return; }
         } else { while (acc >= step) { acc -= step; if (!run) preview++; } }
         draw();
         raf = requestAnimationFrame(frame);
@@ -154,7 +183,7 @@
         const rect = canvas.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1), W = Math.max(50, rect.width), H = Math.max(50, rect.height);
         if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
         const ctx = canvas.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
-        const k = W / o.cols, s = run ? run.state : null, n = s ? s.n : preview, ai = mode === 'ai' || (mode === 'result' && !!s);
+        const k = W / o.cols, s = run ? run.state : null, n = s ? s.n : preview, ai = mode === 'ai' || mode === 'review' || (mode === 'result' && !!s);
         // The back wall: faint dots at the tile corners, a little brighter while building.
         ctx.fillStyle = C.text; ctx.globalAlpha = mode === 'build' ? 0.16 : 0.07;
         for (let cy = 1; cy < o.rows; cy++) for (let cx = 1; cx < o.cols; cx++) ctx.fillRect(cx * k - 1, cy * k - 1, 2, 2);

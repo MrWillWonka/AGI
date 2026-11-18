@@ -143,12 +143,41 @@
         if (!top && marks) sayEl.textContent += ` Partial credit: ${marks} Marks.`;
         window.CourseUnlocks.log('courseAi', { kind: 'puck', cleared: top ? 1 : 0, marks, tries: hand.attempts.map(a => ((a.result || a).finished ? 'C' : 'F')).join(''), skipped: attempt < hand.attempts.length ? 1 : 0, ai: window.CourseUnlocks.brief(top), you: window.CourseUnlocks.brief(yours), built: window.CourseUnlocks.parts(save.course) });
         if (top) { const news = window.CourseUnlocks.cleared('puck', lvl => P().palette(lvl).map(k => P().TILES[k].name)); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'puck'); }
-        actions(button('Change the course', () => toBuild(), true), button('Hand it over again', toAi));
-        // Leave its best attempt (or its last) on the field.
-        const show = hand.attempts.find(a => a.result === top) || hand.attempts[tries - 1], last = show.traces[show.traces.length - 1];
-        reset(); paths = show.traces.map(t => t.frames); for (const t of show.traces) for (const e of t.events) if (e.type === 'target') seen[e.id] = true;
+        hand.text = sayEl.textContent; resultCard();
+    }
+    // Reviewing a hand-over from its result (the owner's calls, 2026-11-17: "a mini highlight reel with notable misses
+    // or successes", "the option to review on the end card"): the highlights are the shot each fail ended on, each shot
+    // of its best attempt that hit a target you did not, and that attempt's last shot; "Watch it all" is every attempt whole. Nothing is paid or learned again.
+    let clips = null, clipI = 0;
+    function resultCard() {
+        stop(); mode = 'result'; clips = null; sayEl.textContent = hand.text;
+        actions(button('Change the course', () => toBuild(), true), button('Hand it over again', toAi), button('Highlights', () => review(false)), button('Watch it all', () => review(true)));
+        // Its best attempt (or its last) is left on the field.
+        const top = hand.score, show = hand.attempts.find(a => a.result === top) || hand.attempts[hand.attempts.length - 1], last = show.traces[show.traces.length - 1];
+        reset(); attempt = hand.attempts.indexOf(show); paths = show.traces.map(t => t.frames); for (const t of show.traces) for (const e of t.events) if (e.type === 'target') seen[e.id] = true;
         at = { x: last.to.x, y: last.to.y }; shotsShown = show.result.shots; pointsShown = show.result.points;
         draw();
+    }
+    function review(all) {
+        const top = hand.score, list = [];
+        hand.attempts.forEach((a, k) => a.traces.forEach((tr, i) => {
+            const end = i === a.traces.length - 1, fresh = tr.events.some(e => e.type === 'target' && !(yours.hit && yours.hit[e.id]));
+            const why = all ? `Try ${k + 1}, shot ${i + 1}` : !a.result.finished && end ? `Try ${k + 1}: out of shots` : a.result === top && fresh ? 'A target you did not hit' : a.result === top && end ? 'The finish' : null;
+            if (why) list.push({ k, i, why });
+        }));
+        if (!list.length) return;
+        clips = list; clipI = 0; mode = 'review'; window.CourseUnlocks.log('courseReview', { kind: 'puck', all: all ? 1 : 0, clips: list.length });
+        actions(button('Back to the result', resultCard, true)); clipStart();
+    }
+    function clipOver() { clipI++; setTimeout(() => { if (mode !== 'review') return; if (clipI < clips.length) clipStart(); else resultCard(); }, 700); }
+    function clipStart() {
+        const c = clips[clipI], a = hand.attempts[c.k], tr = a.traces[c.i];
+        // The field as it stood before this shot.
+        reset(); attempt = c.k; shotI = c.i; shotsShown = c.i; at = { x: tr.from.x, y: tr.from.y };
+        for (let j = 0; j < c.i; j++) for (const e of a.traces[j].events) if (e.type === 'target') { seen[e.id] = true; pointsShown += e.points; }
+        say(`${c.why}. (${clipI + 1} of ${clips.length})`);
+        aim = { angle: a.shots[c.i].angle, power: a.shots[c.i].power }; draw();
+        timer = setTimeout(() => { aim = null; if (mode === 'review') play(tr, true); }, 300);
     }
 
     // The sling: pull back anywhere on the field and let go (one thumb, or the mouse).
@@ -176,6 +205,7 @@
         at = { x: tr.to.x, y: tr.to.y }; shotsShown++;
         if (tr.sunk || tr.pit) { endAt = performance.now(); endKind = tr.sunk ? 'sunk' : 'pit'; }
         if (tr.sunk) pointsShown += P().HOLE_POINTS;
+        if (mode === 'review') return clipOver();
         if (ai) {
             shotI++;
             if (shotI < hand.attempts[attempt].shots.length) timer = setTimeout(aiShot, tr.pit ? 700 : 350); else aiOver();
@@ -192,7 +222,7 @@
         const rect = canvas.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1), W = Math.max(50, rect.width), H = Math.max(50, rect.height);
         if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
         const ctx = canvas.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
-        const u = W / o.cols, v = H / o.rows, w = run ? run.world : R.world(save.course), ai = mode === 'ai' || mode === 'result';
+        const u = W / o.cols, v = H / o.rows, w = run ? run.world : R.world(save.course), ai = mode === 'ai' || mode === 'result' || mode === 'review';
         // Where the shot being played has got to.
         let px = at.x, py = at.y, steps = 0;
         if (anim) {
@@ -203,7 +233,7 @@
             while (anim.next < ev.length && ev[anim.next].f <= f * 2) { const e = ev[anim.next++]; if (e.type === 'target') { seen[e.id] = true; pointsShown += e.points; } }
             if (f >= fr.length - 1) { shotDone(); return draw(); }
         } else steps = run ? run.state.t : mode === 'build' ? now / 1000 / o.step : 0;
-        if (mode === 'ai' || mode === 'result') { const a = hand && hand.attempts[Math.min(attempt, hand.attempts.length - 1)]; if (!anim && a && mode === 'ai') steps = shotI < a.traces.length ? a.traces[shotI].t0 : steps; }
+        if (mode === 'ai' || mode === 'result' || mode === 'review') { const a = hand && hand.attempts[Math.min(attempt, hand.attempts.length - 1)]; if (!anim && a && mode !== 'result') steps = shotI < a.traces.length ? a.traces[shotI].t0 : steps; }
         const X = i => (i % o.cols) * u, Y = i => Math.floor(i / o.cols) * v;
         // The floor: a quiet checker.
         for (let i = 0; i < R.size(); i++) { ctx.fillStyle = C.text; ctx.globalAlpha = ((i % o.cols) + Math.floor(i / o.cols)) % 2 ? 0.025 : 0.05; ctx.fillRect(X(i), Y(i), u, v); }

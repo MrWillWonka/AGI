@@ -1204,9 +1204,11 @@ The rhythm run already starts from the game's songs.
 without faults, not for how it sounds.**
 - **The default music level is halved**, 35% to 18% (the owner's call). A device that has moved the slider keeps its own.
 - **Measured, the songs are already even**: `node tools/audio/survey.js owner-1117 --quick` puts all 30 between -33.4 and
-  -35.7 LUFS. What is far louder is everything at full intensity (the stress timeline: -16 to -25 LUFS, Soft the
-  loudest at -16.2), so "a couple tracks louder than others" is more likely a full arrangement than a song. Nothing
-  was changed for this; it is the owner's call whether full intensity should be held down.
+  -35.7 LUFS, each played through its form with every layer in, so no song is louder than another and a full
+  arrangement is not louder either. (I first read the survey's `stress` rows, -16 to -25 LUFS, as full intensity and
+  told the owner so. That was wrong: `stress` is every effect at once over the music.) Against the effects alone
+  (-37 to -40 LUFS at the default sound level) the music at its old default sat 3 to 6 LU above them; halved, it is
+  level with them. Nothing else was changed.
 - **The rhythm run's pick card: soft background, loud preview** (the owner's call). `SFX.setSoft` (new) sits the music
   back to 40% on the card; tapping a track brings it forward for 12 s, Listen for as long as it plays.
 - **Tapping a track now always changes the song.** It only told the engine when a board had been playing, so a second
@@ -1224,3 +1226,14 @@ without faults, not for how it sounds.**
 which took the place of the engine's own `note` inside sfx.js, so held jobs played their figure three times too fast
 (`tests/audio.test.js` caught it). Commit 9ac9271 went to main with that test failing, because my commit step did not
 stop on a failed test; it was live on main and the play server for about ten minutes. It is `laneNote` now.
+
+**Fixes from the owner's playtest, round 5 (2026-11-17): the highlight reel and a review on the result card.** The
+owner: "a mini highlight reel with notable misses or successes and play the runs at a slightly faster pace. Give the
+option to review on the end card." The result card of the maze, the puck course and the room has **Highlights** and
+**Watch it all**; both play at the AI's 1.5x and end back on the same result (nothing is paid or learned again; **Back
+to the result** leaves early). Highlights: each failed try at the moment it fails (the maze its last 14 ticks, the
+room its last 110 steps, the puck course its last shot), and the finish of its best try, saying how much faster than
+you it was; the puck course adds each shot of its best try that hit a target you did not. Measured: 2 to 8 s for the
+highlights against 5 to 21 s for everything. "Where it beat you" in the maze and the room is only that line on the
+finish: a faster time has no one place to show. Not the rhythm run (its attempts are tied to the song). Logged as
+`courseReview`.
