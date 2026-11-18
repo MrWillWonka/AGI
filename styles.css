@@ -5031,3 +5031,7 @@ body.ring-device.device-phone.ai-here .rooms-canvas { width: min(100%, calc((100
 body.ring-device.ai-in-lab:not(:has(dialog[open])) .device-homedot { display: none !important; }
 body.ring-device.ai-in-lab:not(:has(dialog[open])) .device-switch, body.ring-device.device-phone.ai-in-lab:not(:has(dialog[open])) .device-switch { opacity: 1; transform: translate(-50%, 0) scale(1); pointer-events: auto; visibility: visible; transition-delay: 0s; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
 body.ring-device.device-phone.ai-in-lab #labRoom { padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px)); }
+/* From the owner's phone screenshots (2026-11-18). Settings: the list's scrollbar sat on "Start over" and the sliders'
+   values; it has a gutter of its own now. A window's × no longer wears a focus ring just for having opened on a phone. */
+.journal-body { padding-right: 12px; margin-right: -6px; scrollbar-gutter: stable; }
+@media (pointer: coarse) { dialog .win-x:focus-visible, dialog .evals-close:focus-visible, dialog .shop-close:focus-visible, dialog .feed-close:focus-visible, dialog .inbox-close:focus-visible { outline: none; } }
