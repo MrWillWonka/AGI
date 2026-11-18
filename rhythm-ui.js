@@ -9,10 +9,10 @@
     const R = () => window.Rhythm;
     const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'text') n.textContent = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k !== '' && k != null)); return n; };
     const KEY = 'agiRhythm';
-    const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), best: s.best && typeof s.best === 'object' ? s.best : {}, track: +s.track || 0, level: Math.max(0, Math.min(3, Math.floor(+s.level || 0))), own: !!s.own, field: !!s.field, boards: s.boards && typeof s.boards === 'object' ? s.boards : {} }; } catch { return { marks: 0, runs: 0, stage: 1, best: {}, track: 0, level: 0, own: false, field: false, boards: {} }; } };
-    const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
+    const load = () => { try { const s = JSON.parse(window.CourseUnlocks.store.get(window.CourseUnlocks.key(KEY)) || '{}'); return { marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), best: s.best && typeof s.best === 'object' ? s.best : {}, track: +s.track || 0, level: Math.max(0, Math.min(3, Math.floor(+s.level || 0))), own: !!s.own, field: !!s.field, boards: s.boards && typeof s.boards === 'object' ? s.boards : {} }; } catch { return { marks: 0, runs: 0, stage: 1, best: {}, track: 0, level: 0, own: false, field: false, boards: {} }; } };
+    const keep = () => { window.CourseUnlocks.store.set(window.CourseUnlocks.key(KEY), JSON.stringify(save)); };
     const skills = () => (location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
-    const masteryNow = () => R().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min(skills(), 20));
+    const masteryNow = () => R().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min((window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0, 20));
     const LANES = ['Kick', 'Bass', 'Melody'], SOUND = ['compute', 'data', 'research'];
     // Two thumbs on a phone; W A S D, the spacebar and the mouse on a desktop (the owner, 2026-11-16). So a desktop has
     // two hands too: A, S and D are the lanes, and a click on the notes (or the spacebar) goes to whichever note is due.

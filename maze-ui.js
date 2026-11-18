@@ -7,11 +7,11 @@
     const M = () => window.Maze;
     const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'text') n.textContent = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k !== '' && k != null)); return n; };
     const KEY = 'agiMaze';
-    const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { maze: M().cleanMaze(s.maze), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), started: s.started === true, times: s.times && typeof s.times === 'object' ? s.times : {} }; } catch { return { maze: M().emptyMaze(), marks: 0, runs: 0, stage: 1, times: {} }; } };
-    const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
+    const load = () => { try { const s = JSON.parse(window.CourseUnlocks.store.get(window.CourseUnlocks.key(KEY)) || '{}'); return { maze: M().cleanMaze(s.maze), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), started: s.started === true, times: s.times && typeof s.times === 'object' ? s.times : {} }; } catch { return { maze: M().emptyMaze(), marks: 0, runs: 0, stage: 1, times: {} }; } };
+    const keep = () => { window.CourseUnlocks.store.set(window.CourseUnlocks.key(KEY), JSON.stringify(save)); };
     const skills = () => (window.CourseUnlocks.on ? window.CourseUnlocks.levelOf('maze') : location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
     const stageNow = () => M().stage(masteryNow());
-    const masteryNow = () => M().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min(skills(), 20));
+    const masteryNow = () => M().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min((window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0, 20));
     const secs = t => t.toFixed(1) + ' s';
     const mazeKey = () => save.maze.map(k => (k ? k[0] : '-')).join('');
     const WHAT = { trap: 'a trap', patrol: 'a patrol', time: 'the clock' };

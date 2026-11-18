@@ -57,8 +57,8 @@
 
     // ---- The browser's part: what is kept on the device, the flag, and the choice on the result. ----
     const U = () => root.CourseUnlocks, T = () => root.CourseTree;
-    const get = k => { try { return localStorage.getItem(k); } catch { return null; } };
-    const set = (k, v) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } };
+    const get = k => (U() ? U().store.get(k) : null);
+    const set = (k, v) => { if (U()) U().store.set(k, v); };
     const keyNow = () => (U() ? U().key('agiCourseCheat') : 'agiCourseCheat');
     let state = null, from = null;
     function now() { const k = keyNow(); if (!state || from !== k) { try { state = clean(JSON.parse(get(k) || '{}')); } catch { state = blank(); } from = k; } return state; }

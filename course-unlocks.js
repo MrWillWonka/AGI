@@ -64,17 +64,24 @@
     const KEY = 'agiCourseUnlocks', SAVES = { rhythm: 'agiRhythm', maze: 'agiMaze', puck: 'agiPuck', rooms: 'agiRooms' };
     const UI = { rhythm: () => root.RhythmUI, maze: () => root.MazeUI, puck: () => root.PuckUI, rooms: () => root.RoomsUI };
     const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'text') n.textContent = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k !== '' && k != null)); return n; };
-    const get = k => { try { return localStorage.getItem(k); } catch { return null; } };
-    const set = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch { /* private mode */ } };
-    let state = (() => { try { return clean(JSON.parse(get(KEY) || '{}')); } catch { return blank(); } })(), card = null;
-    const keep = () => set(KEY, JSON.stringify(state));
+    // In the ring's dev link the courses are part of the game (the owner's call, 2026-11-17): everything they keep is in
+    // the game's save (`state.courses`, text by key), the unlocks are always on, and there is no switch. Anywhere else
+    // (the playground) they keep to the device, as before.
+    const ring = location.hash === '#ring' || location.hash === '#dev';
+    const saved = () => (root.AGI && root.AGI.state ? (root.AGI.state.courses || (root.AGI.state.courses = {})) : null);
+    const get = k => { if (ring) { const c = saved(); return c && typeof c[k] === 'string' ? c[k] : null; } try { return localStorage.getItem(k); } catch { return null; } };
+    const set = (k, v) => { if (ring) { const c = saved(); if (c) { if (v == null) delete c[k]; else c[k] = String(v); } return; } try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch { /* private mode */ } };
+    let state = null, card = null;
+    // (Read when first needed: in the ring the game's save is not there yet when this file loads.)
+    const S = () => { if (!state) { try { state = clean(JSON.parse(get(KEY) || '{}')); } catch { state = blank(); } if (ring) state.on = true; } return state; };
+    const keep = () => set(KEY, JSON.stringify(S()));
     const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
     // (Defined, not assigned: Object.assign would copy the values of the moment.)
-    Object.defineProperty(api, 'state', { get: () => state });
-    Object.defineProperty(api, 'on', { get: () => state.on });
+    Object.defineProperty(api, 'state', { get: () => S() });
+    Object.defineProperty(api, 'on', { get: () => S().on });
     // The playtest log (game.js `AGI.playtest`): the courses' lines all carry whether the unlocks are on.
-    const log = (type, data) => { try { if (root.AGI && root.AGI.playtest) root.AGI.playtest(type, Object.assign({}, data, state.on ? { unlocks: 1 } : {})); } catch { /* no log */ } };
+    const log = (type, data) => { try { if (root.AGI && root.AGI.playtest) root.AGI.playtest(type, Object.assign({}, data, S().on ? { unlocks: 1 } : {})); } catch { /* no log */ } };
     const round = v => (typeof v === 'number' ? Math.round(v * 100) / 100 : v);
     Object.assign(api, {
         log,
@@ -84,37 +91,39 @@
         parts(list) { const n = {}; for (const t of list || []) if (t) { const k = String(t).replace(/\d$/, ''); n[k] = (n[k] || 0) + 1; } return Object.entries(n).map(([k, v]) => k + v).join(' ') || 'empty'; },
         openKind: () => ORDER.find(k => { const u = UI[k](); return u && u.isOpen; }) || null,
         // Where a kind keeps its save: its own key, or a second one while the unlocks are on.
-        key: base => (state.on ? base + '.u' : base),
-        levelOf: kind => level(state, kind),
-        can: id => has(state, id),
+        store: { get, set },
+        ring,
+        key: base => (!ring && S().on ? base + '.u' : base),
+        levelOf: kind => level(S(), kind),
+        can: id => has(S(), id),
         // Open Evals: the kind last used if it is open, else the newest open kind's first.
         open(kind) {
-            const want = kind || get('agiCourseKind'), k = kindOpen(state, want) ? want : openKinds(state)[0], ui = UI[k] && UI[k]();
+            const want = kind || get('agiCourseKind'), k = kindOpen(S(), want) ? want : openKinds(S())[0], ui = UI[k] && UI[k]();
             if (!ui) return false;
             set('agiCourseKind', k); ui.open(); log('course', { kind: k }); return true;
         },
         closeAll() { for (const k of ORDER) { const ui = UI[k](); if (ui && ui.isOpen) ui.close(); } },
         // The bar's two buttons for a kind's screen: on to the next open kind, and the padlock.
         switchButton(kind) {
-            return [el('button', { type: 'button', class: 'ghost-button course-switch', onclick: () => { const to = after(state, kind); if (!to) return; api.closeAll(); api.open(to); } }),
+            return [el('button', { type: 'button', class: 'ghost-button course-switch', onclick: () => { const to = after(S(), kind); if (!to) return; api.closeAll(); api.open(to); } }),
                 el('button', { type: 'button', class: 'ghost-button course-switch course-lock', onclick: () => showCard(kind) })];
         },
         // Called by a screen whenever its bar is drawn.
         refresh(dlg, kind) {
-            const sw = dlg.querySelector('.course-switch:not(.course-lock)'), lock = dlg.querySelector('.course-lock'), to = after(state, kind);
+            const sw = dlg.querySelector('.course-switch:not(.course-lock)'), lock = dlg.querySelector('.course-lock'), to = after(S(), kind);
             if (sw) { sw.hidden = !to; if (to) { sw.textContent = NAMES[to]; sw.setAttribute('aria-label', 'Switch to ' + LONG[to]); } }
-            if (lock) { lock.textContent = state.on ? '🔓' : '🔒'; lock.setAttribute('aria-label', state.on ? 'Unlocks: on. Open the unlocks card' : 'Unlocks: off, everything is open. Open the unlocks card'); }
+            if (lock) { lock.textContent = S().on ? '🔓' : '🔒'; lock.setAttribute('aria-label', S().on ? 'Unlocks: on. Open the unlocks card' : 'Unlocks: off, everything is open. Open the unlocks card'); }
         },
         // The AI cleared a course. `namesAt(level)`: the names of what this kind gives you at a level. Returns what to
         // say about it ('' if nothing opened).
         cleared(kind, namesAt) {
-            if (!state.on) return '';
-            const r = record(state, kind); state = r.state; keep();
+            if (!S().on) return '';
+            const r = record(S(), kind); state = r.state; keep();
             const had = namesAt(r.before), now = namesAt(r.after).filter(n => !had.includes(n)), out = [];
             if (now.length || r.opened) log('courseUnlock', { kind, step: r.after, ...(now.length ? { parts: now.join(', ') } : {}), ...(r.opened ? { opened: r.opened } : {}) });
             if (now.length) out.push(`New here: ${now.join(', ')}.`);
             if (r.opened) out.push(`A new kind of course is open: ${NAMES[r.opened]}.`);
-            if (!out.length) { const a = toNextStep(state, kind), b = toNextKind(state, kind); if (a != null) out.push(`${plural(a, 'more clear')} of mine for the next part.`); else if (b) out.push(`${plural(b, 'more clear')} of mine for the next kind of course.`); }
+            if (!out.length) { const a = toNextStep(S(), kind), b = toNextKind(S(), kind); if (a != null) out.push(`${plural(a, 'more clear')} of mine for the next part.`); else if (b) out.push(`${plural(b, 'more clear')} of mine for the next kind of course.`); }
             return out.join(' ');
         },
         rhythmNames: lvl => UNLOCKS.rhythm.slice(0, Math.max(0, Math.min(lvl, UNLOCKS.rhythm.length))).map(x => x.name),
@@ -125,17 +134,17 @@
         if (!card) { card = el('dialog', { class: 'course-unlocks', 'aria-label': 'Unlocks' }); document.body.append(card); card.addEventListener('click', e => { if (e.target === card) card.close(); }); }
         const reopen = () => { card.close(); api.closeAll(); api.open(kind); };
         const rows = ORDER.map(k => {
-            const open = kindOpen(state, k), a = toNextStep(state, k), b = toNextKind(state, k), prev = ORDER[ORDER.indexOf(k) - 1];
-            const text = !state.on ? 'everything open' : !open ? `opens after ${plural(UNLOCKS.nextKind, 'clear')} in ${NAMES[prev]}` : `step ${level(state, k)} of ${UNLOCKS.steps[k]}, ${plural(state.clears[k], 'clear')}${a != null ? `, next part in ${a}` : ''}${b ? `, next kind in ${b}` : ''}`;
+            const open = kindOpen(S(), k), a = toNextStep(S(), k), b = toNextKind(S(), k), prev = ORDER[ORDER.indexOf(k) - 1];
+            const text = !S().on ? 'everything open' : !open ? `opens after ${plural(UNLOCKS.nextKind, 'clear')} in ${NAMES[prev]}` : `step ${level(S(), k)} of ${UNLOCKS.steps[k]}, ${plural(S().clears[k], 'clear')}${a != null ? `, next part in ${a}` : ''}${b ? `, next kind in ${b}` : ''}`;
             return el('li', { class: open ? '' : 'locked' }, el('strong', { text: NAMES[k] }), el('span', { text: text }));
         });
         card.replaceChildren(
             el('h2', { text: 'Unlocks' }),
-            el('p', { text: state.on ? 'On. You start each kind of course with its first parts and earn the rest: every course I clear counts.' : 'Off. Every part of every kind of course is open.' }),
+            el('p', { text: ring ? 'You start each kind of course with its first parts and earn the rest: every course I clear counts.' : S().on ? 'On. You start each kind of course with its first parts and earn the rest: every course I clear counts.' : 'Off. Every part of every kind of course is open.' }),
             el('ul', {}, rows),
             el('div', { class: 'course-actions' },
-                el('button', { type: 'button', class: 'evals-go', text: state.on ? 'Turn unlocks off' : 'Turn unlocks on', onclick: () => { state.on = !state.on; keep(); log('unlocks', { on: state.on ? 1 : 0 }); reopen(); } }),
-                ...(state.on ? [el('button', { type: 'button', class: 'ghost-button evals-extra', text: 'Start the unlocks over', onclick: () => { state = Object.assign(blank(), { on: true }); keep(); log('unlocks', { over: 1 }); for (const k of ORDER) set(SAVES[k] + '.u', null); set('agiCourseTree.u', null); set('agiCourseCheat.u', null); if (root.CourseTree) root.CourseTree.forget(); if (root.CourseCheat) root.CourseCheat.forget(); reopen(); } })] : []),
+                ring ? null : el('button', { type: 'button', class: 'evals-go', text: S().on ? 'Turn unlocks off' : 'Turn unlocks on', onclick: () => { S().on = !S().on; keep(); log('unlocks', { on: S().on ? 1 : 0 }); reopen(); } }),
+                ...(S().on && !ring ? [el('button', { type: 'button', class: 'ghost-button evals-extra', text: 'Start the unlocks over', onclick: () => { state = Object.assign(blank(), { on: true }); keep(); log('unlocks', { over: 1 }); for (const k of ORDER) set(SAVES[k] + '.u', null); set('agiCourseTree.u', null); set('agiCourseCheat.u', null); if (root.CourseTree) root.CourseTree.forget(); if (root.CourseCheat) root.CourseCheat.forget(); reopen(); } })] : []),
                 el('button', { type: 'button', class: 'ghost-button evals-extra', text: 'Close', onclick: () => card.close() })));
         if (!card.open) card.showModal();
     }

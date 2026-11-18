@@ -30,6 +30,7 @@ window.AGI = (function () {
     } catch { /* private mode */ }
     const PLAYGROUND = BAYS_DIRECT;
     E.setPlayground(BAYS_DIRECT || RING_PLAY);
+    E.setCourses(RING_DEV);   // Evals is the courses in the dev link (the owner's call, 2026-11-17); the playtest keeps the captchas until a new one is published
     const SAVE_KEY = PLAYTEST ? `agiGame.pt${E.PLAYTEST_BUILD}` : RING_PLAY ? 'agiGame.playground' : 'agiGame';
     const BACKUP_KEY = SAVE_KEY + '.bak';         // the last good save (refreshed every BACKUP_MS, and kept before an import)
     const CORRUPT_KEY = SAVE_KEY + '.corrupt';    // a save that couldn't be read, kept as it was
@@ -2613,11 +2614,13 @@ window.AGI = (function () {
     // The roster (the ring, Build 3; the owner's cards, 2026-11-15: it lives in the Lab): one row an agent, a button for
     // each place it can work, and a line saying what it is doing there. Rules in engine.js (`assignAgent`, `agentsTick`).
     // EVERY WORD HERE IS A PLACEHOLDER for the owner to write or approve.
-    const AGENT_PLACE_NAME = { lab: 'Lab', feed: 'The Feed', training: 'Training' };
+    const AGENT_PLACE_NAME = { lab: 'Lab', feed: 'The Feed', training: 'Training', evals: 'Evals' };
+    const agentPlaces = () => E.AGENT_PLACES.filter(p => p !== 'evals' || E.isCourses());   // (an agent works in Evals only where the courses are Evals)
     let rosterKey = '';
     function agentStatus(place) {
         if (place === 'lab') { const pick = E.agentLabPick(state); return pick ? `Saving for a ${E.upgradeName(state, E.UPGRADE_BY_ID[pick.id])}: ${E.format(state.agents.fund)} of ${E.format(pick.cost)} compute.` : 'No room for more hardware. A funding round in Evals makes room.'; }
         if (place === 'feed') { const job = state.agents.feed; return state.feed.session ? 'Waiting while you run a session.' : job ? `Working the stockpile for sector ${job.sector}: ${E.format(job.research)} research so far.` : 'Waiting for a stockpile.'; }
+        if (place === 'evals') return state.evals.coursePay > 0 ? `Running your last course: about ${E.format(Math.max(1, Math.round(state.evals.coursePay * E.AGENT_EVALS_SHARE * E.agentPower(E.agentsAt(state, 'evals')))))} Marks every ${E.AGENT_EVALS_SECONDS} seconds.` : 'Waiting for a course the AI has cleared.';
         if (place === 'training') return state.path.learned > 0 ? `Cleared hills train ${1 + E.AGENT_TRAIN_XP * E.agentPower(E.agentsAt(state, 'training'))} times as fast.` : 'Waiting for a cleared hill.';
         return 'Idle. Pick a place for it to work.';
     }
@@ -2626,7 +2629,7 @@ window.AGI = (function () {
         if (!panel) return;
         setHidden(panel, !n);
         if (!n) return;
-        const open = E.AGENT_PLACES.map(p => (E.agentPlaceOpen(state, p) ? 1 : 0)).join(''), key = `${n}|${state.agents.at.slice(0, n).join(',')}|${open}`;
+        const open = agentPlaces().map(p => (E.agentPlaceOpen(state, p) ? 1 : 0)).join(''), key = `${n}|${state.agents.at.slice(0, n).join(',')}|${open}`;
         if (key !== rosterKey) {
             rosterKey = key;
             setText($('rosterCount'), n === 1 ? '1 agent' : `${n} agents`);
@@ -2636,7 +2639,7 @@ window.AGI = (function () {
                     onclick: () => { if (E.assignAgent(state, i, place)) { pt('agent', { i: i + 1, to: place || 'idle' }); sfx('ui'); afterChange(); save(); } } });
                 return el('li', { class: 'roster-agent' }, [
                     el('span', { class: 'roster-name', text: `Agent ${i + 1}` }),
-                    el('div', { class: 'roster-places', role: 'group', 'aria-label': `Where agent ${i + 1} works` }, [pick(null, 'Idle'), ...E.AGENT_PLACES.map(p => pick(p, AGENT_PLACE_NAME[p]))]),
+                    el('div', { class: 'roster-places', role: 'group', 'aria-label': `Where agent ${i + 1} works` }, [pick(null, 'Idle'), ...agentPlaces().map(p => pick(p, AGENT_PLACE_NAME[p]))]),
                     el('p', { class: 'roster-status', 'data-place': at || '' })]);
             }));
         }
@@ -2646,6 +2649,8 @@ window.AGI = (function () {
     }
     // What the agents did this tick, beyond the Lab's buys (those are logged with procurement's).
     function agentNews(did) {
+        // (The Evals agent's Marks go to the courses' pool as they come: course-tree.js keeps it, and tells `courseMarks`.)
+        if ((did || []).some(e => e.type === 'evals')) { const owed = E.takeCourseOwed(state); if (owed > 0) { pt('agentEvals', { marks: owed }); window.CourseTree?.grant?.(owed); } }
         for (const e of did || []) if (e.type === 'fed') {
             pt('agentFed', { sector: e.sector, research: e.research, packets: e.packets });
             deviceNotice('feed', 'The Feed', `Your agent finished the stockpile for sector ${e.sector}: +${E.format(e.research)} research.`, () => { closeApps(); openFeed(); });
@@ -2669,7 +2674,7 @@ window.AGI = (function () {
         // (Four kinds of course: the room, the maze, the rhythm run and the puck course, a button in each to the next open one; the last one used opens. The track
         // was folded into the room, the owner's call, 2026-11-16: the two did not feel distinct. A third kind is being chosen.)
         // course-unlocks.js decides which: the kind last used if it is open, else the first (the rhythm run).
-        if (!(RING_PLAY && window.CourseUnlocks?.open())) window.EvalsUI?.open();
+        if (!((RING_PLAY || RING_DEV) && window.CourseUnlocks?.open())) window.EvalsUI?.open();
     }
     function openTrainingApp() {
         state.intro['ring:seen:training'] = true;
@@ -14836,6 +14841,8 @@ window.AGI = (function () {
         save: () => save(true),
         // A line in the playtest log from a screen of its own (evals-ui.js).
         playtest: (type, data) => pt(type, data),
+        // The courses paid Marks (course-tree.js): where the courses are Evals this is what earns funding rounds.
+        courseMarks(earned, pay) { if (!E.isCourses()) return; const before = E.fundingRounds(state); E.courseMarks(state, earned, pay); const after = E.fundingRounds(state); if (after > before) fundingRound(before, after); afterChange(); save(); },
         // The Feed's screen starts and ends sessions through these, so they are logged and saved (feed-ui.js).
         feedStart(sector) { const ok = E.feedStart(state, sector); if (ok) { pt('feedStart', { sector, packets: state.feed.session.packets, squad: (state.feed.squad || []).join(',') }); save(); } return ok; },
         // The squad of mites (the owner's call, 2026-11-16): which kinds come, from those open; the slots it has.

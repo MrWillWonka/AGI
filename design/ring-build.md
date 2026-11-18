@@ -1309,3 +1309,12 @@ to open and close the music's tone (`SFX.wah`), with a small flair for swinging 
 screen, in lanes and on the whole field: held, swept, the flair given, 32 sweeps sent to the engine, no faults; not
 heard. **Also fixed, an older fault found on the way:** letting go of a held note lost what it had just done (its hit
 or its miss never reached the screen), because `release` emptied the list twice.
+
+**Build 3: Evals' courses in the ring's dev link (2026-11-17).** The owner's four cards and what was built are in
+`design/evals-course.md` -> The courses in the ring. In short: `#ring` opens the courses for Evals (the playtest link
+still opens the captchas: `E.setCourses(RING_DEV)`); what they keep is in the save (v46, `state.courses`, through
+`CourseUnlocks.store`); the unlocks are always on there; funding rounds come from Marks ever earned on courses
+(`courseRounds`: 100, 300, 700...); and the roster has an Evals job (a quarter of your last clear every 90 s).
+`tests/ring-courses.test.js` (3). Checked in a browser on `#ring`: saved, reloaded, two rounds at 325 Marks, the
+agent paid through the game's own loop; the playground and the playtest link unchanged. Of Build 3, the first tear
+and the Packet Snare agent's job are what is left.

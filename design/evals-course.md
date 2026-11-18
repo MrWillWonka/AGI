@@ -301,6 +301,34 @@ costs 5.
 **Not built:** a cheat in the rhythm run (a missed note counted as hit); cheats in the highlight reel (a struck try is
 not shown there); editing the score (the owner's "both, the second later" was not picked); the story reading any of it.
 
+## The courses in the ring: the owner's calls (four cards, 2026-11-17)
+
+- **The dev link only for now** (`#ring`). The plain playtest link keeps the captcha Evals until the owner publishes a
+  new playtest. The playground stays as it is.
+- **Funding rounds come from Marks earned, at milestones.** The captcha score sheet's rivals count for nothing there.
+- **An agent in Evals runs your last course**, paying a share of its Marks while you are elsewhere.
+- **The unlocks are always on** in the ring, with no switch.
+
+**Built (`#ring` only; `engine.js` `setCourses`, save v46; `tests/ring-courses.test.js`):**
+- **Opening Evals in the dev link opens the courses**, Rhythm first, with its first options. The padlock card shows
+  where each kind stands and has no switch.
+- **Everything the courses keep is in the game's save** (`state.courses`, text by key, cleaned on load), so starting
+  over, export and import carry it. The playground still keeps to the device.
+- **Funding rounds:** a round each time Marks ever earned pass 100, 300, 700, 1,500, 3,100 and so on (each milestone
+  twice as far as the last; `RING_ROUND_MARKS`). The usual notice and the AI's line come with it.
+- **The Evals agent:** the roster has an Evals button where the courses are Evals. Every 90 seconds an agent there is
+  paid a quarter of what your last cleared course paid (`AGENT_EVALS_SECONDS`, `AGENT_EVALS_SHARE`; half as much again
+  for a second agent). It is worked out, not played, like the Feed agent. Those Marks count toward funding rounds.
+- **What the AI has trained counts toward its skill on a course again** (Training skills learned), as the owner's first
+  call said; in the playground it does not.
+
+**For the owner to judge (numbers mine):** the milestones against what a clear pays (about 5 to 100 Marks): the first
+round after a handful of clears, the fifth after about 3,100 Marks. The agent's quarter share every 90 seconds. The
+captcha Evals' own Marks, tree and rivals are unused in the dev link but still in the save and in the playtest.
+
+**Not built:** the courses in the playtest link (waits on a publish); the mail or scene when Evals first opens (the
+AI's old line still plays); anything in `design/ring.md` rewritten for courses.
+
 ## Proposed (open, for the owner)
 
 - **The loop of one course.** Build (place obstacles on a short course, within a budget) → Test (you run it; it must

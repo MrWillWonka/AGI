@@ -7,12 +7,12 @@
     const R = () => window.Rooms;
     const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'text') n.textContent = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k !== '' && k != null)); return n; };
     const KEY = 'agiRooms';
-    const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { room: R().cleanRoom(s.room), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), started: s.started === true, times: s.times && typeof s.times === 'object' ? s.times : {} }; } catch { return { room: R().emptyRoom(), marks: 0, runs: 0, stage: 1, times: {} }; } };
-    const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
+    const load = () => { try { const s = JSON.parse(window.CourseUnlocks.store.get(window.CourseUnlocks.key(KEY)) || '{}'); return { room: R().cleanRoom(s.room), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), started: s.started === true, times: s.times && typeof s.times === 'object' ? s.times : {} }; } catch { return { room: R().emptyRoom(), marks: 0, runs: 0, stage: 1, times: {} }; } };
+    const keep = () => { window.CourseUnlocks.store.set(window.CourseUnlocks.key(KEY), JSON.stringify(save)); };
     const skills = () => (window.CourseUnlocks.on ? window.CourseUnlocks.levelOf('rooms') : location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
     const O = () => window.CourseTree.room(R().ROOM);   // the rules as the tree has changed them: grace at a ledge, the AI's take-off
     const stageNow = () => R().stage(masteryNow());
-    const masteryNow = () => R().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min(skills(), 20));
+    const masteryNow = () => R().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min((window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0, 20));
     const secs = t => t.toFixed(1) + ' s';
     const roomKey = () => save.room.map(k => (k ? k[0] + k[1] : '-')).join('');
     const WHAT = { spike: 'a spike', saw: 'a saw', pit: 'a pit', time: 'the clock', stuck: 'being stuck', lost: 'a wrong landing' };

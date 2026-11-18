@@ -100,8 +100,10 @@
     // ---- The browser's part: the pool kept on the device, and the tree's screen behind the Marks count. ----
     const U = () => root.CourseUnlocks, SAVES = ['agiRhythm', 'agiMaze', 'agiPuck', 'agiRooms'];
     const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'text') n.textContent = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k !== '' && k != null)); return n; };
-    const get = k => { try { return localStorage.getItem(k); } catch { return null; } };
-    const set = (k, v) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } };
+    // (Kept where the courses keep everything: the device, or in the ring the game's save. course-unlocks.js `store`.)
+    const get = k => (U() ? U().store.get(k) : null);
+    const set = (k, v) => { if (U()) U().store.set(k, v); };
+    const told = (pay) => { try { if (root.AGI && root.AGI.courseMarks) root.AGI.courseMarks(state.earned, pay); } catch { /* not in the ring */ } };
     const keyOf = base => (U() ? U().key(base) : base);
     let state = null, loadedFrom = null, card = null, onChange = null;
     const keep = () => set(loadedFrom, JSON.stringify(state));
@@ -112,6 +114,7 @@
         if (state && loadedFrom === k) return state;
         try { state = clean(JSON.parse(get(k) || '{}')); } catch { state = blank(); }
         loadedFrom = k;
+        if (!state.joined && U() && U().ring) { state.joined = true; keep(); }   // (in the ring there are no old counts to add)
         if (!state.joined) {
             for (const base of SAVES) { try { state.marks += Math.max(0, Math.floor(+JSON.parse(get(keyOf(base)) || '{}').marks || 0)); } catch { /* an unreadable save */ } }
             state.joined = true; keep();
@@ -126,10 +129,10 @@
     Object.assign(api, {
         lvl: id => level(now(), id),
         // A hand-over is over: pay it into the pool. Returns what was paid.
-        payOut(kind, base, ctx) { const r = pay(now(), kind, base, ctx); state = r.state; keep(); return r.paid; },
+        payOut(kind, base, ctx) { const r = pay(now(), kind, base, ctx); state = r.state; keep(); told(ctx && ctx.cleared ? r.paid : 0); return r.paid; },
         forget() { state = null; loadedFrom = null; },
         // Marks on the side (a bounty for a flag, the cost of a wrong one): no prizes, no streak, never below nothing.
-        grant(n) { const s = now(); s.marks = Math.max(0, s.marks + Math.round(n)); if (n > 0) s.earned += Math.round(n); keep(); return s.marks; },
+        grant(n) { const s = now(); s.marks = Math.max(0, s.marks + Math.round(n)); if (n > 0) s.earned += Math.round(n); keep(); told(0); return s.marks; },
         mult: () => runsMult(now()),
         tries: () => extraTries(now()),
         rhythm: base => rhythmOpts(now(), base),

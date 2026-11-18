@@ -18,7 +18,7 @@
     // Raised only when the owner publishes a new playtest.
     const PLAYTEST_BUILD = 1;
     const BUILD = '2026-11-17 21:38 (Feed branch) · The Feed agent slowed: a quarter of a packet a second, on the PC\'s own build (the orb, Evals as an app, agents, the courses) with The Feed\'s tanks and slower pace';
-    const SAVE_VERSION = 45;   // 45: The Feed's tanks (a session opens on its stockpile's tank, full, and what is left stays: `feed.x0`, `x1`, `tankTop`), its squad of mites (`feed.squad`), the frenzy, caches and corruption in a session (feed.js `clean` reads them). 44: the ring's agents (`agents`). 43: the ring sells compute for money (`stats.cashSold`), and Graphics Cards cost money: a ring save's cards are paid for. 42: The Feed's sessions (`feed.sessioned`, `stock`, `best`, `record`, `session`, `life`, `lastSession`; feed.js `clean` reads them). 41: Packet Snare's tree refunded (Sprawl and Sanitizer swapped, Sprawl far dearer). 40: `path.stuck`, the frontier runs in a row that got nowhere (the ring's help when stuck). 39: who is playing under the ring (`player`: the sign-in's name and email name, the device, the opening's reports and closes); 38: The Feed, the ring's calm minigame (`feed`: its heap, layer, mites and fragments; feed.js `clean`), new and empty; 37: Evals' Marks (`evals.marks`, `earned`), the rivals passed on its score sheet (`passed`) and its upgrades (`levels`); 36: Evals' loopholes (how misaligned the AI is, `evals.learn.mis`, and the loopholes closed for a kind, `closed`); 35: Evals' handovers (a kind's `handed` and `own`: you hand kinds to the AI, it never takes them); 34: Evals, the third minigame: what the AI has learned by watching you (`evals`), new and empty. 33: Packet Snare's flick nodes gone (Packet Spoofing, Forged Headers, Privilege Escalation; the owner's call on D20), the laser line and Blue Screen re-hung, the tree refunded again; 32: Packet Snare 18.4 (Garbage Collection, Second Wind, Clean Sweep, Quarantine Relay, Zero Trust and IDS Evasion gone, Chain Lightning a travelling bolt, Hijack reworked), the tree refunded again; 31: Packet Snare's repeats folded into four deep roots round a seed (Handshake), Scrubbers gone, the Decoder Bot early, the tree refunded; 30: Packet Snare's red-packet nodes back (Sanitizer, Checksums, Spam Filter, Reputation Check, Rate Limiter, Error Correction, Parity Check, Signature Database), the Cleaner Bot later, the Bouncer and Escort bots and both towers gone, the tree refunded again; 29: Packet Snare's red-packet nodes became helpers (Cleaner Bot at the root, Bouncer and Escort bots, Checksum and Jammer towers), the packet and red nodes folded into the early ones, the tree refunded again; 28: Packet Snare's tree after the review rounds (Input Validation and Mirror Port folded in, Chain Lightning at 250), refunded again; 27: Packet Snare 15 (bubbles are the way to catch: Split, Supernova, Bigger Buffers, mines grabbed), the tree refunded again; 26: Packet Snare 14 (bots earlier, powers with five levels, Collector Bot), the tree refunded again; 25: Packet Snare 12 (the boss looped, the tree repriced and Root Access moved), the tree refunded again; 24: Packet Snare's tree rearranged so no node does the same thing as the one it grows from, every level refunded; 23: Packet Snare's Firewalls became sections (layout.zones; drawn walls dropped), its tree regrown again with every level refunded; 22: Packet Snare's tree regrown (Snare 10: four wedges, capstones), every level refunded; 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
+    const SAVE_VERSION = 46;   // 46: Evals' courses in the save (`courses`: what each course screen keeps, as text, by its own key; `evals.courseEarned`, `coursePay`, `courseOwed`, `courseAcc`: Marks ever earned on courses, what the last clear paid, and the Evals agent's Marks waiting and its clock). 45: The Feed's tanks (a session opens on its stockpile's tank, full, and what is left stays: `feed.x0`, `x1`, `tankTop`), its squad of mites (`feed.squad`), the frenzy, caches and corruption in a session (feed.js `clean` reads them). 44: the ring's agents (`agents`). 43: the ring sells compute for money (`stats.cashSold`), and Graphics Cards cost money: a ring save's cards are paid for. 42: The Feed's sessions (`feed.sessioned`, `stock`, `best`, `record`, `session`, `life`, `lastSession`; feed.js `clean` reads them). 41: Packet Snare's tree refunded (Sprawl and Sanitizer swapped, Sprawl far dearer). 40: `path.stuck`, the frontier runs in a row that got nowhere (the ring's help when stuck). 39: who is playing under the ring (`player`: the sign-in's name and email name, the device, the opening's reports and closes); 38: The Feed, the ring's calm minigame (`feed`: its heap, layer, mites and fragments; feed.js `clean`), new and empty; 37: Evals' Marks (`evals.marks`, `earned`), the rivals passed on its score sheet (`passed`) and its upgrades (`levels`); 36: Evals' loopholes (how misaligned the AI is, `evals.learn.mis`, and the loopholes closed for a kind, `closed`); 35: Evals' handovers (a kind's `handed` and `own`: you hand kinds to the AI, it never takes them); 34: Evals, the third minigame: what the AI has learned by watching you (`evals`), new and empty. 33: Packet Snare's flick nodes gone (Packet Spoofing, Forged Headers, Privilege Escalation; the owner's call on D20), the laser line and Blue Screen re-hung, the tree refunded again; 32: Packet Snare 18.4 (Garbage Collection, Second Wind, Clean Sweep, Quarantine Relay, Zero Trust and IDS Evasion gone, Chain Lightning a travelling bolt, Hijack reworked), the tree refunded again; 31: Packet Snare's repeats folded into four deep roots round a seed (Handshake), Scrubbers gone, the Decoder Bot early, the tree refunded; 30: Packet Snare's red-packet nodes back (Sanitizer, Checksums, Spam Filter, Reputation Check, Rate Limiter, Error Correction, Parity Check, Signature Database), the Cleaner Bot later, the Bouncer and Escort bots and both towers gone, the tree refunded again; 29: Packet Snare's red-packet nodes became helpers (Cleaner Bot at the root, Bouncer and Escort bots, Checksum and Jammer towers), the packet and red nodes folded into the early ones, the tree refunded again; 28: Packet Snare's tree after the review rounds (Input Validation and Mirror Port folded in, Chain Lightning at 250), refunded again; 27: Packet Snare 15 (bubbles are the way to catch: Split, Supernova, Bigger Buffers, mines grabbed), the tree refunded again; 26: Packet Snare 14 (bots earlier, powers with five levels, Collector Bot), the tree refunded again; 25: Packet Snare 12 (the boss looped, the tree repriced and Root Access moved), the tree refunded again; 24: Packet Snare's tree rearranged so no node does the same thing as the one it grows from, every level refunded; 23: Packet Snare's Firewalls became sections (layout.zones; drawn walls dropped), its tree regrown again with every level refunded; 22: Packet Snare's tree regrown (Snare 10: four wedges, capstones), every level refunded; 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
     // Auto-Trainer, XP nodes) carry most of a new version's speed, so this stays small: at 0.2 a second run
@@ -1399,7 +1399,8 @@
             // Evals (evals.js): runs played, the best run, and `learn`, what the AI has learned of each kind of captcha by
             // watching you (see evals.js, the learner). A new version starts it again, like the rest of a version's play.
             agents: { at: [], fund: 0, owed: 0, feed: null },
-            evals: { runs: 0, best: 0, marks: 0, earned: 0, passed: 0, levels: {}, learn: { kinds: {}, mis: 0 } },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k; legPower[k]: your full-sprint strength when you last ran leg k (the Auto-Trainer's ghost plays at it)
+            evals: { runs: 0, best: 0, marks: 0, earned: 0, passed: 0, levels: {}, learn: { kinds: {}, mis: 0 }, courseEarned: 0, coursePay: 0, courseOwed: 0, courseAcc: 0 },
+            courses: {},   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k; legPower[k]: your full-sprint strength when you last ran leg k (the Auto-Trainer's ghost plays at it)
             projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
             // Dilemmas: `order` is every mail key in arrival order (m:story id, d:dilemma, o:its consequence),
             // `open` the one waiting for an answer, `later` the consequences on their way. Kept for good.
@@ -1747,7 +1748,20 @@
     // score sheet (`evals.passed`) is a round, and a round is room: `RING_ROOM` Graphics Cards and as many Mining Rigs to
     // start, `RING_ROOM_ROUND` more of each a round. Skills give no room there. A round is an event, not a currency: no money.
     const RING_ROOM = 20, RING_ROOM_ROUND = 10;
-    const fundingRounds = s => (ring ? Math.max(0, Math.floor(num(s.evals && s.evals.passed, 0))) : 0);
+    // Where the courses are Evals (`setCourses`: the dev link for now; the owner's call, 2026-11-17), a round comes each
+    // time the Marks ever earned on courses pass a milestone that doubles its distance: 100, 300, 700, 1,500, 3,100...
+    // (`RING_ROUND_MARKS` x (2^n - 1)). The captcha score sheet's rivals count nowhere there.
+    let courses = false;
+    const setCourses = on => { courses = !!on; };
+    const isCourses = () => ring && courses;
+    const RING_ROUND_MARKS = 100;
+    const courseRounds = earned => Math.max(0, Math.floor(Math.log2(Math.max(0, num(earned, 0)) / RING_ROUND_MARKS + 1) + 1e-9));
+    const courseRoundAt = n => RING_ROUND_MARKS * (2 ** n - 1);   // the Marks ever earned that round n takes
+    const fundingRounds = s => (!ring ? 0 : courses ? courseRounds(s.evals && s.evals.courseEarned) : Math.max(0, Math.floor(num(s.evals && s.evals.passed, 0))));
+    // The courses paid (course-tree.js, through game.js): `earned` Marks ever, and what this clear paid if it was one.
+    function courseMarks(s, earned, pay) { s.evals.courseEarned = Math.max(s.evals.courseEarned || 0, Math.floor(num(earned, 0))); if (pay > 0) s.evals.coursePay = Math.floor(pay); }
+    // The Evals agent's Marks, handed to the pool (game.js gives them to course-tree.js).
+    function takeCourseOwed(s) { const n = Math.floor(s.evals.courseOwed || 0); s.evals.courseOwed = 0; return n; }
     const ringRoom = s => RING_ROOM + RING_ROOM_ROUND * fundingRounds(s);
     function capacity(s, up) {
         if (ring && (up.id === 'cpu' || up.id === 'server')) return ringRoom(s);
@@ -2781,6 +2795,13 @@
     // Evals' saved state, cleaned whatever a save holds: counts whole and sane, at most 64 kinds, `m` from 0 to 1, a
     // few bounded traces a kind, ten at most (a tap is one of at most 64 targets and a time under ten minutes; a
     // pointer path is whole numbers in threes, at most 120 samples; see evals.js `cleanTrace`).
+    // What Evals' course screens keep (course-unlocks.js `store`): text by key, a few keys, none of them huge.
+    function cleanCourses(c) {
+        const out = {};
+        if (!c || typeof c !== 'object' || Array.isArray(c)) return out;
+        for (const k of Object.keys(c).slice(0, 24)) if (/^agi[A-Za-z]{1,24}(\.[a-z]{1,8})?$/.test(k) && typeof c[k] === 'string' && c[k].length <= 200000) out[k] = c[k];
+        return out;
+    }
     function cleanEvals(e) {
         const whole = (v, cap) => Math.min(cap, Math.floor(num(v, 0)));
         const kinds = {};
@@ -2817,7 +2838,9 @@
         const levels = {};
         for (const up of EVALS_TREE) { const lv = Math.min(up.max, whole(e?.levels?.[up.id], 99)); if (lv > 0) levels[up.id] = lv; }
         return { runs: whole(e?.runs, 1e9), best: whole(e?.best, 1e6), marks: whole(e?.marks, 1e12), earned: whole(e?.earned, 1e12), passed: whole(e?.passed, 99), levels,
-            learn: { kinds, mis: Math.min(1, num(e?.learn?.mis, 0)) } };   // v36: how misaligned it is
+            learn: { kinds, mis: Math.min(1, num(e?.learn?.mis, 0)) },
+            // v46: the courses (course-tree.js pays; `courseMarks` below records it)
+            courseEarned: Math.max(0, whole(e?.courseEarned, 1e12)), coursePay: Math.max(0, whole(e?.coursePay, 1e9)), courseOwed: Math.max(0, whole(e?.courseOwed, 1e9)), courseAcc: Math.max(0, Math.min(1e6, num(e?.courseAcc, 0))) };   // v36: how misaligned it is
     }
     // Evals' upgrades, bought with Marks (the owner's picks, 2026-11-12: "a reward and a tree"; a list for now, a tree
     // once there is more of it). Each level costs `base` × `scale` per level owned. `evalsOpts` turns the levels
@@ -2854,13 +2877,16 @@
     // More than one in a place: each adds `AGENT_STACK` of the one before. ALL NUMBERS ARE PLACEHOLDERS.
     // (2026-11-17, the owner's call: the Feed agent slowed to match The Feed's pace. It ate 1 packet a second when a led mite
     // ate 4; mites now eat 1, so the agent eats `AGENT_FEED_RATE` 0.25: still a quarter of a mite. What a packet pays is unchanged.)
-    const AGENT_PLACES = ['lab', 'feed', 'training'];
+    // (Evals, 2026-11-17, the owner's pick: it "runs your last course". Every `AGENT_EVALS_SECONDS` it is paid
+    // `AGENT_EVALS_SHARE` of what your last cleared course paid, worked out, not played. Only where the courses are Evals.)
+    const AGENT_PLACES = ['lab', 'feed', 'training', 'evals'];
+    const AGENT_EVALS_SECONDS = 90, AGENT_EVALS_SHARE = 0.25;
     const AGENT_STACK = 0.5, AGENT_LAB_SHARE = 0.3, AGENT_LAB_MAX = 0.9, AGENT_FEED_RATE = 0.25, AGENT_FEED_PAY = 0.15, AGENT_FEED_GOLD = 3, AGENT_TRAIN_XP = 1;
     const bossesBeaten = s => { let n = 0; for (let k = 0; k < s.snare.sector; k++) if (isSnareBossSector(k)) n++; return n; };
     const agentCount = s => (ring ? bossesBeaten(s) : 0);
     const agentPower = n => { let p = 0; for (let i = 0; i < n; i++) p += AGENT_STACK ** i; return p; };
     const agentsAt = (s, place) => (!ring || !s.agents ? 0 : s.agents.at.slice(0, agentCount(s)).filter(p => p === place).length);
-    const agentPlaceOpen = (s, place) => (place === 'lab' ? true : place === 'feed' ? feedOpen(s) : place === 'training' ? !!s.unlocked['module:path'] : false);
+    const agentPlaceOpen = (s, place) => (place === 'lab' ? true : place === 'feed' ? feedOpen(s) : place === 'training' ? !!s.unlocked['module:path'] : place === 'evals' ? isCourses() && evalsOpen(s) : false);
     function cleanAgents(a) {
         a = a && typeof a === 'object' ? a : {};
         const job = a.feed && typeof a.feed === 'object' && num(a.feed.sector, 0) >= 1 ? { sector: Math.floor(num(a.feed.sector, 1)), research: Math.max(0, Math.floor(num(a.feed.research, 0))), packets: Math.max(0, Math.floor(num(a.feed.packets, 0))), acc: Math.max(0, Math.min(1, num(a.feed.acc, 0))) } : null;
@@ -2889,7 +2915,12 @@
     function agentsTick(s, dt, d) {
         const out = [];
         if (!ring || !s.agents || !agentCount(s)) return out;
-        const a = s.agents, lab = agentsAt(s, 'lab'), feed = agentsAt(s, 'feed');
+        const a = s.agents, lab = agentsAt(s, 'lab'), feed = agentsAt(s, 'feed'), ev = isCourses() ? agentsAt(s, 'evals') : 0;
+        if (!ev) s.evals.courseAcc = 0;
+        else if (s.evals.coursePay > 0) {
+            s.evals.courseAcc += dt;
+            while (s.evals.courseAcc >= AGENT_EVALS_SECONDS) { s.evals.courseAcc -= AGENT_EVALS_SECONDS; const marks = Math.max(1, Math.round(s.evals.coursePay * AGENT_EVALS_SHARE * agentPower(ev))); s.evals.courseOwed += marks; out.push({ type: 'evals', marks }); }
+        }
         if (!lab && a.fund > 0) { s.res.cp += a.fund; a.fund = 0; }   // moved away: what it had saved comes back
         if (lab) {
             let pick = agentLabPick(s);
@@ -3671,6 +3702,7 @@
             sector: Math.min(99, Math.floor(num(raw.snare?.sector, 0))), bosses: Math.floor(num(raw.snare?.bosses, 0)),
             bestMult: Math.min(99, num(raw.snare?.bestMult, 0)), quarantined: Math.floor(num(raw.snare?.quarantined, 0)), layout: cleanLayout(raw.snare?.layout) };
         s.evals = cleanEvals(raw.evals);   // v34: new; older saves start it empty
+        s.courses = cleanCourses(raw.courses);   // v46: Evals' courses (older saves start with none)
         s.agents = cleanAgents(raw.agents);   // v44: the ring's agents (where each works, the Lab agent's fund, the Feed agent's job)
         s.player = cleanPlayer(raw.player);   // v39: the ring's sign-in and the opening's counts
         // v38: The Feed. Older saves start it empty; a saved one is cleaned by its own rules (feed.js `clean`).
@@ -3867,7 +3899,7 @@
         RING_STUCK_RUNS, RING_SURGE_SHARE, stuckOffer, takeSurge, passSurge, RING_SERVER_PRICE, RING_SPRINT_RP, RING_SPRINT_GROWTH, RING_CALL_CP, RING_DEPOSIT, DESK_PRICES, RING_CARD_PRICE, RING_CARD_GROWTH, RING_RIG, RING_RIG_PRICE, RING_RIG_GROWTH, RING_RIG_CPS, RING_RIG_CARDS, RING_FEED_RUNS, ringCardsOpen, ringFreeCards, feedOpen, RING_CP_PER_DOLLAR, sellCompute, deskCash, funded, fundStep, fundDecide,
         feedStart, feedStock, feedLeave, feedCarry, feedPick, feedMark, feedMiteKinds, feedSquadSlots, feedSquad, FEED_MITE_GATES,
         AGENT_PLACES, AGENT_STACK, AGENT_LAB_SHARE, AGENT_FEED_RATE, AGENT_FEED_PAY, AGENT_TRAIN_XP, agentCount, agentPower, agentsAt, agentPlaceOpen, assignAgent, agentLabPick, agentsTick, cleanAgents, bossesBeaten,
-        evalsOpen, evalsSteps, RING_ROOM, RING_ROOM_ROUND, fundingRounds, ringRoom, SAVE_VERSION, newPlayer, cleanPlayer, signIn, mailFill, WELCOME_FINAL, setRing, isRing, RING_DESK, deskLevels, deskDone, RING_CLOCK, RING_CLOCK_GROWTH, RING_CLOCK_MIN, snareClock, snarePayClock, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
+        evalsOpen, evalsSteps, RING_ROOM, RING_ROOM_ROUND, fundingRounds, ringRoom, setCourses, isCourses, RING_ROUND_MARKS, courseRounds, courseRoundAt, courseMarks, takeCourseOwed, cleanCourses, AGENT_EVALS_SECONDS, AGENT_EVALS_SHARE, SAVE_VERSION, newPlayer, cleanPlayer, signIn, mailFill, WELCOME_FINAL, setRing, isRing, RING_DESK, deskLevels, deskDone, RING_CLOCK, RING_CLOCK_GROWTH, RING_CLOCK_MIN, snareClock, snarePayClock, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
         versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, startBreakCountdown, WALL_SURGE_RUNS, SURGE_POWER, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,

@@ -8,11 +8,11 @@
     const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'text') n.textContent = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k !== '' && k != null)); return n; };
     const KEY = 'agiPuck';
     const blank = () => ({ course: P().emptyCourse(), marks: 0, runs: 0, stage: 1, best: {} });
-    const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { course: P().cleanCourse(s.course), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), started: s.started === true, best: s.best && typeof s.best === 'object' ? s.best : {} }; } catch { return blank(); } };
-    const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
+    const load = () => { try { const s = JSON.parse(window.CourseUnlocks.store.get(window.CourseUnlocks.key(KEY)) || '{}'); return { course: P().cleanCourse(s.course), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), started: s.started === true, best: s.best && typeof s.best === 'object' ? s.best : {} }; } catch { return blank(); } };
+    const keep = () => { window.CourseUnlocks.store.set(window.CourseUnlocks.key(KEY), JSON.stringify(save)); };
     const skills = () => (window.CourseUnlocks.on ? window.CourseUnlocks.levelOf('puck') : location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
     const stageNow = () => P().stage(masteryNow());
-    const masteryNow = () => P().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min(skills(), 20));
+    const masteryNow = () => P().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min((window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0, 20));
     const courseKey = () => save.course.map(t => (t ? t[0] + (/\d$/.test(t) ? t.slice(-1) : '') : '-')).join('');
     const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
     const O = () => window.CourseTree.puck(P().PUCK);   // the rules as the tree has changed them: shots, the AI's shots over par
