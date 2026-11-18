@@ -266,6 +266,8 @@ window.AGI = (function () {
 
     const $ = id => document.getElementById(id);
 
+    // A settings slider's filled part follows the knob as it moves (styles.css reads --p).
+    document.addEventListener('input', e => { const n = e.target; if (n.matches?.('.setting-row input[type="range"]')) n.style.setProperty('--p', ((n.value - n.min) / ((n.max - n.min) || 1) * 100).toFixed(1) + '%'); });
     function el(tag, props, children) {
         const node = document.createElement(tag);
         if (props) {
@@ -1647,6 +1649,8 @@ window.AGI = (function () {
         // version of the system's reduced-motion setting.
         document.documentElement.style.setProperty('--text-size', String(state.settings.textSize));
         document.body.classList.toggle('calm', state.settings.calm);
+        // (Each slider's filled part: WebKit has no pseudo-element for it, so the track reads this share.)
+        for (const n of document.querySelectorAll('.setting-row input[type="range"]')) { const p = ((n.value - n.min) / ((n.max - n.min) || 1) * 100).toFixed(1) + '%'; if (n.style.getPropertyValue('--p') !== p) n.style.setProperty('--p', p); }
         setText($('settingSoundValue'), state.settings.sound > 0 ? `${Math.round(state.settings.sound * 100)}%` : 'off');
     }
     const shakeOn = () => state.settings.shake && !reducedMotion();
@@ -2520,8 +2524,12 @@ window.AGI = (function () {
             st.stats.classList.remove('ticking');
             for (const i of shown) i.node.classList.remove('on');
             if (st.stats.scrollWidth > st.stats.clientWidth + 2 && shown.length > 1) {
+                // As many as fit, starting one further along each time (the owner's card, 2026-11-18: money had dropped off
+                // the strip for good; it showed one number at a time before).
+                const room = st.stats.clientWidth - 4, gap = parseFloat(getComputedStyle(st.stats).columnGap) || 9, widths = shown.map(i => i.node.offsetWidth);
                 st.stats.classList.add('ticking');
-                shown[st.turn++ % shown.length].node.classList.add('on');
+                let used = 0, n = 0; const start = st.turn++ % shown.length;
+                while (n < shown.length - 1) { const w = widths[(start + n) % shown.length] + (n ? gap : 0); if (n && used + w > room) break; used += w; shown[(start + n) % shown.length].node.classList.add('on'); n++; }
             }
         }
     }
@@ -3590,7 +3598,6 @@ window.AGI = (function () {
             text('more', 'Anything else?')]);
         const dlg = el('dialog', { class: 'dialog ring-welcome ring-survey', 'aria-labelledby': 'ringSurveyTitle' }, [
             el('div', { class: 'win-head' }, [el('h2', { id: 'ringSurveyTitle', text: 'Feedback' }), el('button', { type: 'button', class: 'ghost-button win-x', 'aria-label': 'Close', text: '×', onclick: () => dlg.close() })]),
-            el('p', { class: 'survey-lead', text: inboxOn ? 'Answer what you like. Your answers are saved in the playtest log, which is sent to your PC by itself.' : 'Answer what you like. Your answers are saved in the playtest log.' }),
             form,
             ...(inboxOn ? [(() => { const note = el('span', { class: 'survey-photos-note' }); const input = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', multiple: '', class: 'survey-photos-input', onchange: async () => { const files = [...input.files]; if (!files.length) return; note.textContent = 'Sending…'; const n = await inboxPhotos(files); note.textContent = `${n} of ${files.length} saved to your PC.`; input.value = ''; } });
                 return el('label', { class: 'survey-photos' }, [el('span', { class: 'survey-photos-button', text: 'Add screenshots from this device' }), input, note]); })()] : []),
@@ -10233,10 +10240,10 @@ window.AGI = (function () {
     // ---- Skill tree camera: drag to pan, wheel / pinch / buttons to zoom ----
 
     const treeCam = { x: 0, y: 0, z: 1, pointers: new Map(), drag: null, moved: false };
-    const TREE_ZOOM = { min: 0.5, max: 2.5, step: 1.25, start: 1.4, phone: 0.75 };   // start: the default view, zoomed in on the core
+    const TREE_ZOOM = { min: 0.5, max: 2.5, step: 1.25, start: 1.4, phone: 1.15 };   // start: the default view, zoomed in on the core
 
     // The view (pan and zoom) is remembered between visits and sessions.
-    const TREE_CAM_KEY = 'agiTreeCam3';   // 3: phones open further out, so older saved views are dropped
+    const TREE_CAM_KEY = 'agiTreeCam4';   // 4: phones open about one and a half times closer (the owner's card, 2026-11-18: the nodes sat small in an empty panel), so older saved views are dropped
     let treeCamFresh = true;            // no saved view yet: set the default once the tree is on screen
     let treeCamSave = 0;
 
@@ -10422,9 +10429,10 @@ window.AGI = (function () {
             line.setAttribute('x2', up.tree.x * cell);
             line.setAttribute('y2', up.tree.y * cell);
             line.style.display = states[up.id] === 'hidden' ? 'none' : '';
-            const parentOwned = !up.requires || E.isMaxed(state, E.UPGRADE_BY_ID[up.requires]);
+            // (The owner's card, 2026-11-18: red only means 'open, but you are short of XP for it'. It used to mark a
+            // node whose parent was not finished, which read as an error.)
             const owned = E.level(state, up.id) > 0;
-            line.setAttribute('class', owned && parentOwned ? 'link-owned' : parentOwned ? 'link-open' : 'link-locked');
+            line.setAttribute('class', owned ? 'link-owned' : String(states[up.id]).includes('can-buy') ? 'link-open' : 'link-short');
         }
         renderNodeDetail();
         placeNodePopup();

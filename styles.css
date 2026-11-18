@@ -5078,3 +5078,15 @@ body.dock-pinned .device-switch-aimark { width: 34px; height: 34px; box-shadow: 
 body.tip-up .device-notices { display: none; }
 .capture-sample { z-index: 1; }
 .home-icons .home-icon-journal .home-icon-name { overflow-wrap: normal; font-size: 0.7rem; letter-spacing: -0.01em; white-space: nowrap; }
+
+/* The owner's cards, second set (2026-11-18). */
+/* A tree link is red only when its node is open and you are short of XP for it. */
+.tree-links .link-short { stroke: color-mix(in srgb, var(--danger) 45%, transparent); }
+/* Settings' sliders are the game's own on every phone and browser: a thin track, its filled part green, a round green knob. */
+.setting-row input[type="range"] { -webkit-appearance: none; appearance: none; height: 28px; background: transparent; accent-color: var(--success); }
+.setting-row input[type="range"]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--text) 16%, transparent); }
+.setting-row input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 22px; height: 22px; margin-top: -8px; border-radius: 50%; border: 2px solid var(--bg); background: var(--success); box-shadow: 0 0 10px color-mix(in srgb, var(--success) 55%, transparent); }
+.setting-row input[type="range"]::-moz-range-track { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--text) 16%, transparent); }
+.setting-row input[type="range"]::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--success); }
+.setting-row input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--bg); background: var(--success); box-shadow: 0 0 10px color-mix(in srgb, var(--success) 55%, transparent); }
+.setting-row input[type="range"]::-webkit-slider-runnable-track { background: linear-gradient(to right, var(--success) var(--p, 0%), color-mix(in srgb, var(--text) 16%, transparent) var(--p, 0%)); }
