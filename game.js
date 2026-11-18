@@ -2366,6 +2366,7 @@ window.AGI = (function () {
             document.body.append(el('div', { class: 'device-status', role: 'status', 'aria-label': 'Status' }, [clock, stats, snap, el('span', { class: 'status-signal', text: '▂▄▆ 37%' })]));
             desk.status = { snap, clock, stats, items: {}, turn: 0, checked: 0, rp: state.res.rp, at: performance.now() };
             $('labRoom').querySelector('.room-bar').append(el('button', { type: 'button', class: 'ghost-button window-close win-x', 'aria-label': 'Close the Lab, back to the home screen', text: '×', onclick: () => goHome() }));
+            { const t = $('labRoom').querySelector('.crumb-here'); if (t) { t.textContent = 'Lab'; t.classList.add('app-title'); } }
             // The same × closes a bay (Packet Snare, Training): one close control on every app and window (the owner's card, 2026-11-18).
             { const bar = $('moduleView').querySelector('.module-bar'); bar.append(el('button', { type: 'button', class: 'ghost-button window-close win-x', 'aria-label': 'Close, back to the home screen', text: '×', onclick: () => bar.querySelector('.crumb-home').click() })); }
             for (const b of document.querySelectorAll('[data-facility], [data-jump="facility"]')) { b.textContent = 'home'; b.setAttribute('aria-label', 'Back to the home screen'); }

@@ -446,7 +446,7 @@
                 el('div', { class: 'feed-pile-head' }, el('strong', { text: `Sector ${e.sector}` }), el('span', { class: 'feed-pile-tag', text: e.full ? 'Full' : '' })),
                 // The tank's fill, its garbled share in its own colour at the bottom of the bar.
                 el('div', { class: 'feed-pile-bar' }, el('div', { class: 'feed-pile-fill', style: `width:${pct}%` }, ...(e.bad ? [el('i', { class: 'feed-pile-bad', style: `width:${Math.round(e.bad / Math.max(1, e.total) * 100)}%` })] : []))),
-                el('div', { class: 'feed-pile-foot' }, el('span', { text: parts.join(' · ') }),
+                el('div', { class: 'feed-pile-foot' }, el('span', { text: parts.map(p => String(p).replace(/ /g, '\u00a0')).join(' · ') }),
                     el('button', { type: 'button', class: 'button feed-pile-start', text: wait ? 'Carry on' : 'Start session', ...(e.total > 0 ? {} : { disabled: '' }), onclick: () => (wait ? carry(e.sector) : start(e.sector)) }))));
         }
         if (wait) kids.push(el('button', { type: 'button', class: 'ghost-button feed-pick-finish', text: 'Finish here', onclick: () => { window.AGI.feedEnd('empty'); pickKey = ''; } }));

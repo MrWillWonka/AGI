@@ -222,8 +222,8 @@
         const st = M().startCell(), ex = M().exitCell(), beat = (now / 1300) % 1;
         ctx.strokeStyle = C.muted; ctx.lineWidth = 1.5; ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.arc(cx(st), cy(st), u * 0.36, 0, A.TAU); ctx.stroke(); ctx.setLineDash([]);
         ctx.fillStyle = C.success; ctx.globalAlpha = 0.16; ctx.fillRect(X(ex) + 2, Y(ex) + 2, cw - 4, ch - 4); ctx.globalAlpha = 1;
-        ctx.strokeStyle = C.success; ctx.lineWidth = 2; ctx.globalAlpha = 1 - beat; ctx.strokeRect(X(ex) + 2 + u * 0.3 * (1 - beat), Y(ex) + 2 + u * 0.3 * (1 - beat), cw - 4 - u * 0.6 * (1 - beat), ch - 4 - u * 0.6 * (1 - beat)); ctx.globalAlpha = 1;
-        ctx.fillStyle = C.success; ctx.font = '700 11px ' + C.mono; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('EXIT', cx(ex), cy(ex));
+        ctx.strokeStyle = C.success; ctx.lineWidth = 2; ctx.globalAlpha = 1 - beat; ctx.strokeRect(X(ex) + 2 + u * 0.1 * (1 - beat), Y(ex) + 2 + u * 0.1 * (1 - beat), cw - 4 - u * 0.2 * (1 - beat), ch - 4 - u * 0.2 * (1 - beat)); ctx.globalAlpha = 1;
+        ctx.fillStyle = C.success; ctx.font = '700 ' + Math.max(8, Math.min(11, Math.floor(cw * 0.26))) + 'px ' + C.mono; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('EXIT', cx(ex), cy(ex));
         ctx.lineWidth = 1;
         for (let i = 0; i < M().size(); i++) {
             const x = X(i), y = Y(i), k = save.maze[i];

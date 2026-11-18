@@ -4964,3 +4964,17 @@ body.ring-device.device-phone .shop-screen .shop-bar { background: transparent; 
 /* Settings: the indented sliders share the others' grid exactly. */
 .music-parts .setting-row { padding-left: 0; grid-template-columns: 66px minmax(0, 1fr) 3.4em; }
 .music-parts .setting-row { text-indent: 10px; } .music-parts .setting-row > * { text-indent: 0; }
+
+/* Round three's short pass (the owner's cards, 2026-11-18). */
+.crumbs .crumb-here.app-title { font: 700 1.05rem var(--font-display); letter-spacing: 0.04em; }
+/* The Training tree's × lines up with Start run, a clear gap between them. */
+body.ring-device.device-phone #moduleView:has(#devView:not([hidden])) > .module-bar > .window-close { margin-top: 8px; }
+body.ring-device.device-phone #devView .dev-actions { padding-right: 62px; min-height: 60px; align-items: center; }
+/* Evals' Marks: square like its neighbours, its number in the middle. */
+.evals-marks { display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; line-height: 1; }
+/* The AI's line: its × has a full tap area. */
+body.device-phone .assist-close { width: 44px; height: 44px; margin: -10px -8px -6px 0; }
+/* Parcel: the × inside the cards' margin; every card's price top right, its button under it. */
+body.ring-device.device-phone .shop-screen .shop-bar { padding-right: 14px; }
+.shop-item:has(.sell-buy) .shop-side { grid-template-columns: 1fr; justify-items: end; }
+.shop-item:has(.sell-buy) .shop-side > :last-child { justify-self: stretch; }
