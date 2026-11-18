@@ -1282,3 +1282,14 @@ hidden and shown three times ten minutes earlier; Safari on an iPhone is known t
 interruption until the page is reloaded), or many sounds at once at the end of a Feed run (a tank eaten bare, the
 run's end and twenty Graphics Cards bought in the same minute). One thing fixed on the way: a miss in the rhythm run
 played the error sound during the AI's attempts too; it is yours only now.
+
+**The crackle at the end of a Feed run: a likely cause, fixed; NOT CONFIRMED BY EAR.** The owner's answers: crackling
+or distorted, for a moment, at the run's end, then fine; nothing special about the phone. The music was laid down only
+0.12 s ahead (`sfx.js` `schedule`), and steps were played late unless they were more than 0.3 s late. So a stall of
+the page between 0.12 and 0.3 s put two or three steps down at once, already in the past, starting mid-note. Measured
+in a browser slowed 4 and 6 times, the page stalls 100 to 290 ms as a Feed run ends (the tank's burst, the result
+card, the save). Now the music is laid down 0.25 s ahead (`AHEAD_S`) and a step more than 0.04 s late is skipped, not
+played late (`LATE_S`): after a stall a beat may be missing, which is quieter than a crackle. A re-render of the
+Classic theme is within 0.9 dB of before, with no faults; the rhythm run still lines up with its song and the board's
+previews still start within a beat (their return to the song now asks 0.42 s before the bar ends). I could not make
+the crackle itself happen or hear that it is gone. If it comes back, the stall is the next thing to cut.

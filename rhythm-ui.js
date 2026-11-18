@@ -81,7 +81,7 @@
         const wait = () => {
             if (!dlg.open || mode !== 'pick') return;
             const m = sfx.lab.music(), c = sfx.lab.clock();
-            if (m && c && (m.asked || 0) > asked0) { const end = c.t0 + (m.songStep + one.steps - c.n0) * c.len, now = sfx.context.currentTime; blockT = setTimeout(back, Math.max(60, (end - now) * 1000 - 240)); }   // (ahead of the bar's end: the engine lays steps out a little early, and a late ask waited a whole bar more)
+            if (m && c && (m.asked || 0) > asked0) { const end = c.t0 + (m.songStep + one.steps - c.n0) * c.len, now = sfx.context.currentTime; blockT = setTimeout(back, Math.max(60, (end - now) * 1000 - 420)); }   // (ahead of the bar's end: the engine lays steps out a little early, and a late ask waited a whole bar more)
             else if (performance.now() - t0 < 4000) blockT = setTimeout(wait, 25);
             else back();
         };

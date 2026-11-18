@@ -1575,6 +1575,9 @@
             steps: N, kit: song.kit ? { kick: PAT(song.kit.kick, s), snare: PAT(song.kit.snare, s), hat: PAT(song.kit.hat, s) } : null
         };
     }
+    // How far ahead the music is laid down, and how late a step may be and still be played. Ahead was 0.12 s: any stall
+    // of the page longer than that left the music behind.
+    const AHEAD_S = 0.25, LATE_S = 0.04;
     function schedule() {
         if (!music || !live() || (!env.offline && document.hidden)) return;
         const now = ctx.currentTime;
@@ -1582,7 +1585,10 @@
         music.last = now;
         // Back from a hidden tab or a long stall: pick the song up from now. The steps that were missed are
         // skipped (the song went on while you were away), never scheduled all at once.
-        if (music.nextStep < now - 0.3) {
+        // (A step already LATE_S late is skipped too. It used to take 0.3 s: after a shorter stall, two or three steps were
+        // laid down at once in the past and started mid-note, which crackles. The owner heard it on an iPhone as a Feed
+        // run ended, 2026-11-17: the page stalls 100 to 300 ms there on a slow device.)
+        if (music.nextStep < now - LATE_S) {
             const k = Math.ceil((now + 0.02 - music.nextStep) / clock.len);
             music.step += k;
             music.nextStep += k * clock.len;
@@ -1592,7 +1598,7 @@
         const k = music.k;
         const slow = mode === 'flow' || mode === 'freeze';
         const st = styleOf();
-        while (music.nextStep < now + 0.12) {
+        while (music.nextStep < now + AHEAD_S) {
             const N0 = music.songs[music.song].steps;
             let s = (((music.step - music.origin) % N0) + N0) % N0;
             if (s === 0 || (music.area !== area && s % 4 === 0 && N0 * clock.len > 2) || (music.cmd && music.cmd.now && s % 4 === 0)) { if (songTurn(s)) s = 0; }
