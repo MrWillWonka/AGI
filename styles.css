@@ -4221,7 +4221,13 @@ body.ring-device .room-frame, body.ring-device #viewport { padding: 0 16px; }
 body.ring-device.device-phone .room-frame, body.ring-device.device-phone #viewport { padding: 0 10px; }
 body.ring-device.device-phone .snare-tree-bar { flex-wrap: nowrap; gap: 8px; }
 body.ring-device.device-phone .snare-tree-bar .snare-tree-title { display: none; }
-body.ring-device.device-phone .snare-tree-bar .button, body.ring-device.device-phone .snare-tree-bar .ghost-button { white-space: nowrap; }
+body.ring-device.device-phone .snare-tree-bar .button, body.ring-device.device-phone .snare-tree-bar .ghost-button { white-space: nowrap; flex: none; }
+/* The sector picker shares the bar's one row on a phone: it takes what is left and cuts its own text short. (With
+   "Start at" and a long sector name it pushed Start run off the right edge: the owner's screenshot, 2026-11-17.) */
+body.ring-device.device-phone .snare-tree-bar .snare-tree-signal { margin-right: 0; flex: none; }
+body.ring-device.device-phone .snare-tree-bar .snare-sector-row { flex: 1 1 0; min-width: 0; display: flex; }
+body.ring-device.device-phone .snare-tree-bar .snare-sector-row > span { display: none; }
+body.ring-device.device-phone .snare-tree-bar .snare-sector-pick { flex: 1 1 0; min-width: 0; width: 100%; text-overflow: ellipsis; }
 .device-transfer-name { font: 700 1.5rem var(--font-mono); letter-spacing: 0.08em; font-variant-numeric: slashed-zero; font-feature-settings: 'zero' 1; }
 /* The Feed's sessions (the ring): the stockpiles between sessions, over the empty box, and the hunger bar that ends one. */
 .feed-pick { position: absolute; inset: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; align-items: center; background: color-mix(in srgb, var(--bg) 88%, transparent); }
@@ -4857,3 +4863,7 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 @media (prefers-reduced-motion: reduce) { .feed-frenzy.coached, .feed-hunger.coached { animation: none; box-shadow: 0 0 0 2px var(--warning); } }
 /* The Feed's stages (2026-11-17): what the next session adds, on the result card. */
 .feed-last-new { margin: 2px 0 0; font: 600 0.84rem/1.35 var(--font-body); color: var(--success); }
+
+/* "Start at" kept on one line beside its picker (it broke in two on a phone: the visual sweep, 2026-11-17). */
+.snare-sector-row > span { white-space: nowrap; flex: none; }
+.snare-sector-row .snare-sector-pick { min-width: 0; flex: 0 1 auto; text-overflow: ellipsis; }
