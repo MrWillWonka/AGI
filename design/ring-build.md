@@ -1253,3 +1253,18 @@ the screen empty under Stop: with no pad under it, it is taller (544 px on a 874
 count-in said "The music is off: no sound"; it says the hits play the notes, as they now do. The puck course's field
 is 18 px shorter so its buttons stay on screen under the taller bar. The Feed's taller bar is unseen by me on a phone.
 The first screenshot (an empty field after Play) is the run that was thrown away with the music off, fixed in round 4.
+
+**The board: hear a bar, hear a block, and play a stretch (2026-11-17, the owner: "clicking a square should play the
+example and picking a new option should play the option, we should also add the option to play certain portions of
+the board, we could have a slider to drag edges").** Tapping a bar's cell plays that block once; picking another block
+for it changes the cell and plays the new one. A block is heard alone: the other rows are silent for that bar, but
+its chord still sounds underneath (a bar always has a chord; `rhythm.js` `excerpt(song, board, from, to, only)`). Then
+the music goes back to what it was (the stretch being listened to, or the song behind the card). **Above the board, a
+strip of its bars with an edge to drag at each end**: Listen plays the bars between them, looping, the rest of the board
+dimmed; the label says which. Kept per song while the page is open, not saved. The engine takes a `now` on a song
+command (`sfx.js` `songTurn`): it turns on the next beat, not the next bar, so a tap is heard in about 0.4 s
+(measured) and not up to a bar later. I CANNOT HEAR IT: checked by what the engine is playing, not by ear.
+**A fault of mine caught in the check:** the preview read the board, and reading it makes a new one, so the block
+buttons were writing to the old one and a pick changed nothing. Fixed before it was committed.
+With the music off there is nothing to hear from the board (as before). With 16 bars the strip is one row over two
+rows of bars, so it does not line up with them.

@@ -58,14 +58,39 @@
         const tr = trackNow(), sfx = engine();
         if (on && (!tr || !sfx)) { say('The music is off, so there is nothing to hear. Turn the music up in Settings and try again.'); return; }
         listening = on;
-        if (on) { liveSong = R().compose(tr.song, boardNow(tr)); engineOwn = true; sfx.songCmd({ area: tr.area, custom: liveSong, bar: 0 }); music = { area: tr.area, level: 0.85 }; clearTimeout(previewT); soften(1, 0.3); }
+        if (on) { clearTimeout(blockT); liveSong = stretchSong(tr); engineOwn = true; sfx.songCmd({ area: tr.area, custom: liveSong, bar: 0, now: true }); music = { area: tr.area, level: 0.85 }; clearTimeout(previewT); soften(1, 0.3); }
         else { restore(tr); music = { area: (tr || {}).area || 'lab', level: 0.4 }; soften(SOFT, 0.8); }
         toPick();
+    }
+    // The stretch of the board that Listen plays (the owner, 2026-11-17: "play certain portions of the board ... a slider
+    // to drag edges"): bars a to b, kept for each song's board while the page is open.
+    const stretches = {};
+    function stretch(board) { const k = palKey(trackNow()), s = stretches[k] || (stretches[k] = { a: 0, b: board.len }); s.a = Math.max(0, Math.min(board.len - 1, s.a)); s.b = Math.max(s.a + 1, Math.min(board.len, s.b)); return s; }
+    const stretchSong = tr => { const board = boardNow(tr), s = stretch(board); return R().excerpt(tr.song, board, s.a, s.b); };
+    // A bar's block heard alone, once (the owner: "clicking a square should play the example and picking a new option
+    // should play the option"): the engine turns to it on the next beat, plays its one bar, and goes back to what was
+    // playing (the stretch you were listening to, or the song behind the card).
+    let blockT = 0;
+    function playBlock(row, b) {
+        const tr = trackNow(), sfx = engine();
+        if (!tr || !sfx) return;
+        clearTimeout(blockT); clearTimeout(previewT); previewT = 0;
+        const one = R().excerpt(tr.song, boardNow(tr), b, b + 1, row), asked0 = sfx.lab.music().asked || 0, t0 = performance.now();
+        engineOwn = true; sfx.songCmd({ area: tr.area, custom: one, bar: 0, now: true }); soften(1, 0.15);
+        const back = () => { blockT = 0; if (!dlg.open || mode !== 'pick') return; if (listening) { liveSong = stretchSong(tr); sfx.songCmd({ area: tr.area, custom: liveSong, bar: 0, now: true }); } else { restore(tr); soften(SOFT, 0.8); } };
+        const wait = () => {
+            if (!dlg.open || mode !== 'pick') return;
+            const m = sfx.lab.music(), c = sfx.lab.clock();
+            if (m && c && (m.asked || 0) > asked0) { const end = c.t0 + (m.songStep + one.steps - c.n0) * c.len, now = sfx.context.currentTime; blockT = setTimeout(back, Math.max(60, (end - now) * 1000 - 240)); }   // (ahead of the bar's end: the engine lays steps out a little early, and a late ask waited a whole bar more)
+            else if (performance.now() - t0 < 4000) blockT = setTimeout(wait, 25);
+            else back();
+        };
+        wait();
     }
     // The board changed: what you played before no longer counts, and a track being listened to changes as it plays.
     function edited() {
         const tr = trackNow(); yours = null; keep();
-        if (listening && liveSong) { const next = R().compose(tr.song, boardNow(tr)); for (const k of Object.keys(liveSong)) delete liveSong[k]; Object.assign(liveSong, next); }
+        if (listening && liveSong) { const next = stretchSong(tr); for (const k of Object.keys(liveSong)) delete liveSong[k]; Object.assign(liveSong, next); }
         toPick();
     }
     // While you listen, the bar being played is lit.
@@ -73,7 +98,7 @@
         headRaf = 0;
         if (!dlg.open || mode !== 'pick' || !listening) return;
         let bar = -1;
-        try { const sfx = window.SFX, m = sfx.lab.music(), c = sfx.lab.clock(); if (m && c && m.songs && m.songs[m.song] === liveSong) { const n = c.n0 + (sfx.context.currentTime - (sfx.context.outputLatency || 0) - c.t0) / c.len, b = Math.floor((n - m.songStep) / liveSong.steps); bar = b >= 0 ? b % liveSong.bars : -1; } } catch { /* no engine */ }
+        try { const sfx = window.SFX, m = sfx.lab.music(), c = sfx.lab.clock(); if (m && c && m.songs && m.songs[m.song] === liveSong) { const n = c.n0 + (sfx.context.currentTime - (sfx.context.outputLatency || 0) - c.t0) / c.len, b = Math.floor((n - m.songStep) / liveSong.steps); bar = b >= 0 ? b % liveSong.bars + stretch(boardNow(trackNow())).a : -1; } } catch { /* no engine */ }
         if (bar !== headBar) { headBar = bar; for (const x of pickEl.querySelectorAll('.rhythm-cell')) x.classList.toggle('playing', +x.dataset.bar === bar); }
         headRaf = requestAnimationFrame(head);
     }
@@ -81,7 +106,7 @@
     function boardView(tr) {
         const B = R().BOARD, board = boardNow(tr), box = R().blocksOf(tr.song), nameOf = (row, id) => (box[row].find(x => x.id === id) || { name: id }).name;
         const short = (row, id) => (row === 'beat' ? { full: '●', sparse: '◐', none: '–' }[id] : id === 'off' || id === 'rest' ? '–' : row === 'bass' ? nameOf(row, id).replace('Line ', 'L') : row === 'chords' ? nameOf(row, id).replace('maj', 'M').replace('sus', 's') : nameOf(row, id));
-        const empty = id => id === 'off' || id === 'rest' || id === 'none';
+        const empty = id => id === 'off' || id === 'rest' || id === 'none', st = stretch(board);
         const bands = [];
         for (let s = 0; s < board.len; s += 8) {
             const cols = Math.min(8, board.len - s), band = el('div', { class: 'rhythm-band', style: `--cols:${cols}` }, el('span', {}), ...Array.from({ length: cols }, (_, i) => el('span', { class: 'rhythm-barno', text: String(s + i + 1) })));
@@ -90,7 +115,7 @@
                 band.append(el('span', { class: 'rhythm-rowname', text: ROWNAME[row] }));
                 for (let b = s; b < s + cols; b++) {
                     const id = board[row][b], on = cellAt && cellAt.row === row && cellAt.b === b;
-                    band.append(el('button', { type: 'button', class: `rhythm-cell rhythm-cell-${row}${on ? ' on' : ''}${empty(id) ? ' empty' : ''}${id === 'free' ? ' free' : ''}`, 'data-bar': String(b), 'aria-pressed': String(!!on), 'aria-label': `${ROWNAME[row]}, bar ${b + 1}: ${nameOf(row, id)}`, text: short(row, id), onclick: () => { cellAt = on ? null : { row, b }; toPick(); } }));
+                    band.append(el('button', { type: 'button', class: `rhythm-cell rhythm-cell-${row}${on ? ' on' : ''}${empty(id) ? ' empty' : ''}${id === 'free' ? ' free' : ''}${b < st.a || b >= st.b ? ' out' : ''}`, 'data-bar': String(b), 'aria-pressed': String(!!on), 'aria-label': `${ROWNAME[row]}, bar ${b + 1}: ${nameOf(row, id)}`, text: short(row, id), onclick: () => { cellAt = on ? null : { row, b }; toPick(); if (!on) playBlock(row, b); } }));
                 }
             }
             bands.push(band);
@@ -101,9 +126,25 @@
             el('button', { type: 'button', class: 'maze-tool', text: 'Start over', 'aria-label': 'Start over from the song\'s own bars', onclick: () => { save.boards[palKey(tr)] = R().boardFrom(tr.song, board.len); cellAt = null; edited(); } }));
         const picker = cellAt && cellAt.b < board.len ? el('div', { class: 'rhythm-row rhythm-blocks', role: 'group', 'aria-label': `${ROWNAME[cellAt.row]} blocks for bar ${cellAt.b + 1}` },
             el('span', { class: 'rhythm-rowname', text: `${ROWNAME[cellAt.row]}, bar ${cellAt.b + 1}` }),
-            ...box[cellAt.row].filter(x => x.id !== 'free' || window.CourseUnlocks.can('free')).map(x => { const cur = board[cellAt.row][cellAt.b] === x.id; return el('button', { type: 'button', class: `maze-tool rhythm-block rhythm-cell-${cellAt.row}` + (cur ? ' on' : ''), 'aria-pressed': String(cur), text: x.id === 'free' ? 'Freestyle' : x.name, onclick: () => { board[cellAt.row][cellAt.b] = x.id; edited(); } }); }))
+            ...box[cellAt.row].filter(x => x.id !== 'free' || window.CourseUnlocks.can('free')).map(x => { const cur = board[cellAt.row][cellAt.b] === x.id; return el('button', { type: 'button', class: `maze-tool rhythm-block rhythm-cell-${cellAt.row}` + (cur ? ' on' : ''), 'aria-pressed': String(cur), text: x.id === 'free' ? 'Freestyle' : x.name, onclick: () => { const at = cellAt; boardNow(tr)[at.row][at.b] = x.id; edited(); playBlock(at.row, at.b); } }); }))   // (the board as it is now: a preview has read it since this was drawn, and reading it makes a new one)
             : el('p', { class: 'rhythm-hint', text: 'Tap a bar to change what plays in it.' });
-        return el('div', { class: 'rhythm-board' }, tools, ...bands, picker);
+        // The stretch: a strip of the board's bars with an edge to drag at each end.
+        const strip = el('div', { class: 'rhythm-stretch', style: `--bars:${board.len}; --a:${st.a}; --b:${st.b}`, role: 'group', 'aria-label': 'The bars Listen plays' });
+        const span = el('div', { class: 'rhythm-stretch-span' }), label = el('span', { class: 'rhythm-stretch-label', text: st.a === 0 && st.b === board.len ? 'Listen plays all of it' : st.b - st.a === 1 ? `Listen plays bar ${st.a + 1}` : `Listen plays bars ${st.a + 1} to ${st.b}` });
+        const edge = which => {
+            const h = el('button', { type: 'button', class: 'rhythm-stretch-edge ' + which, role: 'slider', 'aria-label': which === 'a' ? 'First bar to play' : 'Last bar to play', 'aria-valuemin': '1', 'aria-valuemax': String(board.len), 'aria-valuenow': String(which === 'a' ? st.a + 1 : st.b) });
+            const set = v => { const was = st.a + ':' + st.b; if (which === 'a') st.a = Math.max(0, Math.min(st.b - 1, v)); else st.b = Math.max(st.a + 1, Math.min(board.len, v)); if (was === st.a + ':' + st.b) return false; strip.style.setProperty('--a', st.a); strip.style.setProperty('--b', st.b); return true; };
+            const at = e => { const r = strip.getBoundingClientRect(); return Math.round((e.clientX - r.left) / Math.max(1, r.width) * board.len); };
+            let drag = false, moved = false;
+            h.addEventListener('pointerdown', e => { e.preventDefault(); drag = true; moved = false; try { h.setPointerCapture(e.pointerId); } catch { /* an old browser */ } });
+            h.addEventListener('pointermove', e => { if (drag && set(at(e))) moved = true; });
+            const done = () => { if (!drag) return; drag = false; if (moved) edited(); };
+            h.addEventListener('pointerup', done); h.addEventListener('pointercancel', done);
+            h.addEventListener('keydown', e => { const d = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0; if (d && set((which === 'a' ? st.a : st.b) + d)) { e.preventDefault(); edited(); pickEl.querySelector('.rhythm-stretch-edge.' + which)?.focus(); } });
+            return h;
+        };
+        strip.append(span, edge('a'), edge('b'));
+        return el('div', { class: 'rhythm-board' }, tools, el('div', { class: 'rhythm-stretch-row' }, strip, label), ...bands, picker);
     }
 
     function build() {
@@ -122,7 +163,7 @@
                 window.CourseUnlocks.switchButton('rhythm'),
                 marksEl, el('button', { type: 'button', class: 'ghost-button evals-close', 'aria-label': 'Close Evals', text: '×', onclick: close })),
             el('div', { class: 'course-body rhythm-body' }, sayEl, pickEl, canvas, padEl, actionsEl));
-        dlg.addEventListener('close', () => { clearTimeout(previewT); soften(1, 0.6); stop(); listening = false; cancelAnimationFrame(headRaf); headRaf = 0; restore(null); music = { area: 'lab', level: 0.4 }; });
+        dlg.addEventListener('close', () => { clearTimeout(blockT); clearTimeout(previewT); soften(1, 0.6); stop(); listening = false; cancelAnimationFrame(headRaf); headRaf = 0; restore(null); music = { area: 'lab', level: 0.4 }; });
         const KEYS = { a: 0, s: 1, d: 2, j: 0, k: 1, l: 2, ArrowLeft: 0, ArrowDown: 1, ArrowRight: 2 }, heldKeys = {};
         // W slashes whichever slash is due (a mouse flick across the notes does too).
         dlg.addEventListener('keydown', e => { if (mode !== 'test' || e.repeat || (e.key !== 'w' && e.key !== 'W' && e.key !== 'ArrowUp')) return; e.preventDefault(); if (save.field) { press('w', 'slash', aimX); release('w'); return; } const l = dueLane('slash'); press(l, 'slash'); release(l); });

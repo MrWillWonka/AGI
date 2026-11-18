@@ -4442,6 +4442,15 @@ body.ring-device .evals-screen .evals-bar { padding-top: 44px; }
 /* The small orb sits just after the strip's clock: the numbers start past it (it covered the first of them on a phone). */
 body.ring-device dialog[open] .status-stats { padding-left: 40px; justify-content: flex-start; }
 /* The rhythm run's whole field has no pad under it, so it takes that room. */
+.rhythm-stretch-row { display: grid; gap: 4px; margin: 2px 0 6px; padding-left: calc(3.4em + 3px); }   /* under the bars' own columns (.rhythm-band) */
+.rhythm-stretch { position: relative; height: 30px; border-radius: 8px; border: 1px solid var(--border); background: repeating-linear-gradient(to right, transparent 0, transparent calc(100% / var(--bars) - 1px), var(--border) calc(100% / var(--bars) - 1px), var(--border) calc(100% / var(--bars))); touch-action: none; }
+.rhythm-stretch-span { position: absolute; top: 0; bottom: 0; left: calc(var(--a) / var(--bars) * 100%); width: calc((var(--b) - var(--a)) / var(--bars) * 100%); background: color-mix(in srgb, var(--success) 22%, transparent); border-radius: 7px; }
+.rhythm-stretch-edge { position: absolute; top: -7px; width: 44px; height: 44px; margin-left: -22px; padding: 0; border: 0; background: transparent; cursor: ew-resize; touch-action: none; }
+.rhythm-stretch-edge::after { content: ''; position: absolute; left: 50%; top: 7px; width: 6px; height: 30px; margin-left: -3px; border-radius: 3px; background: var(--success); }
+.rhythm-stretch-edge.a { left: calc(var(--a) / var(--bars) * 100%); }
+.rhythm-stretch-edge.b { left: calc(var(--b) / var(--bars) * 100%); }
+.rhythm-stretch-label { font: 0.78rem var(--font-mono); color: var(--muted); }
+.rhythm-cell.out { opacity: 0.4; }
 .rhythm-canvas.field { height: clamp(260px, calc(100dvh / var(--zoom, 1) - 330px), 680px); }
 .device-notice { touch-action: none; }
 /* Upright phones: the apps sit in three even columns across the screen (they hugged the left). */

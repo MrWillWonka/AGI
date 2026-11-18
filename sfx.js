@@ -1511,8 +1511,9 @@
         const song = m.songs[m.song];
         const bar = Math.floor((m.step - m.songStep) / song.steps);
         let moved = false;
-        if (s === 0 && m.cmd && typeof m.cmd === 'object') {
-            // { area, song, bar }: this song of this area, from this bar, starting on this downbeat (Evals' rhythm run).
+        if (m.cmd && typeof m.cmd === 'object' && (s === 0 || m.cmd.now)) {
+            // { area, song, bar }: this song of this area, from this bar, starting on this downbeat (Evals' rhythm run);
+            // with `now`, on this beat (the board's previews: a tap is heard within a beat, not a bar).
             if (AREAS.includes(m.cmd.area)) area = m.cmd.area;
             m.area = area;
             // `custom`: a song built outside the tracks (the rhythm run's board), played on its own, looping, until
@@ -1594,7 +1595,7 @@
         while (music.nextStep < now + 0.12) {
             const N0 = music.songs[music.song].steps;
             let s = (((music.step - music.origin) % N0) + N0) % N0;
-            if (s === 0 || (music.area !== area && s % 4 === 0 && N0 * clock.len > 2)) { if (songTurn(s)) s = 0; }
+            if (s === 0 || (music.area !== area && s % 4 === 0 && N0 * clock.len > 2) || (music.cmd && music.cmd.now && s % 4 === 0)) { if (songTurn(s)) s = 0; }
             // The tempo glides a step at a time into and out of a slow-down (about a bar to settle); a new song's
             // tempo starts at once.
             const target = stepOf(music.bpm) / (slow ? 0.6 : 1);

@@ -124,3 +124,23 @@ test('board: the engine plays a composed song, in every track, with no fault, an
         assert.deepStrictEqual(e.faults, [], name);
     });
 });
+
+test('the board: a stretch of it, and one block alone, are songs of their own (for hearing a bar, a block, or part of a track)', () => {
+    every((e, song, name) => {
+        const board = R.boardFrom(song, 8), whole = R.compose(song, board);
+        const part = R.excerpt(song, board, 2, 5);
+        assert.equal(part.bars, 3, name);
+        assert.deepEqual(part.form.map(s => s.start), [0, 1, 2], name);
+        assert.deepEqual(part.form.map(s => [s.mel, s.chords, s.bass, s.drums, s.bassOn]), whole.form.slice(2, 5).map(s => [s.mel, s.chords, s.bass, s.drums, s.bassOn]), name + ': the same bars as the whole track');
+        for (const s of part.form) { assert.ok(part.prog[s.chords], name); assert.ok(part.bassBy[s.bass], name); if (s.mel) assert.ok(part.mel[s.mel], name); }
+        assert.equal(R.excerpt(song, board, 0, 8).bars, 8, name);
+        assert.equal(R.excerpt(song, board, 7, 99).bars, 1, name + ': kept inside the board');
+        assert.equal(R.excerpt(song, board, 5, 2).bars, 1, name + ': never empty');
+        // One row alone: the others are silent in that bar.
+        const mel = R.excerpt(song, board, 0, 1, 'mel').form[0], beat = R.excerpt(song, board, 0, 1, 'beat').form[0], bass = R.excerpt(song, board, 0, 1, 'bass').form[0];
+        assert.deepEqual([mel.drums, mel.bassOn], ['none', false], name);
+        assert.deepEqual([beat.mel, beat.bassOn, beat.drums], [null, false, whole.form[0].drums], name);
+        assert.deepEqual([bass.mel, bass.drums], [null, 'none'], name);
+        assert.equal(R.cleanBoard(song, board).beat[0], board.beat[0], name + ': the board itself is untouched');
+    });
+});

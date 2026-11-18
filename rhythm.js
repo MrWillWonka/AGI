@@ -197,6 +197,19 @@
         for (const row of BOARD.rows) out[row] = Array.from({ length: len }, (_, b) => { const id = board && Array.isArray(board[row]) ? board[row][b] : null; return box[row].some(x => x.id === id) ? id : base[row][b]; });
         return out;
     }
+    // A stretch of a board as a song of its own: bars `from` to `to` (not counting `to`). `only`: one row alone, the
+    // others silent there (the chords still sound under a beat, a bass line or a melody: a bar always has its chord).
+    // For hearing a block, a bar or part of a track on the board.
+    function excerpt(song, board, from, to, only) {
+        const bd = cleanBoard(song, board), a = Math.max(0, Math.min(bd.len - 1, Math.floor(from) || 0)), b = Math.max(a + 1, Math.min(bd.len, Math.floor(to) || bd.len));
+        const quiet = { beat: 'none', bass: 'off', mel: 'rest' };
+        if (only) for (const row of Object.keys(quiet)) if (row !== only) bd[row] = bd[row].map(() => quiet[row]);
+        const out = compose(song, bd);
+        out.form = out.form.slice(a, b).map((sec, i) => ({ ...sec, start: i }));
+        out.free = out.free.filter(x => x >= a && x < b).map(x => x - a);
+        out.bars = b - a; out.chords = out.prog[out.form[0].chords]; out.bass = out.bassBy[out.form[0].bass]; out.comp = out.compBy[out.form[0].comp];
+        return out;
+    }
     // The song a board makes, as the music engine plays one (a bar a section). `lead`: a bar of count-in in front, so
     // the track starts at bar 1. `free` lists its freestyle bars, counted from the track's first.
     function compose(song, board, opts = {}) {
@@ -378,5 +391,5 @@
         return Math.round(res.hits * o.marks * bonus);
     }
 
-    return { RHYTHM, LEVELS, MODES, modeOf, rulesFor, mastery, stage, sectionAt, startBar, chartFrom, chartFor, fieldFor, xAt, playable, timed, BOARD, BEATS, blocksOf, boardFrom, cleanBoard, compose, measure, lengthOf, createRun, result, simulate, aiEvents, canHandOver, handOver, marksFor, rng };
+    return { RHYTHM, LEVELS, MODES, modeOf, rulesFor, mastery, stage, sectionAt, startBar, chartFrom, chartFor, fieldFor, xAt, playable, timed, BOARD, BEATS, blocksOf, boardFrom, cleanBoard, compose, excerpt, measure, lengthOf, createRun, result, simulate, aiEvents, canHandOver, handOver, marksFor, rng };
 });
