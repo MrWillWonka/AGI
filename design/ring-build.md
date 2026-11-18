@@ -1268,3 +1268,17 @@ command (`sfx.js` `songTurn`): it turns on the next beat, not the next bar, so a
 buttons were writing to the old one and a pick changed nothing. Fixed before it was committed.
 With the music off there is nothing to hear from the board (as before). With 16 bars the strip is one row over two
 rows of bars, so it does not line up with them.
+
+**The owner: "the sound just got really messed up", after a Feed run (2026-11-17, about 19:30). Checked, not found.**
+What was checked: (1) every track and every effect rendered again with the game's own tools and measured
+(`node tools/audio/survey.js after-fixes --quick`): 70 renders, no faults, no clipping, and every one identical in
+loudness, peak and crest to the render from before today's audio changes. (2) The live engine after leaving the rhythm
+run seven ways (a block tapped, listening, mid count-in, a failed run, another track, a switch to the maze): the area's
+own song, its own tempo, the music's level and no pending command each time. (3) The owner's order of play from
+`playtests/inbox/20261117-184424.txt` (a board run in lanes and on the whole field, home, the shop, the lab, a Feed run)
+with The Feed's end-of-run sounds played as feed-ui.js plays them: tempo, levels and fault count unchanged. So nothing
+I can measure is wrong; what the owner heard is not explained. Not ruled out: the phone itself (the log has the page
+hidden and shown three times ten minutes earlier; Safari on an iPhone is known to distort all Web Audio after an
+interruption until the page is reloaded), or many sounds at once at the end of a Feed run (a tank eaten bare, the
+run's end and twenty Graphics Cards bought in the same minute). One thing fixed on the way: a miss in the rhythm run
+played the error sound during the AI's attempts too; it is yours only now.

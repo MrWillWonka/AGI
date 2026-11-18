@@ -302,7 +302,7 @@
                 if (e.off != null) { marks.push({ off: e.off, at, lane: e.lane }); if (marks.length > 18) marks.shift(); }
                 if (e.combo && [10, 25, 50, 75, 100].includes(e.combo)) fx.push({ kind: 'combo', n: e.combo, at });
                 if (who === 'you') { if (audio) window.SFX?.play?.('click', { res: SOUND[e.lane] }); else hitNote(e); }   // with the music off, each note you hit sounds (the owner's call)
-            } else if (e.type === 'miss') { window.SFX?.play?.('error'); pops.push({ lane: e.lane, x: e.x, text: 'MISS', at, good: false }); fx.push({ kind: 'miss', lane: e.lane, x: e.x, at }); }
+            } else if (e.type === 'miss') { if (who === 'you') window.SFX?.play?.('error'); pops.push({ lane: e.lane, x: e.x, text: 'MISS', at, good: false }); fx.push({ kind: 'miss', lane: e.lane, x: e.x, at }); }
             else if (e.type === 'slipped') pops.push({ lane: e.lane, x: e.x, text: 'SLIPPED', at: at + 1, good: false });
             else if (e.type === 'stray') pops.push({ lane: e.lane, x: e.x, text: '·', at, good: false });
             else if (e.type === 'flair') { pops.push({ lane: 1, text: 'NICE', at, good: true }); fx.push({ kind: 'flair', at }); }
