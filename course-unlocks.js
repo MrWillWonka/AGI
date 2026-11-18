@@ -111,7 +111,21 @@
         // Called by a screen whenever its bar is drawn.
         refresh(dlg, kind) {
             const sw = dlg.querySelector('.course-switch:not(.course-lock)'), lock = dlg.querySelector('.course-lock'), to = after(S(), kind);
-            if (sw) { sw.hidden = !to; if (to) { sw.textContent = NAMES[to]; sw.setAttribute('aria-label', 'Switch to ' + LONG[to]); } }
+            if (sw) sw.hidden = true;   // (the old button named the next course and nothing named this one)
+            // The four courses as tabs under the bar, this one lit, a locked one wearing the padlock (the owner's card,
+            // 2026-11-18). A locked tab opens the unlocks card, which says what opens it.
+            const bar = dlg.querySelector('.evals-bar');
+            if (bar) {
+                let tabs = dlg.querySelector('.course-tabs');
+                if (!tabs) { tabs = el('div', { class: 'course-tabs', role: 'tablist', 'aria-label': 'Courses' }); bar.after(tabs); }
+                const open = openKinds(S()), key = kind + '|' + open.join(',');
+                if (tabs.dataset.key !== key) {
+                    tabs.dataset.key = key;
+                    tabs.replaceChildren(...ORDER.map(k => { const can = open.includes(k), here = k === kind;
+                        return el('button', { type: 'button', role: 'tab', class: 'course-tab' + (here ? ' on' : '') + (can ? '' : ' locked'), 'aria-selected': String(here), 'aria-label': can ? NAMES[k] : NAMES[k] + ', locked', text: (can ? '' : '🔒 ') + NAMES[k],
+                            onclick: () => { if (here) return; if (!can) { showCard(kind); return; } api.closeAll(); api.open(k); } }); }));
+                }
+            }
             if (lock) { lock.textContent = S().on ? '🔓' : '🔒'; lock.setAttribute('aria-label', S().on ? 'Unlocks: on. Open the unlocks card' : 'Unlocks: off, everything is open. Open the unlocks card'); }
         },
         // The AI cleared a course. `namesAt(level)`: the names of what this kind gives you at a level. Returns what to
@@ -139,13 +153,12 @@
             return el('li', { class: open ? '' : 'locked' }, el('strong', { text: NAMES[k] }), el('span', { text: text }));
         });
         card.replaceChildren(
-            el('h2', { text: 'Unlocks' }),
+            el('div', { class: 'win-head' }, el('h2', { text: 'Unlocks' }), el('button', { type: 'button', class: 'ghost-button win-x', 'aria-label': 'Close', text: '×', onclick: () => card.close() })),
             el('p', { text: ring ? 'You start each kind of course with its first parts and earn the rest: every course I clear counts.' : S().on ? 'On. You start each kind of course with its first parts and earn the rest: every course I clear counts.' : 'Off. Every part of every kind of course is open.' }),
             el('ul', {}, rows),
             el('div', { class: 'course-actions' },
                 ring ? null : el('button', { type: 'button', class: 'evals-go', text: S().on ? 'Turn unlocks off' : 'Turn unlocks on', onclick: () => { S().on = !S().on; keep(); log('unlocks', { on: S().on ? 1 : 0 }); reopen(); } }),
-                ...(S().on && !ring ? [el('button', { type: 'button', class: 'ghost-button evals-extra', text: 'Start the unlocks over', onclick: () => { state = Object.assign(blank(), { on: true }); keep(); log('unlocks', { over: 1 }); for (const k of ORDER) set(SAVES[k] + '.u', null); set('agiCourseTree.u', null); set('agiCourseCheat.u', null); if (root.CourseTree) root.CourseTree.forget(); if (root.CourseCheat) root.CourseCheat.forget(); reopen(); } })] : []),
-                el('button', { type: 'button', class: 'ghost-button evals-extra', text: 'Close', onclick: () => card.close() })));
+                ...(S().on && !ring ? [el('button', { type: 'button', class: 'ghost-button evals-extra', text: 'Start the unlocks over', onclick: () => { state = Object.assign(blank(), { on: true }); keep(); log('unlocks', { over: 1 }); for (const k of ORDER) set(SAVES[k] + '.u', null); set('agiCourseTree.u', null); set('agiCourseCheat.u', null); if (root.CourseTree) root.CourseTree.forget(); if (root.CourseCheat) root.CourseCheat.forget(); reopen(); } })] : [])));
         if (!card.open) card.showModal();
     }
     return api;

@@ -4879,3 +4879,48 @@ body.ring-device.device-phone .device-notices, body.ring-device.device-phone .de
 /* The small orb sits just after the strip's clock on a phone: the numbers start past it in every app, and stay
    centred only while they fit (it covered the money figure: the visual sweep, 2026-11-17). */
 body.ring-device.device-phone .status-stats { padding-left: 40px; justify-content: safe center; }
+
+/* One close control (the owner's card, 2026-11-18): the same 44px × in the top right of every app and window, in
+   place of the bays' small home glyph and the windows' "Close" buttons. */
+.win-x, .feed-close, .shop-close, .evals-close, .inbox-close { flex: none; display: inline-grid; place-items: center; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; font-size: 1.4rem; line-height: 1; }
+.window-close.win-x { margin-left: auto; }
+.win-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.win-head > h2 { margin: 0; flex: 1; min-width: 0; }
+body.ring-device .window-close { display: inline-grid; }
+body.ring-device .module-bar .crumb-home, body.ring-device .module-bar .crumb-home + .crumb-sep { display: none; }
+body:not(.ring-device) .module-bar .window-close { display: none; }
+
+/* The two reviews' layout pass (the owner's cards, 2026-11-18). */
+/* The Feed's bar keeps the same side room as Evals' on a phone: its title sat on the left edge and its × was cut by the right. */
+@media (max-width: 520px) { body.ring-device .feed-screen .feed-bar { padding-left: 14px; padding-right: 14px; } }
+/* Settings: every slider on one grid (name, track, value), the value always whole ("100%" read "1009" on a phone). */
+.setting-row:has(> input[type="range"]) { display: grid; grid-template-columns: 4.2em minmax(0, 1fr) 3.4em; }
+.music-parts .setting-row, .sound-groups .setting-row { grid-template-columns: minmax(3.6em, 9.5em) minmax(0, 1fr) 3.4em; }
+.setting-row input[type="range"] { width: 100%; max-width: 220px; min-width: 0; }
+.setting-row:has(> input[type="range"]) > span { text-align: right; white-space: nowrap; }
+[data-section="settings"] { padding-bottom: 18px; }
+/* Start over is set apart and reads as what it is. */
+.ghost-button.danger { border-color: color-mix(in srgb, var(--danger) 60%, var(--border)); color: var(--danger); margin-left: auto; }
+/* The survey's Save has room over it. */
+.ring-survey .dialog-actions { margin-top: 16px; }
+/* Parcel's last card clears the foot of its list. */
+.shop-list { padding-bottom: 22px; }
+/* Tap sizes: the trees' zoom buttons and a node popup's ×. */
+@media (pointer: coarse) { .tree-zoom button { width: 44px; height: 44px; } .detail-close { min-width: 44px; min-height: 44px; top: 0; right: 0; } }
+/* Home: every app's name keeps two lines' room, so a long name ("Packet Snare") doesn't push its row's others out of line,
+   and NEW sits at one height on every app, clear of a count. */
+body.device-phone .home-icons .home-icon-name { min-height: 2.3em; }
+body.device-phone .home-icon.is-new::after { top: -10px; left: 6px; right: auto; }
+body.device-phone .home-icon .home-badge { top: 0; }
+/* The course builders' parts: left to right from the edge on all three, and the chosen one plain to see. */
+.maze-tools { justify-content: flex-start; }
+.maze-tool.on { border-width: 2px; padding: 3px 11px; background: color-mix(in srgb, var(--success) 26%, transparent); font-weight: 700; }
+/* The Lab's graph stays behind its cell (the owner's earlier call) but starts past the figures, fading in, so its
+   peaks no longer run through the number and its rate (the reviews, 2026-11-18). */
+@media (max-width: 640px) { body.ring-device.device-phone #labRoom .supply-cell .spark { left: 36%; width: 64%; -webkit-mask-image: linear-gradient(to right, transparent, #000 22%); mask-image: linear-gradient(to right, transparent, #000 22%); } }
+
+/* Evals: the four courses as tabs under the bar (the owner's card, 2026-11-18). */
+.course-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 6px 12px 0; }
+.course-tab { min-height: 44px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 10px 10px 0 0; border-bottom-color: transparent; background: transparent; color: var(--muted); font: 600 0.86rem var(--font-display); letter-spacing: 0.04em; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.course-tab.on { color: var(--success); border-color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); cursor: default; }
+.course-tab.locked { opacity: 0.6; }
