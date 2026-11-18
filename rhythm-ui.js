@@ -280,6 +280,7 @@
     function stop() { cancelAnimationFrame(raf); raf = 0; }
     function testOver() {
         const r = R().result(run); padEl.hidden = true; mode = 'tested';
+        window.CourseUnlocks.log('courseTest', { kind: 'rhythm', ...window.CourseUnlocks.brief(r), built: `${sel.name}|${R().modeOf(save.level).key}|${save.field ? 'field' : 'lanes'}|${save.own ? 'board' : 'song'}` });
         if (r.finished) {
             yours = r;
             say(`You kept it together: ${tally(r)}, ${r.perfect} perfect, a best combo of ${r.combo}. May I try?`);
@@ -318,6 +319,7 @@
         else say(`Played the one you could not: ${tally(top)}, ${pct(top)} on the beat. ${marks} Marks.`);
         if (grew) sayEl.textContent += st === 2 ? ' I think I can play a track through now even if it falls apart on you. Play it once, as far as you get.' : ' I do not need to hear the hard parts first any more. Play it once anyway.';
         if (!top && marks) sayEl.textContent += ` Partial credit: ${marks} Marks.`;
+        window.CourseUnlocks.log('courseAi', { kind: 'rhythm', cleared: top ? 1 : 0, marks, tries: hand.attempts.map(a => ((a.result || a).finished ? 'C' : 'F')).join(''), skipped: attempt < hand.attempts.length ? 1 : 0, ai: window.CourseUnlocks.brief(top), you: window.CourseUnlocks.brief(yours), built: `${sel.name}|${R().modeOf(save.level).key}|${save.field ? 'field' : 'lanes'}|${save.own ? 'board' : 'song'}` });
         if (top) { const news = window.CourseUnlocks.cleared('rhythm', window.CourseUnlocks.rhythmNames); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'rhythm'); }
         actions(button('Change the track', () => toPick(), true), button('Hand it over again', toAi));
         music.level = 0.4; draw();

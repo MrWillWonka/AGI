@@ -1174,3 +1174,11 @@ Puck, Rooms) after 3 clears in the newest. `course-unlocks.js` (rules on top, th
 together), opened from the Marks count in a course's bar; a trunk, a branch a kind, and optional exploits that pay more
 and add to a hidden count against the AI (`mis`, read by nothing yet). `course-tree.js` (rules on top, the browser's
 part below), `tests/course-tree.test.js`; the maze gained `lives` for Second Life. All names, effects and prices mine.
+
+**The owner's playtest of the playground (2026-11-17) and the courses in the playtest log.** Findings from the owner's
+answers are in `playtests/evals/2026-11-17-owner-findings.md` (the log had nothing from Evals: the courses logged
+nothing). The owner's order: fix the findings, then the AI cheating round. First fix: the courses now log. `view` is
+`evals:<kind>` while a course is open; `course` (a kind opened), `courseTest` (your run: ok, why, its numbers, what was
+built), `courseAi` (cleared, marks, each try as C or F, `skipped` if Skip to the result was pressed, its best and
+yours), `courseUnlock`, `unlocks` (the switch), `treeOpen`, `treeBuy`; written at once (`PT_FLUSH`). All through
+`CourseUnlocks.log` -> `AGI.playtest`.

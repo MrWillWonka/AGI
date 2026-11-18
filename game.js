@@ -117,7 +117,7 @@ window.AGI = (function () {
     let playtestSampleAt = 0;
     // Rare progression events are written at once: the log is otherwise flushed every 30 s of play and on
     // hide, so a crash or a killed tab lost the funnel's steps since the last sample.
-    const PT_FLUSH = new Set(['skill', 'unlock', 'phase', 'ship', 'transcend', 'challenge', 'perk', 'ending', 'mailAccepted', 'setting', 'save', 'evals']);
+    const PT_FLUSH = new Set(['skill', 'unlock', 'phase', 'ship', 'transcend', 'challenge', 'perk', 'ending', 'mailAccepted', 'setting', 'save', 'evals', 'course', 'courseTest', 'courseAi', 'courseUnlock', 'treeBuy', 'unlocks']);
     // The Feed (feed.js, feed-ui.js): the swarm eats on the game's clock, so it eats (at a quarter speed, with nobody
     // leading it) while you are elsewhere with the page open. It runs under the ring, or while its screen is open (the test door). What it earns is research.
     function feedTick(dt) {
@@ -2512,8 +2512,9 @@ window.AGI = (function () {
         stuckTick();
         if (ringAchWait.length && !snareRunLive()) ringAchievement(...ringAchWait.shift());
         // The playtest log's time by screen: the home screen and The Feed are places too (they were counted as the lab).
-        const where = $('inbox').open ? null : window.FeedUI?.isOpen ? 'feed' : shop?.dlg.open ? 'shop' : home && !home.node.hidden ? 'home' : null;
-        if (where) ptView(where); else if (playtestView === 'home' || playtestView === 'feed' || playtestView === 'shop') ptView(ptPlace());
+        const course = window.CourseUnlocks?.openKind?.();   // a course of Evals is a place too: 'evals:maze'
+        const where = $('inbox').open ? null : course ? 'evals:' + course : window.EvalsUI?.isOpen ? 'evals' : window.FeedUI?.isOpen ? 'feed' : shop?.dlg.open ? 'shop' : home && !home.node.hidden ? 'home' : null;
+        if (where) ptView(where); else if (playtestView === 'home' || playtestView === 'feed' || playtestView === 'shop' || String(playtestView).startsWith('evals')) ptView(ptPlace());
         // A save that is already working in the lab has opened it.
         if (!labOpened() && introDone() && (state.stats.clicks > 0 || E.level(state, 'keyboard') > 0)) state.intro['ring:labOpened'] = true;
         const on = !labOpened() || homeUp;

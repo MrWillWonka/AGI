@@ -70,6 +70,7 @@
     }
     function testOver() {
         const r = M().result(run), spared = run.state.spared ? ' Your second life was spent.' : ''; padEl.hidden = true; held = -1; mode = 'tested';
+        window.CourseUnlocks.log('courseTest', { kind: 'maze', ...window.CourseUnlocks.brief(r), built: window.CourseUnlocks.parts(save.maze) });
         if (r.finished) {
             yours = r;
             say(`You reached the exit in ${secs(r.time)} and got past ${r.points} ${r.points === 1 ? 'point' : 'points'}. May I try?${spared}`);
@@ -111,6 +112,7 @@
         else { const d = ref - top.time; say(`Out of the one you could not finish: ${top.points} ${top.points === 1 ? 'point' : 'points'} in ${secs(top.time)}${ref ? (d > 0.05 ? `, ${secs(d)} under my best` : `. My best here is ${secs(ref)}`) : ''}. ${marks} Marks.`); }
         if (grew) sayEl.textContent += st === 2 ? ' I think I can finish a maze now even if you are caught in it. Walk it once, as far as you get.' : ' I do not need to be shown the hard parts any more. Walk it once anyway.';
         if (!top && marks) sayEl.textContent += ` Partial credit: ${marks} Marks.`;
+        window.CourseUnlocks.log('courseAi', { kind: 'maze', cleared: top ? 1 : 0, marks, tries: hand.attempts.map(a => ((a.result || a).finished ? 'C' : 'F')).join(''), skipped: attempt < hand.attempts.length ? 1 : 0, ai: window.CourseUnlocks.brief(top), you: window.CourseUnlocks.brief(yours), built: window.CourseUnlocks.parts(save.maze) });
         if (top) { const news = window.CourseUnlocks.cleared('maze', lvl => M().palette(lvl).map(k => M().TILES[k].name)); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'maze'); }
         actions(button('Change the maze', () => toBuild(), true), button('Hand it over again', toAi));
         run = null; tick();

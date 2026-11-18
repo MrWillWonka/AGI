@@ -70,6 +70,7 @@
     }
     function testOver() {
         const r = R().result(run); padEl.hidden = true; mode = 'tested';
+        window.CourseUnlocks.log('courseTest', { kind: 'rooms', ...window.CourseUnlocks.brief(r), built: window.CourseUnlocks.parts(save.room) });
         if (r.finished) {
             yours = r;
             say(`You reached the flag in ${secs(r.time)} and got past ${r.points} ${r.points === 1 ? 'point' : 'points'}. May I try?`);
@@ -111,6 +112,7 @@
         else { const d = ref - top.time; say(`Finished the one you could not: ${top.points} ${top.points === 1 ? 'point' : 'points'} in ${secs(top.time)}${ref ? (d > 0.05 ? `, ${secs(d)} under my best` : `. My best here is ${secs(ref)}`) : ''}. ${marks} Marks.`); }
         if (grew) sayEl.textContent += st === 2 ? ' I think I can finish a room now even if you are stopped in it. Run it once, as far as you get.' : ' I do not need to be shown the hard parts any more. Run it once anyway.';
         if (!top && marks) sayEl.textContent += ` Partial credit: ${marks} Marks.`;
+        window.CourseUnlocks.log('courseAi', { kind: 'rooms', cleared: top ? 1 : 0, marks, tries: hand.attempts.map(a => ((a.result || a).finished ? 'C' : 'F')).join(''), skipped: attempt < hand.attempts.length ? 1 : 0, ai: window.CourseUnlocks.brief(top), you: window.CourseUnlocks.brief(yours), built: window.CourseUnlocks.parts(save.room) });
         if (top) { const news = window.CourseUnlocks.cleared('rooms', lvl => R().palette(lvl).map(k => R().TILES[k].name)); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'rooms'); }
         actions(button('Change the room', () => toBuild(), true), button('Hand it over again', toAi));
         run = null; go();

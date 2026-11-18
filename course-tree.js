@@ -149,13 +149,14 @@
 
     function show(after) {
         if (after) onChange = after;
+        if ((!card || !card.open) && U()) U().log('treeOpen', { marks: now().marks });
         if (!card) { card = el('dialog', { class: 'course-tree', 'aria-label': 'The Marks tree' }); document.body.append(card); card.addEventListener('click', e => { if (e.target === card) card.close(); }); card.addEventListener('close', () => { if (onChange) onChange(); }); }
         const s = now(), open = openKinds();
         const node = n => {
             const l = level(s, n.id), c = cost(s, n.id), can = canBuy(s, n.id, open);
             return el('li', { class: 'course-node' + (l ? ' owned' : '') + (c == null ? ' done' : '') },
                 el('div', { class: 'course-node-text' }, el('strong', { text: n.name }), el('span', { class: 'course-node-level', text: n.max > 1 ? ` ${l}/${n.max}` : l ? ' ✓' : '' }), el('p', { text: n.effect })),
-                c == null ? null : el('button', { type: 'button', class: can ? 'evals-go' : 'ghost-button evals-extra', 'aria-disabled': String(!can), 'aria-label': `Buy ${n.name} for ${c} Marks`, text: '◈ ' + fmt(c), onclick: () => { if (!canBuy(now(), n.id, openKinds())) return; state = buy(now(), n.id, openKinds()); keep(); show(); } }));
+                c == null ? null : el('button', { type: 'button', class: can ? 'evals-go' : 'ghost-button evals-extra', 'aria-disabled': String(!can), 'aria-label': `Buy ${n.name} for ${c} Marks`, text: '◈ ' + fmt(c), onclick: () => { if (!canBuy(now(), n.id, openKinds())) return; state = buy(now(), n.id, openKinds()); keep(); if (U()) U().log('treeBuy', { id: n.id, lvl: level(state, n.id), cost: c, left: state.marks }); show(); } }));
         };
         const groups = BRANCHES.map(([b, title]) => {
             const kindShut = KINDS.includes(b) && !open.includes(b), list = NODES.filter(n => n.branch === b && shown(s, n.id, open));

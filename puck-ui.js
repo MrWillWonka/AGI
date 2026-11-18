@@ -80,6 +80,7 @@
     }
     function testOver() {
         const R = P(), r = R.result(run); mode = 'tested'; yourPaths = paths.slice();
+        window.CourseUnlocks.log('courseTest', { kind: 'puck', ...window.CourseUnlocks.brief(r), built: window.CourseUnlocks.parts(save.course) });
         if (r.finished) {
             yours = r;
             say(`In the hole in ${plural(r.shots, 'shot')}, with ${plural(r.points, 'point')} of ${R.points(save.course)}. May I try?`);
@@ -128,6 +129,7 @@
         else say(`In, on the one you could not finish: ${plural(top.points, 'point')} in ${plural(top.shots, 'shot')}${par ? `. My best here was ${par}` : ''}. ${marks} Marks.`);
         if (grew) sayEl.textContent += st === 2 ? ' I think I can finish a course now even if you run out of shots. Play it once, as far as you get.' : ' I do not need to be shown the way any more. Play it once anyway.';
         if (!top && marks) sayEl.textContent += ` Partial credit: ${marks} Marks.`;
+        window.CourseUnlocks.log('courseAi', { kind: 'puck', cleared: top ? 1 : 0, marks, tries: hand.attempts.map(a => ((a.result || a).finished ? 'C' : 'F')).join(''), skipped: attempt < hand.attempts.length ? 1 : 0, ai: window.CourseUnlocks.brief(top), you: window.CourseUnlocks.brief(yours), built: window.CourseUnlocks.parts(save.course) });
         if (top) { const news = window.CourseUnlocks.cleared('puck', lvl => P().palette(lvl).map(k => P().TILES[k].name)); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'puck'); }
         actions(button('Change the course', () => toBuild(), true), button('Hand it over again', toAi));
         // Leave its best attempt (or its last) on the field.
