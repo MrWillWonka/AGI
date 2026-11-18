@@ -1293,3 +1293,5 @@ played late (`LATE_S`): after a stall a beat may be missing, which is quieter th
 Classic theme is within 0.9 dB of before, with no faults; the rhythm run still lines up with its song and the board's
 previews still start within a beat (their return to the song now asks 0.42 s before the bar ends). I could not make
 the crackle itself happen or hear that it is gone. If it comes back, the stall is the next thing to cut.
+
+**The rhythm run's miss sound plays for the AI's misses too** (the owner, 2026-11-17: "I like hearing the error sound for AI"). I had limited it to yours; that is undone.
