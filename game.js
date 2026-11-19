@@ -17,6 +17,9 @@ window.AGI = (function () {
     // preset moments to go through one at a time (`UI_TESTS`).
     const RING_TEST = location.hash === '#test';
     const RING_PLAY = location.hash === '#playground' || RING_TEST;
+    // Which link this is gets read once, here. A tab that already has the game open only changes its hash when another
+    // link is opened in it, with no load, so the old link carried on (the owner opened #test and got the playtest).
+    window.addEventListener('hashchange', () => location.reload());
     // The three links (the owner's call, 2026-11-15). The plain link is the PLAYTEST: the ring, on a save and a playtest
     // log kept per playtest number (`E.PLAYTEST_BUILD`), so nothing from an older build comes along. `#ring` (or `#dev`)
     // is for DEV work: the ring on the save it always had, never started over. `#playground` is above. The old game has
