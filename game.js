@@ -14843,17 +14843,15 @@ window.AGI = (function () {
         const card = el('div', { class: 'capture-card', role: 'dialog', 'aria-labelledby': 'captureTipTitle' }, [
             el('h2', { id: 'captureTipTitle', text: 'See something? Capture it' }),
             el('ul', { class: 'playtest-tools' }, [
-                el('li', {}, [el('b', { text: 'The ◉ button' }), ' at the top saves what is on screen and opens a quick note. Your keyboard\'s mic works, so you can just say it.']),
-                el('li', {}, [el('b', { text: 'A notice' }), ' like the one above tells you it was sent.']),
+                el('li', {}, [el('b', { text: 'The ◉ button' }), ' up there saves what is on screen and opens a quick note. Your keyboard\'s mic works, so you can just say it.']),
                 el('li', {}, [el('b', { text: 'The Feedback app' }), ' is for longer thoughts, whenever you like.'])]),
             el('div', { class: 'dialog-actions' }, [el('button', { type: 'button', class: 'button', text: 'Next', onclick: () => done() })])]);
-        veil.append(line, sample, card, ring, ring2);
+        veil.append(line, card, ring);   // (the example notice and its ring are gone: the owner, 2026-11-19, 'just point to the button')
         const place = () => { const k = pageZoom(), r = snap.getBoundingClientRect(), c = card.getBoundingClientRect(); if (!r.width) return;
             { const edge = 16 * k, t = Math.max(edge, r.top - 4), bt = r.bottom + 4;   // (kept inside the bezel: its top was cut off on a phone)
                 ring.style.left = (r.left - 4) / k + 'px'; ring.style.top = t / k + 'px'; ring.style.width = (r.width + 8) / k + 'px'; ring.style.height = (bt - t) / k + 'px'; }
-            { const n = sample.getBoundingClientRect(); ring2.style.left = (n.left - 4) / k + 'px'; ring2.style.top = (n.top - 4) / k + 'px'; ring2.style.width = (n.width + 8) / k + 'px'; ring2.style.height = (n.height + 8) / k + 'px'; }
             line.setAttribute('viewBox', '0 0 ' + innerWidth + ' ' + innerHeight); line.style.width = innerWidth / k + 'px'; line.style.height = innerHeight / k + 'px';
-            const nb = sample.getBoundingClientRect(), x1 = nb.left + nb.width / 2, y1 = nb.bottom + 8, x2 = c.left + c.width / 2, y2 = c.top;
+            const x1 = r.left + r.width / 2, y1 = r.bottom + 10, x2 = Math.min(c.right - 40, Math.max(c.left + 40, x1)), y2 = c.top;
             path.setAttribute('d', 'M' + x1 + ' ' + y1 + 'V' + (y1 + (y2 - y1) * 0.5) + 'Q' + x1 + ' ' + (y2 - 10) + ' ' + x2 + ' ' + y2); };
         const timer = setInterval(place, 300);
         const done = () => { clearInterval(timer); veil.remove(); if (was && !inboxOn) snap.hidden = true; pt('captureTip', {}); then(); };

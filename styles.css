@@ -5232,3 +5232,16 @@ body.ring-device.device-phone.ai-in-lab #labRoom { padding-bottom: calc(210px + 
 /* The quick note's grey prompt breaks between words. */
 .quick-note-box::placeholder { word-break: normal; overflow-wrap: normal; white-space: pre-wrap; }
 .quick-note-box { word-break: normal !important; }
+
+/* Mail on a phone fits its longest letter and its buttons without scrolling (the owner's note, 2026-11-19): the window
+   takes the screen's height, and the letter is set a little tighter. */
+@media (max-width: 640px) {
+    body.ring-device.device-phone #inbox { max-height: calc(100dvh / var(--zoom, 1) - 56px); margin-top: 44px; margin-bottom: 12px; }
+    body.ring-device.device-phone .inbox-message { max-height: calc(100dvh / var(--zoom, 1) - 130px); padding: 10px 16px 12px; }
+    body.ring-device.device-phone .mail-body { gap: 7px; font-size: 0.86rem; line-height: 1.38; }
+    body.ring-device.device-phone .mail-subject { font-size: 1rem; line-height: 1.25; }
+    body.ring-device.device-phone .mail-from { margin: 4px 0 8px; font-size: 0.74rem; line-height: 1.35; }
+    body.ring-device.device-phone .inbox-message .dialog-actions { margin-top: 10px; gap: 8px; }
+    body.ring-device.device-phone .inbox-message .dialog-actions .button { min-height: 44px; padding-top: 8px; padding-bottom: 8px; }
+    body.ring-device.device-phone .inbox-note { display: none; }
+}
