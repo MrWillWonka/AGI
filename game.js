@@ -2379,8 +2379,10 @@ window.AGI = (function () {
             // (The owner's notes, 2026-11-15: the dock can be pinned open, and expanded to show your apps for quick
             // navigation, both kept per device; and it stays open while the AI is introducing it, `desk.dockHeld`.)
             const kept = (key, set) => { try { if (set !== undefined) localStorage.setItem(key, set ? '1' : '0'); return localStorage.getItem(key) === '1'; } catch { return false; } };
-            const hideSwitch = force => { if (force !== true && (desk.dockHeld || kept('agiDockPin'))) return; sw.classList.remove('open'); clearTimeout(desk.switchTimer); };
-            const showSwitch = () => { desk.dockRefresh(); sw.classList.add('open'); clearTimeout(desk.switchTimer); if (!fine()) desk.switchTimer = setTimeout(hideSwitch, 5000); };
+            const hideSwitch = force => { if (force !== true && (desk.dockHeld || kept('agiDockPin'))) return; sw.classList.remove('open'); document.body.classList.remove('dock-open'); clearTimeout(desk.switchTimer); };
+            const showSwitch = () => { desk.dockRefresh(); sw.classList.add('open'); document.body.classList.add('dock-open');
+                // Over the home screen's own dock it sits just above it, pointing down at the AI (the owner's sketch, 2026-11-18).
+                { const hd = document.querySelector('#deviceHome:not([hidden]) .home-dock'); if (hd) sw.style.setProperty('--over', Math.round((innerHeight - hd.getBoundingClientRect().top) / pageZoom() + 12) + 'px'); } clearTimeout(desk.switchTimer); if (!fine()) desk.switchTimer = setTimeout(hideSwitch, 5000); };
             desk.showSwitch = showSwitch; desk.hideSwitch = hideSwitch; desk.sw = sw;
             const switchButton = (key, label, svg, act) => { const b = el('button', { type: 'button', class: `device-switch-button device-switch-${key}${key === 'home' ? ' device-homebar' : ''}`, 'aria-label': label, title: label, onclick: () => { hideSwitch(); pt('switch', { to: key }); act(); } }); b.innerHTML = svg; return b; };
             desk.shopDock = switchButton('shop', 'Parcel', HOME_ICONS.shop, () => openShop());
@@ -3289,7 +3291,7 @@ window.AGI = (function () {
     let assistWire = null, orbMoveUntil = 0;
     function assistThreadTick(on) {
         const bubble = on && assistLive?.node, shown = bubble && assistDot && !assistDot.hidden && assistDot.getClientRects().length && !assistBox.classList.contains('away') && !assistBox.classList.contains('in-shop') && bubble.getClientRects().length
-            && !aiArriving && performance.now() >= orbMoveUntil;   // (no line while the AI is on the move: it trailed loose ends across the screen)
+            && !aiArriving && performance.now() >= orbMoveUntil && !(assistMode === 'float' && document.body.classList.contains('dock-open'));   // (no line while the AI is on the move: it trailed loose ends across the screen)
         if (!shown) { if (assistWire) assistWire.style.display = 'none'; return; }
         if (!assistWire) {
             const NS = 'http://www.w3.org/2000/svg', mk = cls => { const p = document.createElementNS(NS, 'path'); p.setAttribute('class', cls); return p; };

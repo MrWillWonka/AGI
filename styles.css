@@ -5122,3 +5122,13 @@ body.glass-hit .device-cracks { animation: glass-flare 0.7s ease-out both; }
 /* On a phone's home screen a tap on the AI opens the dock over the home screen's own, the AI's buttons on top
    (the owner, 2026-11-18). */
 body.ring-device.device-phone.ai-on-home .device-switch { z-index: 3600; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); }
+/* The dock opened from the AI on a phone's home screen (the owner's sketch, 2026-11-18): a panel just above the home
+   screen's own dock with a tail down to the AI, its app row on top and the AI's three buttons under it; the apps slide
+   up out of its way, and the AI's line is put away while it is open. */
+body.ring-device.device-phone.ai-on-home .device-switch { bottom: var(--over, 124px); flex-direction: column-reverse; z-index: 3600; }
+body.ring-device.device-phone.ai-on-home .device-switch::after { content: ''; position: absolute; left: 50%; bottom: -9px; width: 16px; height: 16px; margin-left: -8px; transform: rotate(45deg); background: var(--panel); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+body.ai-on-home .device-switch-ai { padding-bottom: 0; margin-bottom: 0; border-bottom: 0; padding-top: 6px; margin-top: 2px; border-top: 1px solid var(--border); }
+body.device-phone .home-icons { transition: translate 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+body.device-phone.ai-on-home.dock-open .home-icons { translate: 0 -64px; }
+body.device-phone.ai-on-home.dock-open .assist.on-home { opacity: 0; pointer-events: none; }
+.assist { transition: opacity 0.2s ease; }
