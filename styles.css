@@ -5291,3 +5291,7 @@ body.foot-on.device-phone.snare-live .snare-pause { display: none !important; }
 .device-homedot, .assist-dot { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 /* (The dock, open or pinned, has Home in it: the strip gives way.) */
 body:has(.device-switch.open) .device-foot { opacity: 0; pointer-events: none; }
+
+/* The AI's line at the foot of an app on a phone (the owner's card, 2026-11-19); game.js sets how far up. */
+body.ring-device.device-phone .assist.foot-line { position: fixed; top: auto !important; width: auto; z-index: 2400; }
+dialog[open] > .assist.foot-line { z-index: 5; }

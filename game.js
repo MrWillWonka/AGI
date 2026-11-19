@@ -2501,7 +2501,9 @@ window.AGI = (function () {
                 if (!phone) { if (!footMain.hidden) footMain.hidden = true; if (!footClose.hidden) footClose.hidden = true; return; }
                 const host = sw.parentNode, inDialog = host && host !== document.body, app = ringAppNow();
                 let main = null, close = null;
-                if (inDialog) {
+                // (The dock, wherever it is up, has Home in it: the strip gives way. In the Lab it is always up.)
+                const swStyle = sw.getClientRects().length ? getComputedStyle(sw) : null, dockUp = !!swStyle && swStyle.visibility !== 'hidden' && +swStyle.opacity > 0.05;
+                if (dockUp) { /* nothing */ } else if (inDialog) {
                     const x = host.querySelector('.feed-close, .shop-close, .evals-close');
                     if (x && !x.closest('[hidden]')) close = ['Close', () => x.click()];
                     const end = host.querySelector('.feed-end');
@@ -3619,6 +3621,23 @@ window.AGI = (function () {
             // (The owner, later the same day: the apps move up and the line has a band of its own, just over the dock.)
             const h = node.getBoundingClientRect().height || 70 * k, dock = home.node.querySelector('.home-dock').getBoundingClientRect();
             st.left = '10px'; st.right = '10px'; st.width = 'auto'; st.bottom = 'auto'; st.top = Math.max(48 * k, dock.top - 12 * k - h) / k + 'px';
+            return;
+        }
+        // In an app on a phone the line sits at the foot, over the AI's orb and clear of whatever is down there (a card,
+        // the launch button, a tree's bar), so its button and its × are under the thumbs (the owner's card, 2026-11-19).
+        // The Lab keeps its line under the AI itself; Parcel and The Feed's list give it a row of their own.
+        const footLine = !!node && document.body.classList.contains('device-phone') && !['on-home', 'docked', 'in-shop', 'away'].some(c => assistBox.classList.contains(c));
+        assistBox.classList.toggle('foot-line', footLine);
+        if (footLine) {
+            const k = pageZoom(), host = assistBox.parentNode || document.body;
+            let top = innerHeight - 62 * k;
+            for (const n of host.querySelectorAll('#snareCard, .snare-tree-bar, .push-row, #pushButton, .charge, .dev-bar, .device-switch.open')) {
+                if (n.hidden || !n.getClientRects().length) continue;
+                const q = n.getBoundingClientRect();
+                if (q.height > 4 && q.bottom > innerHeight * 0.55 && q.top > innerHeight * 0.3) top = Math.min(top, q.top);
+            }
+            for (const p of ['top', 'width']) st.removeProperty(p);
+            st.left = '10px'; st.right = '10px'; st.bottom = Math.round((innerHeight - top) / k + 8) + 'px';
             return;
         }
         if (!beside) { for (const p of ['top', 'left', 'right', 'bottom', 'width']) st.removeProperty(p); return; }
