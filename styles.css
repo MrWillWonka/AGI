@@ -5304,3 +5304,13 @@ dialog[open] > .assist.foot-line { z-index: 5; }
     body.lab-jobs-foot.ring-device.device-phone #workbench .action-button { width: 100%; min-height: 64px; }
     body.lab-jobs-foot.ring-device.device-phone main.layout { padding-bottom: calc(var(--lab-foot, 64px) + var(--lab-jobs, 100px)); }
 }
+
+/* ---- Two-thumb reach, the trees on a phone (the owner's cards, 2026-11-19). ---- */
+/* Training's tree matches Packet Snare's: XP, Start at and Start run in a bar under the tree; both trees' zoom
+   buttons sit at the bottom-left of the tree, by the left thumb. */
+body.ring-device.device-phone #devView .tree-area { display: flex; flex-direction: column; }
+body.ring-device.device-phone #devView .dev-actions { order: 2; padding-right: 12px; min-height: 0; margin-top: 8px; }
+body.ring-device.device-phone #devView .tree-viewport { order: 1; flex: 1 1 auto; min-height: 0; }
+body.device-phone .tree-zoom, body.ring-device.device-phone .snare-tree-zoom { top: auto; bottom: 8px; left: 8px; flex-direction: column; }
+/* (Room under Training's bar for the foot strip.) */
+body.foot-on.ring-device.device-phone #devView { padding-bottom: 56px; box-sizing: border-box; }
