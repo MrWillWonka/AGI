@@ -1134,7 +1134,7 @@
         text(layerEl, f.sessioned ? (f.session ? `Split ${split}%` : '') : `Hunger ${pct}%`);
         hungerEl.classList.toggle('life', !!f.sessioned); hungerEl.classList.toggle('low', !!f.session && hunger.life < 0.25);
         renderPick(); renderCards(); renderHeld();
-        if (hungerEl.firstChild.style.width !== pct + '%') { hungerEl.firstChild.style.width = pct + '%'; hungerEl.setAttribute('aria-valuenow', String(pct)); }
+        if (hungerEl.firstChild.style.transform !== `scaleX(${pct / 100})`) { hungerEl.firstChild.style.transform = `scaleX(${pct / 100})`; hungerEl.setAttribute('aria-valuenow', String(pct)); }
         text(mitesEl, plural(f.mites, 'mite', 'mites'));
         renderFrenzy(f);
         text(researchEl, `${E().format(Math.floor(game().res.rp))} research`);

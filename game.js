@@ -20,6 +20,7 @@ window.AGI = (function () {
     // Which link this is gets read once, here. A tab that already has the game open only changes its hash when another
     // link is opened in it, with no load, so the old link carried on (the owner opened #test and got the playtest).
     window.addEventListener('hashchange', () => location.reload());
+    if (RING_TEST) { document.querySelector('meta[name="viewport"]')?.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover'); document.documentElement.classList.add('fit-cover'); }
     // The three links (the owner's call, 2026-11-15). The plain link is the PLAYTEST: the ring, on a save and a playtest
     // log kept per playtest number (`E.PLAYTEST_BUILD`), so nothing from an older build comes along. `#ring` (or `#dev`)
     // is for DEV work: the ring on the save it always had, never started over. `#playground` is above. The old game has
@@ -1646,7 +1647,10 @@ window.AGI = (function () {
     // not feel like it faded at all; Safari cannot hold a closing dialog on screen from CSS alone). `close()` marks it
     // `.closing`, the stylesheet plays the way out, and the real close follows; opening it again, or a second close,
     // ends the wait at once. With animations reduced it closes as before.
-    const DIALOG_OUT_MS = 200;
+    const DIALOG_OUT_MS = 200, DIALOG_BUTTON_GRACE_MS = 300;
+    // A bar fills by `transform`, which the browser animates without laying the page out again (a width did, every
+    // frame: the owner's go-ahead, 2026-11-19). The fill is full width in the stylesheet and scaled from its left.
+    function fillTo(node, share) { const v = 'scaleX(' + Math.round(Math.max(0, Math.min(1, share || 0)) * 1000) / 1000 + ')'; if (node && node.style.transform !== v) node.style.transform = v; }
     {
         const show = HTMLDialogElement.prototype.showModal, close = HTMLDialogElement.prototype.close;
         const finish = d => { clearTimeout(d._closing); d._closing = 0; d.classList.remove('closing'); if (d.open) close.apply(d, d._closeArgs || []); };
@@ -1661,6 +1665,9 @@ window.AGI = (function () {
         // (A form inside a dialog closes it without `close()`: the same way out for those.)
         document.addEventListener('submit', e => { const f = e.target, d = f.closest?.('dialog'); if (e.defaultPrevented || !d || f.getAttribute('method') !== 'dialog') return; e.preventDefault(); d.close(e.submitter?.value ?? ''); });
         document.addEventListener('click', e => { const d = e.target; if (d instanceof HTMLDialogElement && performance.now() - (d._shownAt || -1e9) < DIALOG_GRACE_MS) e.stopImmediatePropagation(); }, true);
+        // Its own buttons wait a shorter moment (the owner's go-ahead, 2026-11-19): a tap already on its way to the game
+        // must not answer a question that has only just come up under it. Typed keys and later taps are untouched.
+        document.addEventListener('click', e => { const d = e.target.closest?.('dialog'); if (!d || d === e.target || !e.detail || performance.now() - (d._shownAt || -1e9) >= DIALOG_BUTTON_GRACE_MS) return; e.stopImmediatePropagation(); e.preventDefault(); }, true);
     }
     function buildJournal() {
         const journal = $('journal');
@@ -3016,7 +3023,7 @@ window.AGI = (function () {
         const popping = loading && !labOpened();
         if (home.popup.hidden === popping) home.popup.hidden = !popping;
         setText(home.popupText, installed ? 'Lab is ready.' : 'Lab · from A Friend');
-        home.bar.style.width = `${Math.round(share * 100)}%`;
+        fillTo(home.bar, share);
         if (home.popupOpen.hidden === installed) home.popupOpen.hidden = !installed;
     }
     // Back to the home screen from the Lab or Packet Snare (the home crumb), and out to an app from it.
@@ -3843,12 +3850,12 @@ window.AGI = (function () {
             el('div', { class: 'device-call-actions' }, [
                 el('button', { type: 'button', class: 'device-call-decline', text: 'Decline', onclick: () => { if (!answered) declined = true; dlg.close(); } }),
                 el('button', { type: 'button', class: 'device-call-answer', text: 'Answer', onclick: () => answer() })])]);
-        let declined = false, answered = false, ring = setInterval(() => sfx('ui'), 1200), out = setTimeout(() => dlg.close(), CALL_RING_MS), clock = 0;
+        let declined = false, answered = false, answeredAt = 0, ring = setInterval(() => sfx('ui'), 1200), out = setTimeout(() => dlg.close(), CALL_RING_MS), clock = 0;
         // Answered (the owner's note, 2026-11-19): nobody is there. Dead air while the call's clock counts, then it
         // ends abruptly, with no fade. PLACEHOLDER words.
         const answer = () => {
             if (answered) return;
-            answered = true; clearInterval(ring); clearTimeout(out);
+            answered = true; answeredAt = performance.now(); clearInterval(ring); clearTimeout(out);
             const [kind, , sub] = dlg.children, t0 = performance.now();
             setText(kind, 'Connected'); setText(sub, '0:00');
             dlg.classList.add('answered');
@@ -3863,7 +3870,7 @@ window.AGI = (function () {
             state.intro['ring:call'] = true;
             fundBusy = false;
             pt('call', { from: 'm0m', declined: declined ? 1 : 0, answered: answered ? 1 : 0 });
-            deviceNotice('phone', 'Phone', answered ? 'Call ended. M0M (0:05). Nobody spoke.' : 'Missed call from M0M. New voicemail (0:11).', () => {});
+            deviceNotice('phone', 'Phone', answered ? `Call ended. M0M (0:0${Math.min(5, Math.floor((performance.now() - answeredAt) / 1000))}). Nobody spoke.` : 'Missed call from M0M. New voicemail (0:11).', () => {});
             save();
         });
         document.body.append(dlg);
@@ -4454,7 +4461,7 @@ window.AGI = (function () {
         const pct = demoDone ? 100 : Math.round(E.phaseProgress(state) * 100);
         const bar = $('phaseBar');
         bar.setAttribute('aria-valuenow', pct);
-        bar.firstElementChild.style.width = pct + '%';
+        fillTo(bar.firstElementChild, pct / 100);
 
         const gains = { compute: `+${E.format(d.clickPower, d.clickPower < 10 && d.clickPower % 1 ? 2 : undefined)} CP`, collect: `+${E.format(d.dpPerCollect)} DP`,
             research: `+${E.format(d.rpPerResearch)} RP` };
@@ -5215,7 +5222,7 @@ window.AGI = (function () {
             const row = list.querySelector(`[data-id="${o.id}"]`);
             if (!row) continue;
             const prog = E.projectProgress(state, o);
-            row.querySelector('.project-fill').style.width = `${(prog / o.target) * 100}%`;
+            fillTo(row.querySelector('.project-fill'), prog / o.target);
             setText(row.querySelector('.project-time'), `${E.format(Math.min(prog, o.target))}/${E.format(o.target)} · ${left(o.deadline - t)}`);
         }
     }
@@ -5343,7 +5350,7 @@ window.AGI = (function () {
                 const p = d.tasks.procurement;
                 setText(u.rate, !on ? 'Paused' : p.pick ? `Next: ${E.UPGRADE_BY_ID[p.pick].name} · ${f(p.fund)}/${f(p.need)} CP` : 'Idle · hardware at capacity');
             }
-            if (u.fill) u.fill.style.width = `${(on ? taskProgress[t.id] : 0) * 100}%`;
+            if (u.fill) fillTo(u.fill, on ? taskProgress[t.id] : 0);
             if (!u.slider) continue;
             const pct = Math.round((state.tasks[t.id].share ?? 0) * 100);
             if (document.activeElement !== u.slider) u.slider.value = pct;
@@ -5753,7 +5760,7 @@ window.AGI = (function () {
             setText(node.querySelector('.bay-name'), unlocked ? BAYS[id].name : '???');
             node.setAttribute('aria-label', blank ? 'Blank panel' : `${unlocked ? BAYS[id].name : 'Sealed section'}: ${bayStatus(id)}`);
         }
-        $('bayTrainingMeter').style.width = `${Math.round(state.path.best * 100)}%`;
+        fillTo($('bayTrainingMeter'), state.path.best);
         // Packet Snare's bay wears the tree's badge once you've been in, like the Upgrades buttons.
         const pipe = $('bays').querySelector('.bay[data-bay="pipeline"]');
         const ready = bayUnlocked('pipeline') && baySeen('pipeline') && state.snare.runs > 0 ? snareReadyCount() : 0;
@@ -15108,7 +15115,11 @@ window.AGI = (function () {
             tries: () => ['Close Settings and open it from its icon, to see the fade.', 'Switch on Reduce animations and do the same. It should appear and go at once.', 'Switch it off again.'],
             run: () => $('settingsButton').click() },
         { id: 'sideways', title: 'Sideways', what: 'The home screen, as it is.', when: uiTouch,
-            tries: () => ['Turn the phone on its side.', 'Every app should fit in one row, with none under the foot row.', 'Open the Lab sideways. The orb and the amounts should sit side by side, with Generate Compute at the right, beside the dock.', 'Open Settings sideways. Is anything cut off?', 'Turn it back before you move on.'] }];
+            tries: () => ['Turn the phone on its side.', 'Every app should fit in one row, with none under the foot row.', 'Open the Lab sideways. The orb and the amounts should sit side by side, with Generate Compute at the right, beside the dock.', 'Open Settings sideways. Is anything cut off?', 'Turn it back before you move on.'] },
+        // The screen's whole glass, notch and home bar included (`viewport-fit=cover`), on this link only until the
+        // owner has seen it on the phone: nothing can check an iPhone's safe areas from a desktop browser.
+        { id: 'notch', title: 'The notch and the home bar', what: 'On this test link the game now draws to the very edges of the glass.', when: uiTouch,
+            tries: () => ['Upright: does anything sit under the home bar at the foot, or too close to it?', 'Turn it sideways with the notch on the left, then on the right. Is anything hidden behind it?', 'Open the Lab, Parcel and Packet Snare each way. Name anything that is cut off.', 'If it looks right everywhere, I will switch it on for the real game.'] }];
     let uiTestAt = 0, uiTestRan = null, uiTestCard = null, uiTestTimer = 0, uiTestRun = 0;
     const uiTests = () => UI_TESTS.filter(t => !t.when || t.when());
     // Back to the bare home screen: whatever the last test left open is closed.
