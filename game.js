@@ -2626,7 +2626,7 @@ window.AGI = (function () {
         if (aiLog.dirty) {
             aiLog.dirty = false;
             const stick = L.list.scrollTop + L.list.clientHeight >= L.list.scrollHeight - 12;
-            L.list.replaceChildren(...(aiLog.length ? aiLog.slice(-40).map(e => { const row = el(e.k === 'say' ? 'button' : 'div', { class: 'ai-log-row ai-log-' + e.k }, [el('span', { class: 'ai-log-time', text: E.formatDuration(e.t) }), el('span', { class: 'ai-log-text', text: (e.k === 'say' ? '> ' : '· ') + e.x })]);
+            L.list.replaceChildren(...(aiLog.length ? aiLog.slice(-40).map(e => { const row = el(e.k === 'say' ? 'button' : 'div', { class: 'ai-log-row ai-log-' + e.k }, [el('span', { class: 'ai-log-time', text: e.t >= 3600 ? Math.floor(e.t / 3600) + 'h ' + Math.floor(e.t % 3600 / 60) + 'm' : e.t >= 60 ? Math.floor(e.t / 60) + 'm' : e.t + 's' }), el('span', { class: 'ai-log-text', text: (e.k === 'say' ? '> ' : '· ') + e.x })]);
                 if (e.k === 'say') { row.type = 'button'; row.onclick = () => { pt('assistAsk', { again: e.id || 'log' }); assist('log:' + e.t, e.x, { again: true }); }; }
                 return row; }) : [el('p', { class: 'ai-log-empty', text: 'Nothing yet.' })]));
             if (stick) L.list.scrollTop = L.list.scrollHeight;
@@ -3042,7 +3042,7 @@ window.AGI = (function () {
         "hold": "You can hold the button down as well. It repeats about four times a second, which is easier on your hand.",
         "back": "The tower is in. Thank you. Back to the Lab, if you would.",
         "dock1": "I put Parcel down here for you. You can buy things without leaving. I thought it would save you the trip.",
-        "dock2": "Home is the one in the middle. Settings and Playtest are beside it. The pin keeps this open. The arrow shows your other apps.",
+        "dock2": "Home is the one in the middle. Feedback and Settings are beside it. The pin keeps this open. The arrow shows your other apps.",
         "moneyHome": "This one. Parcel pays for compute and sells desk parts. A tower would let you make more with each tap.",
         "snare": "The desk is working. Thank you. There is data going past out there, and I would like to see some. Would you catch a little?",
         "snareHome": "This one. Packet Snare is where the data goes by. The blue I can read. The red I cannot. Not yet.",
@@ -3566,7 +3566,7 @@ window.AGI = (function () {
         if (!a) { assistThreadTick(false); return; }
         if (a.done && performance.now() - a.at > assistHold(a) && a.done()) { assistClose('done'); return; }
         if (a.key.startsWith('dock') && ringAppNow() === 'home') { const { node, at, ringed, ...q } = a; delete state.intro['assist:' + a.key]; assistClose('left'); assistQueue.unshift(q); return; }
-        if (desk?.showSwitch && a.key.startsWith('dock') !== !!desk.dockHeld) { desk.dockHeld = a.key.startsWith('dock'); if (desk.dockHeld) desk.showSwitch(); else desk.hideSwitch(); }
+        if (desk?.showSwitch && a.key.startsWith('dock') !== !!desk.dockHeld) { desk.dockHeld = a.key.startsWith('dock'); document.body.classList.toggle('dock-told', desk.dockHeld); if (desk.dockHeld) desk.showSwitch(); else desk.hideSwitch(); }
         // It sits over whatever is open: inside the topmost open dialog (Mail, The Feed, Parcel), else on the page.
         const open = document.querySelectorAll('dialog[open]'), host = open.length ? open[open.length - 1] : assistMode === 'lab' && aiHome ? aiHome.lastChild : document.body;
         if (assistBox.parentNode !== host) host.append(assistBox);
@@ -10277,9 +10277,11 @@ window.AGI = (function () {
                 // stacked upward from where the label sits, upright on screen
                 const T = snareScreenText(ctx, W, H, k), [u0, v0] = T.at(x, y);
                 T.begin();
+                // (one left edge for the block: each line was centred on its own, so a second line sat oddly under the first)
+                const blockU = Math.max(hw, Math.min(T.sw - hw, u0));
                 wrapped.forEach((line, i) => {
                     const half = ctx.measureText(line).width / 2 + 4;
-                    const u = Math.max(half, Math.min(T.sw - half, u0)), v = Math.max(fit, v0 - (wrapped.length - 1 - i) * (fit + 4));
+                    const u = blockU - hw + half, v = Math.max(fit, v0 - (wrapped.length - 1 - i) * (fit + 4));
                     T.stroke(line, u, v);
                     T.fill(line, u, v);
                 });

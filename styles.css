@@ -5245,3 +5245,20 @@ body.ring-device.device-phone.ai-in-lab #labRoom { padding-bottom: calc(210px + 
     body.ring-device.device-phone .inbox-message .dialog-actions .button { min-height: 44px; padding-top: 8px; padding-bottom: 8px; }
     body.ring-device.device-phone .inbox-note { display: none; }
 }
+
+/* ---- From the owner's second set of phone screenshots (2026-11-19). ---- */
+/* While the AI is saying what the dock is, its line sits clear above the dock (it sat on it, in Parcel). */
+body.dock-told .assist.in-shop, body.dock-told.device-laptop .assist.in-shop { margin-bottom: 230px; }
+body.dock-told .assist.low { bottom: calc(250px + env(safe-area-inset-bottom, 0px)); }
+/* A notice's own icon keeps its colour (Feedback's was black). */
+.device-notice-playtest .device-notice-art { color: var(--warning); }
+.device-notice .device-notice-art { color: var(--primary); } .device-notice-playtest .device-notice-art, .device-notice-shop .device-notice-art, .device-notice-mail .device-notice-art { color: var(--warning); }
+/* One rule between the dock's rows, not two. */
+.device-switch-apps { border-bottom: 0; padding-bottom: 0; }
+/* The AI log's times fit their column on one line. */
+.ai-log-row { grid-template-columns: 3.2em 1fr; }
+.ai-log-time { white-space: nowrap; }
+/* What a tester types breaks between words in the survey too (only the save code is broken anywhere). */
+.survey-form textarea { word-break: normal; overflow-wrap: break-word; }
+/* Parcel and The Feed leave room at their foot for a pinned dock. */
+body.dock-pinned.ring-device.device-phone .shop-screen, body.dock-pinned.ring-device.device-phone .feed-screen { padding-bottom: calc(196px + env(safe-area-inset-bottom, 0px)); }
