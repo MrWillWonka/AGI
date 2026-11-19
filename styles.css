@@ -5119,3 +5119,6 @@ body.glass-hit .device-cracks { animation: glass-flare 0.7s ease-out both; }
 /* The home screen of a phone keeps a band between the dock and the apps for the AI's line (the owner, 2026-11-18): the
    apps start above it. (The grid is drawn upside down to fill from the foot, so its foot is its padding-top.) */
 @media (max-width: 640px) { body.device-phone .home-icons { padding-top: 124px; } }
+/* On a phone's home screen a tap on the AI opens the dock over the home screen's own, the AI's buttons on top
+   (the owner, 2026-11-18). */
+body.ring-device.device-phone.ai-on-home .device-switch { z-index: 3600; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); }

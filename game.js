@@ -2447,9 +2447,9 @@ window.AGI = (function () {
             const stay = () => { clearTimeout(leaveTimer); }, leave = () => { clearTimeout(leaveTimer); if (fine()) leaveTimer = setTimeout(hideSwitch, 280); };
             dot.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') { stay(); if (!isOpen()) hoverAt = performance.now(); showSwitch(); } });
             for (const n of [dot, sw]) { n.addEventListener('pointerenter', stay); n.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') leave(); }); }
-            document.addEventListener('pointerdown', e => { if (isOpen() && !e.target.closest('.device-switch, .device-homedot')) hideSwitch(); });
+            document.addEventListener('pointerdown', e => { if (isOpen() && !e.target.closest('.device-switch, .device-homedot, .assist-dot')) hideSwitch(); });
             document.body.append(sw, dot);
-            desk.dot = dot;
+            desk.dot = dot; desk.toggleSwitch = () => { if (isOpen()) hideSwitch(true); else showSwitch(); };
             // The dock and its handle go with you into an app that is a window of its own (The Feed, Evals, Parcel are
             // modal: anything left on the page is under them).
             desk.dockHost = host => { if (sw.parentNode !== host) host.append(sw, dot); };
@@ -3222,7 +3222,8 @@ window.AGI = (function () {
             assistDot.addEventListener('pointerdown', e => { try { assistDot.setPointerCapture(e.pointerId); } catch { /* gone */ } const b = assistDot.getBoundingClientRect(); d = { x: e.clientX, y: e.clientY, l: b.left, t: b.top, moved: false }; });
             assistDot.addEventListener('pointermove', e => { if (!d || assistMode !== 'float' || document.body.classList.contains('device-phone')) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; if (!d.moved && Math.hypot(dx, dy) < 8) return; d.moved = true; place(d.l + dx, d.t + dy); });
             assistDot.addEventListener('pointerup', () => { const was = d; d = null; if (!was) return;
-                if (!was.moved) { assistSheetToggle(); return; }
+                // (The owner, 2026-11-18: a tap on the AI brings up the dock with its buttons on top, on the home screen as in an app.)
+                if (!was.moved) { if (document.body.classList.contains('device-phone') && assistMode === 'float' && desk?.toggleSwitch) desk.toggleSwitch(); else assistSheetToggle(); return; }
                 const b = assistDot.getBoundingClientRect(); try { localStorage.setItem('agiAssistDot2', JSON.stringify({ x: b.left / innerWidth, y: b.top / innerHeight })); } catch { /* private mode */ } });
             assistDot.addEventListener('pointercancel', () => { d = null; });
             document.body.append(assistDot);
@@ -3236,6 +3237,7 @@ window.AGI = (function () {
             const r = n.getBoundingClientRect(), size = n === assistDot ? r.width : 38; return { n, x: r.left + r.width / 2, y: r.top + r.height / 2, size }; };
         const was = assistDot && mode !== assistMode && !aiArriving && !reducedMotion() ? orbNow() : null;
         if (was) orbMoveUntil = performance.now() + 1300;
+        document.body.classList.toggle('ai-on-home', mode === 'float');
         const phone = document.body.classList.contains('device-phone');
         const host = top && mine ? top : mode === 'lab' ? aiHome.firstChild : mode === 'float' && phone && home?.aiSlot ? home.aiSlot : document.body;
         if (assistDot.hidden === mine) { assistDot.hidden = !mine; if (!mine && assistSheet) assistSheetToggle(); }
@@ -3245,7 +3247,7 @@ window.AGI = (function () {
             // The AI goes from one place to the next in one smooth move, growing or shrinking to fit (the owner,
             // 2026-11-18): up into the Lab and back down, onto the dock, to the foot of an app. In the Lab the dock takes
             // the foot, open, so the way out is still to hand and there is one AI on screen.
-            document.body.classList.toggle('ai-in-lab', mode === 'lab'); if (mode === 'lab' && desk?.dockRefresh) desk.dockRefresh();
+            document.body.classList.toggle('ai-in-lab', mode === 'lab'); document.body.classList.toggle('ai-on-home', mode === 'float'); if (desk?.hideSwitch && mode !== 'lab') desk.hideSwitch(true); if (mode === 'lab' && desk?.dockRefresh) desk.dockRefresh();
             if (was) requestAnimationFrame(() => requestAnimationFrame(() => { const to = orbNow(); if (!to || !to.size) return;
                 const z = pageZoom(), dx = (was.x - to.x) / z, dy = (was.y - to.y) / z, k = Math.max(0.15, Math.min(6, was.size / to.size)); if (Math.abs(dx) + Math.abs(dy) < 6 && Math.abs(k - 1) < 0.05) return;
                 // An arc, not a straight line (the owner, 2026-11-18): a curve bowed to one side, eased in and out.
@@ -3396,7 +3398,8 @@ window.AGI = (function () {
                 const tx = tr.left + tr.width / 2, col = colOf(tx);
                 one = up;
                 if (r === 0) two = draw([[enter(tx), b.top], [tx, tr.bottom + 6 * k]]);
-                else { const gx = enter(gutter(tx > ox ? col : col + 1)); two = draw([[gx, b.top], [gx, gapY(r)], [tx, gapY(r)], [tx, tr.bottom + 6 * k]]); }
+                else { const fromLeft = tx > ox, gx = enter(gutter(fromLeft ? col : col + 1)), ty = tr.top + tr.height / 2;   // (the owner's sketch, 2026-11-18: up the gutter beside it and in at its side, not along under it)
+                    two = draw([[gx, b.top], [gx, ty], [fromLeft ? tr.left - 6 * k : tr.right + 6 * k, ty]]); }
             } else if (t && t.closest('.home-dock')) {           // Feedback or Settings, beside the AI on the dock
                 const left = tr.right < ox;
                 one = draw([[ox + (left ? -R : R), oy], [left ? tr.right + 6 * k : tr.left - 6 * k, oy]]); two = up;
