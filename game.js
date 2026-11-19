@@ -30,7 +30,7 @@ window.AGI = (function () {
     } catch { /* private mode */ }
     const PLAYGROUND = BAYS_DIRECT;
     E.setPlayground(BAYS_DIRECT || RING_PLAY);
-    E.setCourses(RING_DEV);   // Evals is the courses in the dev link (the owner's call, 2026-11-17); the playtest keeps the captchas until a new one is published
+    E.setCourses(RING_DEV || PLAYTEST);   // Evals is the courses in the dev link (the owner's call, 2026-11-17) and, from 2026-11-19, in the playtest too (his card: "Switch it now"; the captchas were still showing there)
     const SAVE_KEY = PLAYTEST ? `agiGame.pt${E.PLAYTEST_BUILD}` : RING_PLAY ? 'agiGame.playground' : 'agiGame';
     const BACKUP_KEY = SAVE_KEY + '.bak';         // the last good save (refreshed every BACKUP_MS, and kept before an import)
     const CORRUPT_KEY = SAVE_KEY + '.corrupt';    // a save that couldn't be read, kept as it was
@@ -3003,7 +3003,7 @@ window.AGI = (function () {
         // (Four kinds of course: the room, the maze, the rhythm run and the puck course, a button in each to the next open one; the last one used opens. The track
         // was folded into the room, the owner's call, 2026-11-16: the two did not feel distinct. A third kind is being chosen.)
         // course-unlocks.js decides which: the kind last used if it is open, else the first (the rhythm run).
-        if (!((RING_PLAY || RING_DEV) && window.CourseUnlocks?.open())) window.EvalsUI?.open();
+        if (!((RING_PLAY || RING_DEV || PLAYTEST) && window.CourseUnlocks?.open())) window.EvalsUI?.open();
     }
     function openTrainingApp() {
         state.intro['ring:seen:training'] = true;
@@ -8071,7 +8071,7 @@ window.AGI = (function () {
             const cost = sn.fightCost, ago = cost ? (performance.now() - cost.at) / 1400 : 1;
             const big = Math.round(Math.min(W, H) * 0.06);
             if (ago < 1) {
-                const cy = by + bh + 22 + (f.left < 10 ? big * 1.25 : 0);   // under the last 10 s' big count
+                const cy = by + bh + 22;
                 ctx.font = `700 12px ${snareMono()}`;
                 ctx.globalAlpha = 1 - ago * ago;
                 ctx.lineWidth = 3;
@@ -8081,13 +8081,7 @@ window.AGI = (function () {
                 ctx.fillText(`−${cost.secs} s CLOCK`, W / 2, cy);
                 ctx.globalAlpha = 1;
             }
-            if (f.left < 10) {
-                ctx.font = `700 ${big}px ${snareMono()}`;
-                ctx.globalAlpha = 0.5 + 0.4 * pulse;
-                ctx.fillStyle = C.danger;
-                ctx.fillText(`${Math.ceil(f.left)} s`, W / 2, by + bh + 14 + big * 0.6);
-                ctx.globalAlpha = 1;
-            }
+            // (The last 10 s' count under the bar is gone: the owner's card, 2026-11-19. The clock showed four times at once; the bar's own number and the big count in the field stay.)
         }
         ctx.restore();
     }

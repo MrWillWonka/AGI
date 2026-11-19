@@ -67,7 +67,8 @@
     // In the ring's dev link the courses are part of the game (the owner's call, 2026-11-17): everything they keep is in
     // the game's save (`state.courses`, text by key), the unlocks are always on, and there is no switch. Anywhere else
     // (the playground) they keep to the device, as before.
-    const ring = location.hash === '#ring' || location.hash === '#dev';
+    // (The plain playtest link too, from 2026-11-19: the same test as game.js's PLAYTEST.)
+    const ring = location.hash === '#ring' || location.hash === '#dev' || (!root.AGI_SNARE_DIRECT && !['#playground', '#bays', '#debug', '#evals', '#feed', '#snare'].includes(location.hash));
     const saved = () => (root.AGI && root.AGI.state ? (root.AGI.state.courses || (root.AGI.state.courses = {})) : null);
     const get = k => { if (ring) { const c = saved(); return c && typeof c[k] === 'string' ? c[k] : null; } try { return localStorage.getItem(k); } catch { return null; } };
     const set = (k, v) => { if (ring) { const c = saved(); if (c) { if (v == null) delete c[k]; else c[k] = String(v); } return; } try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch { /* private mode */ } };

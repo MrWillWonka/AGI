@@ -437,8 +437,10 @@
             `${last.piles > 1 ? `${last.piles} stockpiles` : `Sector ${last.sector}`} · ${plural(last.mites, 'mite', 'mites')} · ${plural(last.layers, 'split', 'splits')} · ${last.time} s${last.record ? ' · New best' : ''}${last.cards ? ` · ${plural(last.cards, 'card', 'cards')}` : ''}`));
         if (!wait && some) renderSquad(kids);
         kids.push(el('h3', { class: 'feed-pick-title', text: wait ? 'Carry on with' : 'Tanks' }));
-        if (!some) kids.push(el('p', { class: 'feed-pick-none', text: 'Nothing stockpiled. Catch packets in Packet Snare to fill one.' }),
-            el('button', { type: 'button', class: 'button feed-pick-snare', text: 'Go to Packet Snare', onclick: () => window.AGI.ringOpen?.('snare') }));
+        // (One button to Packet Snare, not two: the owner's card, 2026-11-19. The result's own is kept when it is there.)
+        const snareAlready = kids.some(k => { const b = k.matches?.('.feed-next') ? k : k.querySelector?.('.feed-next'); return b && /Packet Snare/.test(b.textContent); });
+        if (!some) { kids.push(el('p', { class: 'feed-pick-none', text: 'Nothing stockpiled. Catch packets in Packet Snare to fill one.' }));
+            if (!snareAlready) kids.push(el('button', { type: 'button', class: 'button feed-pick-snare', text: 'Go to Packet Snare', onclick: () => window.AGI.ringOpen?.('snare') })); }
         for (const e of list) {
             if (!e.total && (wait || !some)) continue;   // an empty stockpile's dead button is noise
             const pct = Math.round(Math.min(1, e.total / e.cap) * 100);
