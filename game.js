@@ -6015,11 +6015,15 @@ window.AGI = (function () {
         if (phone && state.intro['snare:coach:loop'] && !tu.wireStep && !snare.coach && now - (snare.coachCaught || 0) > 600) {
             tu.wireStep = now;
             const r = 1.2;   // a loop round one group fits (its ghost is about 0.85); round both, a third of the longer side apart, it can't
-            run.opts.wireShare = Math.PI * r * r / (run.w * run.h);
+            // (the owner's phone log, 2026-11-19: one circle round both closed. The wire is now also shorter than the tightest
+            // loop round the two, whatever the field's shape, and never too short for one group)
+            const sep = 0.6 * Math.max(run.w, run.h), len = Math.max(2 * Math.PI * 0.95, Math.min(2 * Math.PI * r, 2 * sep + 1.2 - run.closeR));
+            run.opts.wireShare = (len / 2) ** 2 / Math.PI / (run.w * run.h);
             snareWireGroups(run, 2);
         }
         // The line has run out on a circle round both (or a group was caught): now it says why.
         if (tu.wireStep && !tu.wireTried && (run.wireUsed >= 0.999 || tu.wireCaught) && now - tu.wireStep > 800) { tu.wireTried = now; pt('snareCoach', { key: 'wireTry', done: true, secs: Math.round((now - tu.wireStep) / 100) / 10, ranOut: run.wireUsed >= 0.999 }); }
+        if (phone && tu.wireCaught && !state.intro['snare:coach:wire'] && !snare.coach && !run.packets.some(p => p.kind !== 'corrupt') && now - (snare.coachCaught || 0) > 500) { state.intro['snare:coach:wire'] = true; pt('snareCoach', { key: 'wire', done: true, caught: tu.wireCaught, emptied: 1 }); }
         const wireOver = !phone || state.intro['snare:coach:wire'];
         const late = snare.coachOff && now - tu.t0 > SNARE_TUTORIAL_MAX * 1000;   // only if the walkthroughs broke
         if ((tu.redGone && loopOver && wireOver && !snare.coach && now - tu.redGone > 400) || late) snareZoomOut(tu.anchor || null);
@@ -6027,13 +6031,14 @@ window.AGI = (function () {
     // The tutorial's field zooms out to the standard one: the run proper starts with what was left. Centred on `anchor`
     // (Snare 18.9: where the drawn loop caught; the middle on desktop), which lands in the middle of the standard field and
     // stays at the middle of the screen as the view pulls back.
+    const snareTutorialSeen = () => { for (const k of ['bubble', 'red', 'loop', 'wire']) if (!state.intro['snare:coach:' + k]) state.intro['snare:coachSeen:' + k] = SNARE_COACH_TRIES; };
     function snareZoomOut(anchor = null) {
         const tut = snare.run, o = snare.tutorial.o;
         snareCoachEnd(false);
         snare.tutorial = null;
         state.intro['snare:tutorial'] = true;
         // its walkthroughs belong to it: none plays again on the full field (the owner: they played before and after the zoom)
-        for (const k of ['bubble', 'red', 'loop', 'wire']) if (!state.intro['snare:coach:' + k]) state.intro['snare:coachSeen:' + k] = SNARE_COACH_TRIES;
+        snareTutorialSeen();
         const big = window.PacketSnare.createSnare({ ...o, ...snareField(o.area, o), seed: snare.seed, redHunt: snareHuntOn() ? SNARE_HUNT : 0 });
         const ax = anchor ? anchor.x : tut.w / 2, ay = anchor ? anchor.y : tut.h / 2;
         const dx = big.w / 2 - ax, dy = big.h / 2 - ay;
@@ -6155,7 +6160,7 @@ window.AGI = (function () {
             if (!what) continue;   // ids start at 1, so anything falsy (0 from a switched-off option too) is "not now"
             const at = def.aim(run, what);
             if (!at) continue;
-            state.intro[coachKey(def, 'coachSeen')] = (state.intro[coachKey(def, 'coachSeen')] || 0) + 1;
+            state.intro[coachKey(def, 'coachSeen')] = def.info ? SNARE_COACH_TRIES : (state.intro[coachKey(def, 'coachSeen')] || 0) + 1;   // (one that only shows something is shown once: the unreadable packet's came back run after run)
             snare.coach = { key: def.key, what, at, t0: now };
             run.setSlow(def.slow ?? (SNARE_COACH_SLOW || 0.01));
             return;
@@ -6842,6 +6847,8 @@ window.AGI = (function () {
             pt('server', { offered: 1 });
             assist('server', 'That one needs a skill I do not have. I need a server to train on. Parcel sells one. Four hundred dollars. I checked the number twice and got it once. Parcel also buys compute, if you are short.', { action: showMe('shop', 'server'), done: () => E.level(state, 'keyboard') > E.RING_DESK || !!shop?.dlg.open });
         }
+        // a tutorial that ran out of Focus before its zoom out is over too (the owner's log: its walkthroughs came back on the full field)
+        if (snare.tutorial) { snare.tutorial = null; state.intro['snare:tutorial'] = true; snareTutorialSeen(); }
         const res = E.finishSnare(state, snare.haul, layout, stats);
         snare.done = { stats, haul: snare.haul, record: res.record, first: res.first, prev: res.prev, sector: snare.sector, startSector: snare.startSector, cleared: snare.cleared.slice(), walked: !!snare.walked,
             replay: !!snare.replay, goal: snare.run?.opts.goal || 0, goalDone: !!snare.run?.goalDone, goalAt: Math.floor(snare.run?.goalProgress?.() || 0),
