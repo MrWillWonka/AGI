@@ -2077,7 +2077,9 @@ window.AGI = (function () {
             el('div', { class: 'dialog-actions' }, [
                 el('button', { type: 'button', class: 'ghost-button', text: 'Full survey', onclick: () => { done(); openSurvey(); } }),
                 el('button', { type: 'button', class: 'button', text: 'Save', onclick: done })])]);
-        dlg.addEventListener('close', () => { dlg.remove(); deviceNotice('playtest', 'Feedback', wrote || sent ? 'Note saved and sent.' : 'Snapshot saved and sent.', () => {}); });
+        // Closed with nothing added, the playtest log still goes, up to the moment, and the notice says so (the owner's call, 2026-11-18).
+        dlg.addEventListener('close', () => { dlg.remove(); pt('noteClosed', { snap, wrote: wrote ? 1 : 0, photos: sent }); try { playtestSample(true); } catch { /* the log goes as it stands */ } inboxLog();
+            deviceNotice('playtest', 'Feedback', wrote || sent ? 'Note saved and sent.' : 'Your log has been sent.', () => {}); });
         document.body.append(dlg); dlg.showModal(); box.focus();
     }
     // Screenshots made with the phone's own buttons, picked from its photos: saved beside the log with the play time.
