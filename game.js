@@ -2487,7 +2487,56 @@ window.AGI = (function () {
             desk.dot = dot; desk.toggleSwitch = () => { if (isOpen()) hideSwitch(true); else showSwitch(); };
             // The dock and its handle go with you into an app that is a window of its own (The Feed, Evals, Parcel are
             // modal: anything left on the page is under them).
-            desk.dockHost = host => { if (sw.parentNode !== host) host.append(sw, dot); };
+            // The foot strip (the owner's card, 2026-11-19: two thumbs reach the bottom of a phone, not its top corners).
+            const footMain = el('button', { type: 'button', class: 'ghost-button device-foot device-foot-main', hidden: '' });
+            const footClose = el('button', { type: 'button', class: 'ghost-button device-foot device-foot-close', hidden: '' });
+            footMain.hidden = true; footClose.hidden = true;
+            let footDo = { main: null, close: null };
+            footMain.addEventListener('click', () => footDo.main?.());
+            footClose.addEventListener('click', () => footDo.close?.());
+            document.body.append(footMain, footClose);
+            desk.footTick = () => {
+                const phone = document.body.classList.contains('device-phone');
+                document.body.classList.toggle('foot-on', phone);
+                if (!phone) { if (!footMain.hidden) footMain.hidden = true; if (!footClose.hidden) footClose.hidden = true; return; }
+                const host = sw.parentNode, inDialog = host && host !== document.body, app = ringAppNow();
+                let main = null, close = null;
+                if (inDialog) {
+                    const x = host.querySelector('.feed-close, .shop-close, .evals-close');
+                    if (x && !x.closest('[hidden]')) close = ['Close', () => x.click()];
+                    const end = host.querySelector('.feed-end');
+                    if (end && !end.hidden && !end.closest('[hidden]')) main = ['End session', () => end.click()];
+                } else if (!document.querySelector('dialog[open]')) {
+                    if (snareRunLive()) close = ['❚❚ Pause', () => $('snarePause').click()];
+                    else if (app === 'lab') close = ['Close', () => $('labRoom').querySelector('.window-close')?.click()];
+                    else if (app === 'snare' || app === 'training') {
+                        close = ['Close', () => $('moduleView').querySelector('.window-close')?.click()];
+                        const up = app === 'snare' ? $('snareTreeButton') : $('treeButton');
+                        if (up && !up.hidden && !(app === 'snare' && snare.tree)) main = ['Upgrades', () => up.click(), up.dataset.ready || ''];
+                    }
+                }
+                footDo = { main: main && main[1], close: close && close[1] };
+                for (const [node, v] of [[footMain, main], [footClose, close]]) {
+                    if (node.hidden === !!v) node.hidden = !v;
+                    if (!v) continue;
+                    if (node.textContent !== v[0]) node.textContent = v[0];
+                    if (v[2]) node.dataset.ready = v[2]; else delete node.dataset.ready;
+                }
+            };
+            desk.dockHost = host => { if (sw.parentNode !== host) host.append(sw, dot, footMain, footClose); };
+            // A hold on the AI's orb saves a snapshot and opens the quick note (the owner's card, 2026-11-19: the capture
+            // button is at the top, out of a thumb's reach).
+            desk.holdCapture = node => {
+                let timer = 0, at = null;
+                const stop = () => { clearTimeout(timer); timer = 0; at = null; };
+                node.addEventListener('pointerdown', e => { stop(); if (!desk.status || desk.status.snap.hidden) return; at = { x: e.clientX, y: e.clientY };
+                    timer = setTimeout(() => { timer = 0; node._held = performance.now(); pt('holdCapture', {}); sfx('ui'); hideSwitch(true); snapNow(); }, 650); });
+                node.addEventListener('pointermove', e => { if (at && Math.hypot(e.clientX - at.x, e.clientY - at.y) > 12) stop(); });
+                for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) node.addEventListener(ev, stop);
+                node.addEventListener('click', e => { if (performance.now() - (node._held || 0) < 1200) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+                node.addEventListener('contextmenu', e => e.preventDefault());
+            };
+            desk.holdCapture(dot);
             desk.dockRefresh();
             // The status bar: the device's own thin row over every app, in place of the old game's top bar (the owner's
             // call): the clock, what you hold, the signal. When the stats don't fit it shows them one at a time.
@@ -3347,7 +3396,9 @@ window.AGI = (function () {
             let d = null;
             assistDot.addEventListener('pointerdown', e => { try { assistDot.setPointerCapture(e.pointerId); } catch { /* gone */ } const b = assistDot.getBoundingClientRect(); d = { x: e.clientX, y: e.clientY, l: b.left, t: b.top, moved: false }; });
             assistDot.addEventListener('pointermove', e => { if (!d || assistMode !== 'float' || document.body.classList.contains('device-phone')) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; if (!d.moved && Math.hypot(dx, dy) < 8) return; d.moved = true; place(d.l + dx, d.t + dy); });
+            desk?.holdCapture?.(assistDot);
             assistDot.addEventListener('pointerup', () => { const was = d; d = null; if (!was) return;
+                if (performance.now() - (assistDot._held || 0) < 1200) return;   // (a hold took a snapshot: not a tap)
                 // (The owner, 2026-11-18: a tap on the AI brings up the dock with its buttons on top, on the home screen as in an app.)
                 if (!was.moved) { if (assistSheet) assistSheetToggle(); else if (document.body.classList.contains('device-phone') && assistMode === 'float' && desk?.toggleSwitch) desk.toggleSwitch(); else assistSheetToggle(); return; }
                 const b = assistDot.getBoundingClientRect(); try { localStorage.setItem('agiAssistDot2', JSON.stringify({ x: b.left / innerWidth, y: b.top / innerHeight })); } catch { /* private mode */ } });
@@ -4242,6 +4293,7 @@ window.AGI = (function () {
         renderLegacy();
         if (snare.tree) renderSnareTree();
         renderRoster();
+        desk?.footTick?.();
         if (openBay === 'pipeline') renderSnareBar();
         // On the device an app opens straight from another, so Packet Snare's Upgrades button is put away here too
         // (the owner's 2026-11-15 snapshot: two Upgrades buttons in Training).
@@ -14889,7 +14941,7 @@ window.AGI = (function () {
         const card = el('div', { class: 'capture-card', role: 'dialog', 'aria-labelledby': 'captureTipTitle' }, [
             el('h2', { id: 'captureTipTitle', text: 'See something? Capture it' }),
             el('ul', { class: 'playtest-tools' }, [
-                el('li', {}, [el('b', { text: 'The ◉ button' }), ' up there saves what is on screen and opens a quick note. Your keyboard\'s mic works, so you can just say it.']),
+                el('li', {}, [el('b', { text: 'The ◉ button' }), ' up there saves what is on screen and opens a quick note. Holding the AI\'s orb does the same, once it is here. Your keyboard\'s mic works, so you can just say it.']),
                 el('li', {}, [el('b', { text: 'The Feedback app' }), ' is for longer thoughts, whenever you like.'])]),
             el('div', { class: 'dialog-actions' }, [el('button', { type: 'button', class: 'button', text: 'Next', onclick: () => done() })])]);
         veil.append(line, card, ring);   // (the example notice and its ring are gone: the owner, 2026-11-19, 'just point to the button')

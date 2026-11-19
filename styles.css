@@ -5272,3 +5272,22 @@ body.ring-device.device-phone #snareTreeButton[data-ready]::after, body.ring-dev
 /* Packet Snare's cards: Start at lines up with the rows above and below it, and its list fills the row. */
 body.ring-device.device-phone .snare-card .snare-sector-row { justify-content: flex-start; margin-left: 0; margin-right: 0; }
 body.ring-device.device-phone .snare-card .snare-sector-row .snare-sector-pick { flex: 1 1 auto; }
+
+/* ---- Two-thumb reach on a phone (the owner's cards, 2026-11-19): the foot strip. ---- */
+/* Close on the right of the AI's orb, the app's main action on its left; the top × and the top Pause go on phones. */
+.device-foot { display: none; }
+body.ring-device.device-phone .device-foot:not([hidden]) { display: inline-flex; align-items: center; justify-content: center; position: fixed; z-index: 2500; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); height: 44px; min-width: 104px; max-width: calc(50% - 52px); padding: 0 16px; border-radius: 14px; font: 600 0.9rem var(--font-display); white-space: nowrap; background: color-mix(in srgb, var(--panel, #10201f) 92%, transparent); touch-action: manipulation; }
+body.ring-device.device-phone .device-foot-close { right: calc(12px + env(safe-area-inset-right, 0px)); }
+body.ring-device.device-phone .device-foot-main { left: calc(12px + env(safe-area-inset-left, 0px)); }
+dialog[open] > .device-foot { z-index: 6; }
+body.ring-device.device-phone .device-foot[data-ready] { padding-right: 34px; }
+body.ring-device.device-phone .device-foot[data-ready]::after { top: 50%; right: 8px; transform: translateY(-50%); box-shadow: none; }
+/* (An open dock, a tip's spotlight or the AI's sheet covers the strip.) */
+body.dock-open .device-foot, body.tip-up .device-foot { opacity: 0; pointer-events: none; }
+/* The top controls the strip stands for. */
+body.foot-on.ring-device.device-phone :is(#labRoom .window-close, #moduleView .window-close, .feed-close, .shop-close, .evals-close, .feed-end, #snareTreeButton, #treeButton) { display: none !important; }
+body.foot-on.device-phone.snare-live .snare-pause { display: none !important; }
+/* The AI's orb is held to capture: no callout, no selection. */
+.device-homedot, .assist-dot { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+/* (The dock, open or pinned, has Home in it: the strip gives way.) */
+body:has(.device-switch.open) .device-foot { opacity: 0; pointer-events: none; }
