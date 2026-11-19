@@ -1640,10 +1640,26 @@ window.AGI = (function () {
 
     // A dialog stays until the player closes it, and a tap outside it in its first moments does nothing (the
     // owner's ask, 2026-11-19: that tap was already on its way to the game underneath, and the dialog went unread).
-    const DIALOG_GRACE_MS = 600;
+    // (600 felt too short to the owner on a phone, 2026-11-19: a full second.)
+    const DIALOG_GRACE_MS = 1000;
+    // A dialog also leaves over a moment instead of vanishing (the owner's note after the first UI test: the × did
+    // not feel like it faded at all; Safari cannot hold a closing dialog on screen from CSS alone). `close()` marks it
+    // `.closing`, the stylesheet plays the way out, and the real close follows; opening it again, or a second close,
+    // ends the wait at once. With animations reduced it closes as before.
+    const DIALOG_OUT_MS = 200;
     {
-        const show = HTMLDialogElement.prototype.showModal;
-        HTMLDialogElement.prototype.showModal = function () { this._shownAt = performance.now(); return show.call(this); };
+        const show = HTMLDialogElement.prototype.showModal, close = HTMLDialogElement.prototype.close;
+        const finish = d => { clearTimeout(d._closing); d._closing = 0; d.classList.remove('closing'); if (d.open) close.apply(d, d._closeArgs || []); };
+        HTMLDialogElement.prototype.showModal = function () { if (this._closing) finish(this); this._shownAt = performance.now(); return show.call(this); };
+        HTMLDialogElement.prototype.close = function (...args) {
+            if (!this.open) return;
+            if (this._closing) return finish(this);
+            if (!this.isConnected || !this.getClientRects().length || reducedMotion()) return close.apply(this, args);
+            this._closeArgs = args; this.classList.add('closing');
+            this._closing = setTimeout(() => finish(this), DIALOG_OUT_MS);
+        };
+        // (A form inside a dialog closes it without `close()`: the same way out for those.)
+        document.addEventListener('submit', e => { const f = e.target, d = f.closest?.('dialog'); if (e.defaultPrevented || !d || f.getAttribute('method') !== 'dialog') return; e.preventDefault(); d.close(e.submitter?.value ?? ''); });
         document.addEventListener('click', e => { const d = e.target; if (d instanceof HTMLDialogElement && performance.now() - (d._shownAt || -1e9) < DIALOG_GRACE_MS) e.stopImmediatePropagation(); }, true);
     }
     function buildJournal() {
@@ -3467,13 +3483,16 @@ window.AGI = (function () {
                 sheet.addEventListener('pointerdown', e => { if (e.target.closest('input, label')) return; g = { y: e.clientY, t: performance.now(), on: false, dy: 0 }; });
                 sheet.addEventListener('pointermove', e => { if (!g) return; const raw = (e.clientY - g.y) * dir;
                     if (!g.on) { if (Math.abs(raw) < 8) return; g.on = true; try { sheet.setPointerCapture(e.pointerId); } catch { /* gone */ } sheet.classList.add('dragging'); }
-                    g.dy = raw > 0 ? raw : -Math.sqrt(-raw) * 2; sheet.style.transform = `translateY(${g.dy * dir}px)`; });
+                    g.raw = raw; g.dy = raw > 0 ? raw : -Math.sqrt(-raw) * 2; sheet.style.transform = `translateY(${g.dy * dir}px)`; });
                 const end = e => { const was = g; g = null; if (!was || !was.on) return;
                     sheet.classList.remove('dragging');
                     sheet._dragged = performance.now();
-                    const speed = was.dy / Math.max(1, performance.now() - was.t);
-                    if (e.type === 'pointerup' && (was.dy > sheet.offsetHeight * 0.25 || (was.dy > 24 && speed > 0.5))) {
-                        sheet.style.transform = `translateY(${(sheet.offsetHeight + 40) * dir}px)`; sheet.style.opacity = '0'; pt('assistOpen', { dragged: 1 });
+                    const ms = Math.max(1, performance.now() - was.t), speed = was.dy / ms;
+                    // (A quick flick the other way sends it off that way too: the owner's note, 2026-11-19. A slow
+                    // drag that way still resists and springs back.)
+                    const away = e.type === 'pointerup' && was.raw < -24 && was.raw / ms < -0.5;
+                    if (away || (e.type === 'pointerup' && (was.dy > sheet.offsetHeight * 0.25 || (was.dy > 24 && speed > 0.5)))) {
+                        sheet.style.transform = `translateY(${(sheet.offsetHeight + 40) * (away ? -dir : dir)}px)`; sheet.style.opacity = '0'; pt('assistOpen', { dragged: 1, ...(away ? { away: 1 } : {}) });
                         setTimeout(() => { if (assistSheet === sheet) assistSheetToggle(); }, reducedMotion() ? 0 : 200);
                     } else sheet.style.transform = ''; };
                 sheet.addEventListener('pointerup', end); sheet.addEventListener('pointercancel', end);
@@ -3785,7 +3804,7 @@ window.AGI = (function () {
     // clock) and for any open dialog to close. Placeholder timings until the owner sets them.
     const FUND_DELAY = { call: 1500, 'offer:m0m': 2500, 'mail:dad': 45000, 'offer:dad': 20000, 'mail:mom': 45000, 'offer:mom': 25000, 'deposit:mom': 60000, 'deposit:payday': 20000, 'deposit:server': 6000 };
     const FUND_NAME = { m0m: 'M0M', dad: 'Dad', mom: 'Mom' };
-    const CALL_RING_MS = 9000;
+    const CALL_RING_MS = 9000, CALL_DEAD_MS = 5000;
     let fundWait = { step: null, from: 0 }, fundBusy = false;
     function fundTick() {
         // Nothing rings or deposits over a Packet Snare run (the owner's log: Mom's transfer came up in the tutorial).
@@ -3821,18 +3840,30 @@ window.AGI = (function () {
             el('p', { class: 'device-call-kind', text: 'Incoming call' }),
             el('h2', { id: 'deviceCallName', text: 'M0M' }),
             el('p', { class: 'device-call-kind', text: 'mobile' }),
-            el('div', { class: 'device-call-actions' }, [el('button', { type: 'button', class: 'device-call-decline', text: 'Decline', onclick: () => { declined = true; dlg.close(); } })])]);
-        let declined = false;
-        const ring = setInterval(() => sfx('ui'), 1200);
-        const out = setTimeout(() => dlg.close(), CALL_RING_MS);
+            el('div', { class: 'device-call-actions' }, [
+                el('button', { type: 'button', class: 'device-call-decline', text: 'Decline', onclick: () => { if (!answered) declined = true; dlg.close(); } }),
+                el('button', { type: 'button', class: 'device-call-answer', text: 'Answer', onclick: () => answer() })])]);
+        let declined = false, answered = false, ring = setInterval(() => sfx('ui'), 1200), out = setTimeout(() => dlg.close(), CALL_RING_MS), clock = 0;
+        // Answered (the owner's note, 2026-11-19): nobody is there. Dead air while the call's clock counts, then it
+        // ends abruptly, with no fade. PLACEHOLDER words.
+        const answer = () => {
+            if (answered) return;
+            answered = true; clearInterval(ring); clearTimeout(out);
+            const [kind, , sub] = dlg.children, t0 = performance.now();
+            setText(kind, 'Connected'); setText(sub, '0:00');
+            dlg.classList.add('answered');
+            dlg.querySelector('.device-call-answer').hidden = true; setText(dlg.querySelector('.device-call-decline'), 'End');
+            clock = setInterval(() => setText(sub, '0:0' + Math.min(9, Math.floor((performance.now() - t0) / 1000))), 250);
+            out = setTimeout(() => { dlg.close(); dlg.close(); }, CALL_DEAD_MS);   // (the second close skips the fade)
+        };
         dlg.addEventListener('cancel', e => e.preventDefault());
         dlg.addEventListener('close', () => {
-            clearInterval(ring); clearTimeout(out);
+            clearInterval(ring); clearTimeout(out); clearInterval(clock);
             dlg.remove();
             state.intro['ring:call'] = true;
             fundBusy = false;
-            pt('call', { from: 'm0m', declined: declined ? 1 : 0 });
-            deviceNotice('phone', 'Phone', 'Missed call from M0M. New voicemail (0:11).', () => {});
+            pt('call', { from: 'm0m', declined: declined ? 1 : 0, answered: answered ? 1 : 0 });
+            deviceNotice('phone', 'Phone', answered ? 'Call ended. M0M (0:05). Nobody spoke.' : 'Missed call from M0M. New voicemail (0:11).', () => {});
             save();
         });
         document.body.append(dlg);
@@ -15039,27 +15070,30 @@ window.AGI = (function () {
     const uiPhone = () => document.body.classList.contains('device-phone'), uiTouch = () => matchMedia('(pointer: coarse)').matches;
     const UI_TESTS = [
         { id: 'press', title: 'Press feedback', what: 'The home screen, as it is.',
-            tries: () => ['Press and hold a few app icons. Each should shrink a touch while it is held.', 'Open the Lab and press Generate Compute. That one should not shrink.', 'Is the shrink right, too much or too little?'] },
+            tries: () => ['Press and hold a few app icons. Each should shrink a touch while it is held.', 'Open the Lab. Generate Compute should have no box behind it now, and should not shrink when pressed.', 'Is the shrink right, too much or too little?'] },
         { id: 'notices', title: 'Notifications', what: 'Four notifications arrive together.',
-            tries: () => ['They should sit as one stack: one in front, two edges behind it.', uiTouch() ? 'Rest a finger on the front one. It should stay for as long as you hold it.' : 'Rest the pointer on the front one. It should stay while you are over it.', 'Flick the front one up. It should slide away and the next come forward.', 'Leave the rest. Each should go by itself after a few seconds.'],
+            tries: () => ['They should sit as one stack: one in front, two edges behind it. Watch the back of the stack as the fourth arrives.', uiTouch() ? 'Rest a finger on the front one. It should stay for as long as you hold it.' : 'Rest the pointer on the front one. It should stay while you are over it.', 'Flick the front one up. It should slide away and the next come forward.', 'Leave the rest. Each should go by itself after a few seconds.'],
             run: live => [['mail', 'Mail', 'A test message arrived.'], ['bank', 'Bank', 'A test deposit came in.'], ['shop', 'Parcel', 'A test parcel has shipped.'], ['playtest', 'Feedback', 'The last of the four.']].forEach(([k, app, text], i) => setTimeout(() => { if (live()) deviceNotice(k, app, text, () => {}); }, 250 * i)) },
         { id: 'switches', title: 'Settings switches', what: 'Settings opens.',
-            tries: () => ['Watch it open. It should fade and rise in, not snap.', 'Flip a few switches. A tap anywhere on a row should take.', 'Close it with the ×. Does it fade out, or vanish at once?'],
+            tries: () => ['Watch it open. It should fade and rise in. It is stronger than last time.', 'Flip a few switches. A tap anywhere on a row should take.', 'Close it with the ×. It should fade and sink away now. Enough, or too much?'],
             run: () => $('settingsButton').click() },
         { id: 'tabs', title: 'Tabs', what: 'Achievements opens.',
             tries: () => ['Tap each tab. They should be easy to hit.', ...(uiTouch() ? [] : ['With a keyboard: Tab to the tabs, then the arrow keys, Home and End should move between them.'])],
             run: () => $('journalButton').click() },
         { id: 'hold', title: 'Windows hold until read', what: 'A window opens three seconds after you press Start.',
-            tries: () => ['Keep tapping the empty background until it opens under your finger.', 'It should not close on the tap that was already on its way.', 'A moment later, a tap outside it should close it.'],
-            run: live => { deviceNotice('playtest', 'Feedback', 'A window opens in three seconds. Keep tapping the background.', () => {}); uiTestTimer = setTimeout(() => { if (live()) $('journalButton').click(); }, 3000); } },
+            tries: () => ['Keep tapping the empty background until it opens under your finger. It is a small window this time.', 'For its first second, taps outside it should do nothing.', 'After that, a tap outside it should close it. Is a second right?'],
+            run: live => { deviceNotice('playtest', 'Feedback', 'A window opens in three seconds. Keep tapping the background.', () => {}); uiTestTimer = setTimeout(() => { if (!live()) return;
+                const d = el('dialog', { class: 'dialog ring-welcome ui-test-small' }, [el('h2', { text: 'A small window' }), el('p', { class: 'muted', text: 'Tap outside me. For the first second nothing should happen. After that I close.' }), el('div', { class: 'dialog-actions' }, [el('button', { type: 'button', class: 'button', text: 'Close', onclick: () => d.close() })])]);
+                d.addEventListener('click', e => { if (e.target === d) d.close(); }); d.addEventListener('close', () => d.remove());
+                document.body.append(d); d.showModal(); }, 3000); } },
         { id: 'confirm', title: 'A yes-or-no question', what: 'A sample question comes up. Nothing is erased, whichever you pick.',
-            tries: () => (uiPhone() ? ['It should sit at the foot of the screen, with two wide buttons in reach of a thumb.', 'Is Cancel on the side you expect?'] : ['It should sit in the middle and fade in.', 'Escape and Cancel should both close it.']),
+            tries: () => (uiPhone() ? ['It should slide up from the foot of the screen, with two wide buttons in reach of a thumb.', 'Cancel is on the right now. Is that the side you expected?', 'Pick one. It should slide back down.'] : ['It should sit in the middle and fade in.', 'Escape and Cancel should both close it.']),
             run: live => openDialog({ title: 'Erase the test save?', message: 'A sample question for this test. Nothing is erased, whichever you pick.', okLabel: 'Erase', danger: true }).then(r => { if (live()) deviceNotice('playtest', 'Feedback', r.ok ? 'You chose Erase.' : 'You chose Cancel.', () => {}); }) },
         { id: 'sheet', title: 'The assistant\'s sheet', what: 'The AI\'s sheet is open.',
-            tries: () => (uiTouch() ? ['Drag it a little toward the orb and let go. It should spring back.', 'Drag it further, or flick it. It should leave.', 'Open it again from the dock (Need help?) and try once more.'] : ['Click the orb to close and open it.', 'Try dragging the sheet toward the orb with the mouse. Tell me whether you would want that on a laptop.']),
+            tries: () => (uiTouch() ? ['Drag it a little toward the orb and let go. It should spring back.', 'Drag it further, or flick it. It should leave.', 'Open it again and flick it the other way. That should send it off too.', 'Open it again from the dock (Need help?) and try once more.'] : ['Click the orb to close and open it.', 'Try dragging the sheet toward the orb with the mouse. Tell me whether you would want that on a laptop.']),
             run: () => { if (!assistSheet) assistSheetToggle(); } },
-        { id: 'mail', title: 'Mail closes on a tap outside', what: 'Mail opens on its list.',
-            tries: () => ['Tap outside the list. Mail should close.', 'Open Mail again from its icon, open a message, and tap outside. It should stay on the message.'],
+        { id: 'mail', title: 'Mail and a tap outside', what: 'Mail opens on its list.',
+            tries: () => ['Open a message and tap outside it. It should go back to the list.', 'Tap outside the list. Mail should close.'],
             run: () => openInbox() },
         { id: 'parcel', title: 'Parcel', what: 'Parcel opens.',
             tries: () => ['Buy a thing or two. Are the buttons easy to hit, and do they press in?', 'Close it.'],
@@ -15068,13 +15102,13 @@ window.AGI = (function () {
             tries: () => (uiPhone() ? ['Generate Compute should sit at the foot, over the dock.', 'Scroll the page. Does it scroll past the end of what is there?', 'The orb is the big one at the top here. Hold it to move on.'] : ['Press Generate Compute and the dock\'s buttons.', 'Anything that looks cramped or too small to hit?']),
             run: () => openLab() },
         { id: 'call', title: 'The missed call', what: 'M0M calls.',
-            tries: () => ['Do not answer. It rings for nine seconds, then closes by itself and leaves a notification.', 'It is the one window that leaves without you. Keep it as a story beat, or should it wait for you?'],
+            tries: () => ['Press Answer. Nobody speaks: five seconds of dead air, then it cuts off with no fade.', 'Redo it and let it ring out instead (nine seconds). Each ending leaves its own notification.'],
             run: () => showCall() },
         { id: 'calm', title: 'Reduce animations', what: 'Settings opens.',
-            tries: () => ['Switch on Reduce animations and close Settings.', 'Open Settings again from its icon. It should appear at once, with no fade.', 'Switch it off again.'],
+            tries: () => ['Close Settings and open it from its icon, to see the fade.', 'Switch on Reduce animations and do the same. It should appear and go at once.', 'Switch it off again.'],
             run: () => $('settingsButton').click() },
         { id: 'sideways', title: 'Sideways', what: 'The home screen, as it is.', when: uiTouch,
-            tries: () => ['Turn the phone on its side.', 'Every app should fit in one row, with none under the foot row.', 'Open the Lab and Settings sideways. Is anything cut off?', 'Turn it back before you move on.'] }];
+            tries: () => ['Turn the phone on its side.', 'Every app should fit in one row, with none under the foot row.', 'Open the Lab sideways. The orb and the amounts should sit side by side, with Generate Compute at the right, beside the dock.', 'Open Settings sideways. Is anything cut off?', 'Turn it back before you move on.'] }];
     let uiTestAt = 0, uiTestRan = null, uiTestCard = null, uiTestTimer = 0, uiTestRun = 0;
     const uiTests = () => UI_TESTS.filter(t => !t.when || t.when());
     // Back to the bare home screen: whatever the last test left open is closed.
@@ -15461,7 +15495,8 @@ window.AGI = (function () {
         const dialog = $('inbox');
         $('mailButton').addEventListener('click', openInbox);
         $('inboxClose').addEventListener('click', () => { if (deciding() || finalOpen()) return; if (mailOpen) leaveMail(); else if (introDone() || E.isRing()) dialog.close(); });
-        dialog.addEventListener('click', e => { if (e.target === dialog && !mailOpen && !$('inboxClose').hidden) $('inboxClose').click(); });
+        // (On a message, a tap outside goes back to the list, as the × does: the owner's note, 2026-11-19.)
+        dialog.addEventListener('click', e => { if (e.target === dialog && !$('inboxClose').hidden) $('inboxClose').click(); });
         $('mailReply').addEventListener('click', () => {
             if (mailOpen?.reply && mailOpen.key === 'm:welcome') {
                 state.intro['mailAccepted:welcome'] = true;
