@@ -4004,7 +4004,8 @@ body.ring-device::before, body.ring-device.screen-old::after { transform: transl
 .desk-line { font: 600 0.8rem var(--font-mono); color: var(--terminal-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .desk-icons { display: flex; gap: 8px; min-height: 0; }
 .desk-icon { flex: 0 1 132px; min-width: 0; display: grid; grid-template-rows: 1fr auto auto; justify-items: center; gap: 1px; padding: 4px 6px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--primary); cursor: pointer; font: inherit; }
-.desk-icon:hover, .desk-icon:focus-visible { border-color: var(--border); background: rgba(255, 255, 255, 0.05); }
+.desk-icon:focus-visible { border-color: var(--border); background: rgba(255, 255, 255, 0.05); }
+@media (hover: hover) { .desk-icon:hover { border-color: var(--border); background: rgba(255, 255, 255, 0.05); } }
 .desk-icon-mail { color: var(--warning); }
 .desk-icon-feed { color: var(--success); }
 .desk-icon-art { display: block; height: 100%; min-height: 0; aspect-ratio: 1; }
@@ -4047,7 +4048,8 @@ body.ring-device .inbox-message .dialog-actions { position: static; margin: 16px
 .home-icons { flex: 1; display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; gap: 14px; padding: 14px 8px; min-height: 0; }
 .device-home[hidden], .home-icon[hidden], .home-badge[hidden], .home-popup[hidden] { display: none; }
 .home-icon { position: relative; width: 92px; display: grid; justify-items: center; gap: 4px; padding: 8px 4px; border: 1px solid transparent; border-radius: 10px; background: none; color: var(--warning); cursor: pointer; font: inherit; }
-.home-icon:hover, .home-icon:focus-visible { border-color: var(--border); background: rgba(255, 255, 255, 0.06); }
+.home-icon:focus-visible { border-color: var(--border); background: rgba(255, 255, 255, 0.06); }
+@media (hover: hover) { .home-icon:hover { border-color: var(--border); background: rgba(255, 255, 255, 0.06); } }
 .home-icon-lab { color: var(--success); }
 .home-icon:disabled { cursor: default; }
 .home-icon-art { width: 52px; height: 52px; display: block; }
@@ -4288,7 +4290,8 @@ body.ring-device.device-phone .snare-tree-bar .snare-sector-pick { flex: 1 1 0; 
 .feed-cards-title { margin: 0; font: 700 1rem var(--font-display); letter-spacing: 0.04em; color: var(--success); }
 .feed-cards-row { display: flex; gap: 10px; width: min(100%, 620px); }
 .feed-card { flex: 1 1 0; min-width: 0; min-height: 150px; display: flex; flex-direction: column; gap: 8px; padding: 14px 10px; text-align: left; color: var(--text); background: var(--bg-2); border: 1px solid var(--success); border-radius: 12px; cursor: pointer; font: inherit; }
-.feed-card:hover, .feed-card:focus-visible { background: color-mix(in srgb, var(--success) 14%, var(--bg-2)); }
+.feed-card:focus-visible { background: color-mix(in srgb, var(--success) 14%, var(--bg-2)); }
+@media (hover: hover) { .feed-card:hover { background: color-mix(in srgb, var(--success) 14%, var(--bg-2)); } }
 .feed-card strong { font: 700 0.95rem var(--font-display); }
 .feed-card span { font-size: 0.85rem; color: var(--muted); flex: 1; }
 .feed-card em { font: 600 0.72rem var(--font-mono); font-style: normal; text-transform: uppercase; letter-spacing: 0.08em; color: var(--success); }
@@ -5338,3 +5341,55 @@ body.foot-on.ring-device.device-phone #devView { padding-bottom: 56px; box-sizin
 .assist-sheet.dragging { transition: none; }
 .assist-grab { flex: none; align-self: center; width: 36px; height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--text) 28%, transparent); }
 body:not(.device-phone) .assist-grab { display: none; }
+
+/* ==== The established-practice pass (the owner's ask, 2026-11-19): patterns from Radix, Vaul, Sonner, Apple's HIG
+   and WCAG, by hand. Kept together so the whole pass can be read, tuned or lifted in one place. ==== */
+
+/* 1. Everything tappable answers a press (the tap highlight is off, so this is the only answer a tap gets):
+      a small shrink, quick and eased out. `scale` leaves `transform` alone, so placed and animated controls keep
+      theirs. Held controls (the jobs, the sprint, the game pads), the orb and notifications are left as they are. */
+:where(button, [role="button"], [role="tab"], [role="radio"], [role="switch"], summary, .home-icon, .desk-icon) { transition: scale 0.12s ease-out; }
+:where(button, [role="button"], [role="tab"], [role="radio"], [role="switch"], summary, .home-icon, .desk-icon):where(:not(:disabled, [aria-disabled="true"], .action-button, #pushButton, #exploitButton, .course-pad, .maze-dir, .assist-dot, .device-notice, .device-homedot)):active { scale: 0.97; }
+:where(.inbox-open, .mail-choice, .feed-card, .shop-item, .assist-past, .assist-ask):active { scale: 0.985; }
+
+/* 2. Touch targets: 44 px on touch screens (Apple's HIG; WCAG 2.5.5). */
+@media (pointer: coarse) {
+    .dialog-actions .button, .dialog-actions .ghost-button, .journal .button-row .ghost-button, .tab, .setting-row select, .callout .tip-ok,
+    .station .upgrade-button, .bulk-buy button, .task-toggle, .auto-switch, .crumbs .crumb, .snare-card .result-actions .button { min-height: 44px; }
+    .bulk-buy button, .crumbs .crumb, .leg-tag-clear { min-width: 44px; }
+    .leg-tag-clear { min-height: 44px; }
+    .result-details summary { padding-block: 12px; }
+    .setting-row input[type="range"] { height: 44px; }
+    .task-slider { height: 44px; border-width: 19px 9px; border-radius: 22px; }
+    .task-slider::-webkit-slider-thumb { width: 26px; height: 26px; }
+    .task-slider::-moz-range-thumb { width: 24px; height: 24px; }
+}
+
+/* 3. Dialogs arrive and leave (Radix's and shadcn's dialog: a short fade and rise, eased out, the way out
+      quicker). Where the browser cannot hold a closing dialog on screen it simply closes, as before. */
+:where(dialog) { transition: opacity 0.2s ease-out, transform 0.2s ease-out, overlay 0.14s ease-out allow-discrete, display 0.14s ease-out allow-discrete; }
+:where(dialog:not([open])) { opacity: 0; transform: translateY(8px) scale(0.985); pointer-events: none; transition-duration: 0.14s; }
+@starting-style { :where(dialog[open]) { opacity: 0; transform: translateY(10px) scale(0.985); } }
+dialog::backdrop { transition: opacity 0.2s ease-out, overlay 0.14s ease-out allow-discrete, display 0.14s ease-out allow-discrete; }
+dialog:not([open])::backdrop { opacity: 0; }
+@starting-style { dialog[open]::backdrop { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { dialog, dialog::backdrop { transition: none; } }
+
+/* On a phone a question is asked at the foot, where the thumbs are (Vaul's drawer, Apple's action sheet): the
+   card spans the foot of the screen and its answers are two full buttons side by side. */
+body.device-phone #dialog { margin: auto 0 0; width: auto; max-width: none; border-radius: 18px 18px 0 0; border-bottom: 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
+body.device-phone #dialog .dialog-actions { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 10px; }
+body.device-phone #dialog .dialog-actions .button, body.device-phone #dialog .dialog-actions .ghost-button { min-height: 48px; }
+body.device-phone #dialog:not([open]) { transform: translateY(100%); opacity: 1; }
+@starting-style { body.device-phone #dialog[open] { transform: translateY(100%); opacity: 1; } }
+
+/* 4. Housekeeping. A focus ring wherever one was taken away with nothing in its place (WCAG 2.4.7). */
+.mm-block:focus-visible, .mm-body:focus-visible, .minimap .mm-min:focus-visible, .auto-switch:focus-visible, .task-toggle:focus-visible, .assist-bubble:focus-visible { outline: 2px solid var(--success); outline-offset: 2px; }
+/* Dialogs measure the screen as the newer ones do: the part in view (dvh), and the width that Text size leaves. */
+.journal { width: min(640px, calc(100vw / var(--zoom, 1) - 32px)); max-height: min(80dvh, 760px); }
+#dialog { width: min(440px, calc(100vw / var(--zoom, 1) - 32px)); }
+#inbox { width: min(620px, calc(100vw / var(--zoom, 1) - 24px)); }
+.inbox-list { max-height: min(60dvh, 420px); }
+.inbox-message { max-height: min(72dvh, 560px); }
+/* A list scrolled to its end does not start scrolling what is behind it. */
+.journal-body, .inbox-list, .inbox-message, .shop-list, .assist-sheet, .ai-log-list { overscroll-behavior: contain; }

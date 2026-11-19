@@ -852,7 +852,7 @@ window.AGI = (function () {
     // stacking a new one each click (held clicks piled up into an unreadable smear).
     const GAIN_MERGE_MS = 450;
     function floatGain(anchor, amount, unit) {
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        if (reducedMotion()) return;
         const live = anchor._gain;
         if (live && live.pop.isConnected && performance.now() - live.at < GAIN_MERGE_MS) {
             live.total += amount;
@@ -1062,7 +1062,15 @@ window.AGI = (function () {
 
     function buildBulk() {
         const box = $('bulkBuy');
-        const sync = () => box.querySelectorAll('[data-bulk]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.bulk === bulkMode)));
+        const sync = () => box.querySelectorAll('[data-bulk]').forEach(b => { const on = b.dataset.bulk === bulkMode; b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
+        // One tab stop; the arrow keys choose (a radio group's keys, as Radix's do).
+        box.addEventListener('keydown', e => {
+            const all = [...box.querySelectorAll('[data-bulk]')], i = all.indexOf(document.activeElement);
+            const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+            if (i < 0 || !step) return;
+            e.preventDefault();
+            const b = all[(i + step + all.length) % all.length]; b.click(); b.focus();
+        });
         box.addEventListener('click', e => {
             const b = e.target.closest('[data-bulk]');
             if (!b) return;
@@ -1624,6 +1632,14 @@ window.AGI = (function () {
         $('prestigeButton').addEventListener('click', doPrestige);
     }
 
+    // A dialog stays until the player closes it, and a tap outside it in its first moments does nothing (the
+    // owner's ask, 2026-11-19: that tap was already on its way to the game underneath, and the dialog went unread).
+    const DIALOG_GRACE_MS = 600;
+    {
+        const show = HTMLDialogElement.prototype.showModal;
+        HTMLDialogElement.prototype.showModal = function () { this._shownAt = performance.now(); return show.call(this); };
+        document.addEventListener('click', e => { const d = e.target; if (d instanceof HTMLDialogElement && performance.now() - (d._shownAt || -1e9) < DIALOG_GRACE_MS) e.stopImmediatePropagation(); }, true);
+    }
     function buildJournal() {
         const journal = $('journal');
         const tabs = [...$('journalTabs').querySelectorAll('[data-section]')];
@@ -1637,6 +1653,14 @@ window.AGI = (function () {
             for (const sec of sections) sec.hidden = sec.dataset.section !== name;
         };
         tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.section)));
+        // The arrow keys, Home and End move between the tabs on show (the WAI-ARIA tabs pattern, as Radix's do).
+        $('journalTabs').addEventListener('keydown', e => {
+            const on = tabs.filter(t => !t.hidden), i = on.indexOf(document.activeElement);
+            const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: on.length - 1 }[e.key];
+            if (i < 0 || to === undefined) return;
+            e.preventDefault();
+            const t = on[(to + on.length) % on.length]; show(t.dataset.section); t.focus();
+        });
         // Two doors into one dialog (the owner's call): Settings opens on the settings with the log beside them, the
         // Journal on the achievements with the stats beside them.
         const open = (mode, first) => {
@@ -1670,12 +1694,14 @@ window.AGI = (function () {
         // Text size scales the whole UI (the same zoom large screens use); Reduce animations is the in-game
         // version of the system's reduced-motion setting.
         document.documentElement.style.setProperty('--text-size', String(state.settings.textSize));
-        document.body.classList.toggle('calm', state.settings.calm);
+        document.body.classList.toggle('calm', !!state.settings.calm || SYSTEM_CALM.matches);   // (the system's setting counts as the game's own: one rule quiets everything)
         // (Each slider's filled part: WebKit has no pseudo-element for it, so the track reads this share.)
         for (const n of document.querySelectorAll('.setting-row input[type="range"]')) { const p = ((n.value - n.min) / ((n.max - n.min) || 1) * 100).toFixed(1) + '%'; if (n.style.getPropertyValue('--p') !== p) n.style.setProperty('--p', p); }
         setText($('settingSoundValue'), state.settings.sound > 0 ? `${Math.round(state.settings.sound * 100)}%` : 'off');
     }
     const shakeOn = () => state.settings.shake && !reducedMotion();
+    const SYSTEM_CALM = window.matchMedia('(prefers-reduced-motion: reduce)');
+    try { SYSTEM_CALM.addEventListener('change', () => { if (state) applySettings(); }); } catch { /* an old browser: read at the next change of settings */ }
 
     // ---- Player commands ------------------------------------------------
 
@@ -2928,7 +2954,7 @@ window.AGI = (function () {
             if (!state.intro['assist:hello'] && !state.intro['assist:download'] && !homeFlicker && performance.now() >= installFrom - HOME_LOAD_GAP_MS - HOME_HELLO_MS - HOME_FLICKER_MS) {
                 homeFlicker = true; pt('home', { arrive: 1 });
                 if (!state.intro['ring:aiArrived']) { installFrom = performance.now() + 60000; aiArrive(); }   // (it sets the hello's time itself when it has settled)
-                if (!matchMedia('(prefers-reduced-motion: reduce)').matches) { document.body.classList.add('ai-arriving'); setTimeout(() => document.body.classList.remove('ai-arriving'), HOME_FLICKER_MS + 500); }
+                if (!reducedMotion()) { document.body.classList.add('ai-arriving'); setTimeout(() => document.body.classList.remove('ai-arriving'), HOME_FLICKER_MS + 500); }
             }
             if (state.intro['ring:aiArrived'] && performance.now() >= installFrom - HOME_LOAD_GAP_MS - HOME_HELLO_MS) assist('hello', '', { done: () => true });
             if (state.intro['ring:aiArrived'] && performance.now() >= installFrom - HOME_LOAD_GAP_MS) assist('download', '', { done: () => !!state.intro['ring:labInstalled'] });
@@ -3298,7 +3324,8 @@ window.AGI = (function () {
         const kids = [el('span', { class: 'assist-mark', 'aria-hidden': 'true' }), (typed = el('p', { class: 'assist-text', 'aria-label': q.text })), close];
         if (q.action) kids.push(el('button', { type: 'button', class: 'assist-go', text: q.action[0], onclick: e => { e.stopPropagation(); const go = q.action[1]; assistClose('action'); closeApps(); go(); } }));
         // A tap while it is still typing finishes the line; a tap after that puts it away.
-        const node = el('div', { class: 'assist-bubble', onclick: () => { if (assistType) { assistTypeEnd(); return; } assistClose('tapped'); } }, kids);
+        const node = el('div', { class: 'assist-bubble', role: 'button', tabindex: '0', onclick: () => { if (assistType) { assistTypeEnd(); return; } assistClose('tapped'); } }, kids);
+        node.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === node) { e.preventDefault(); node.click(); } });
         assistTypeStart(typed, q.text);
         assistBox.replaceChildren(node);
         assistLive = { ...q, node, at: performance.now(), ringed: null }; lastArrival = performance.now();
@@ -3319,7 +3346,7 @@ window.AGI = (function () {
     function assistTypeEnd() { if (!assistType) return; clearInterval(assistType.timer); assistType.node.textContent = assistType.text; assistType.node.classList.remove('typing'); assistType = null; }
     function assistTypeStart(node, text) {
         assistTypeEnd();
-        if (matchMedia('(prefers-reduced-motion: reduce)').matches) { node.textContent = text; return; }
+        if (reducedMotion()) { node.textContent = text; return; }
         node.classList.add('typing');
         const t = assistType = { node, text, n: 0, timer: setInterval(() => { t.n = Math.min(text.length, t.n + 1); node.textContent = text.slice(0, t.n); if (t.n >= text.length) assistTypeEnd(); }, ASSIST_TYPE_MS) };
     }
@@ -3662,7 +3689,7 @@ window.AGI = (function () {
     // A tap's compute flies from the button into the orb (the owner's pick, 2026-11-15), which flares as it lands.
     function orbGain(button, amount) {
         const orb = assistDot && !assistDot.hidden && assistDot.getClientRects().length ? assistDot : null;
-        if (!orb || matchMedia('(prefers-reduced-motion: reduce)').matches) { orbCompute(); return !!orb; }
+        if (!orb || reducedMotion()) { orbCompute(); return !!orb; }
         const k = pageZoom(), b = button.getBoundingClientRect(), d = orb.getBoundingClientRect();
         const x = b.left + b.width * (0.35 + Math.random() * 0.3), y = b.top + b.height * 0.3;
         const pop = el('div', { class: 'orb-gain', text: `+${Math.round(amount * 100) / 100}` });
@@ -15341,6 +15368,7 @@ window.AGI = (function () {
         const dialog = $('inbox');
         $('mailButton').addEventListener('click', openInbox);
         $('inboxClose').addEventListener('click', () => { if (deciding() || finalOpen()) return; if (mailOpen) leaveMail(); else if (introDone() || E.isRing()) dialog.close(); });
+        dialog.addEventListener('click', e => { if (e.target === dialog && !mailOpen && !$('inboxClose').hidden) $('inboxClose').click(); });
         $('mailReply').addEventListener('click', () => {
             if (mailOpen?.reply && mailOpen.key === 'm:welcome') {
                 state.intro['mailAccepted:welcome'] = true;

@@ -34,7 +34,7 @@
     }
     const saved = () => window.AGI?.state?.evals || (fallback = fallback || { runs: 0, best: 0, learn: window.Evals.newLearn() });
     const lives = n => `${n} ${n === 1 ? 'life' : 'lives'}`;
-    const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduced = () => document.body.classList.contains('calm') || matchMedia('(prefers-reduced-motion: reduce)').matches;
     const secs = t => `${t.toFixed(1)} s`;
     const now = () => (performance.now() - shownAt) / 1000;
     // What a kind's targets are called, for "wrong by 3 squares". A kind with one right answer has no count to give.

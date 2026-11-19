@@ -389,7 +389,7 @@
     // `fx`: moments to show (a hit, a held packet sent on, a miss, a combo reached). `sparks`: the particles they throw.
     // `marks`: how early or late the last hits were. `energy`: eased from the meter, it sets how alive the picture is.
     let fx = [], sparks = [], marks = [], energy = 0.5, lastDraw = 0, tap = null, tapOf = null, bands = null;
-    const calm = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
+    const calm = () => { try { return document.body.classList.contains('calm') || matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
     // The music itself, listened to: an analyser on the engine's music bus (nothing is added to what you hear).
     function spectrum() {
         try {

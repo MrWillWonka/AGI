@@ -101,7 +101,7 @@
     }
     const F = () => window.Feed, E = () => window.AGIEngine, game = () => window.AGI?.state;
     const feed = () => game()?.feed;
-    const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduced = () => document.body.classList.contains('calm') || matchMedia('(prefers-reduced-motion: reduce)').matches;
     const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
     function build() {
