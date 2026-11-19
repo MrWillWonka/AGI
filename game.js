@@ -2401,7 +2401,7 @@ window.AGI = (function () {
             // (The owner's notes, 2026-11-15: the dock can be pinned open, and expanded to show your apps for quick
             // navigation, both kept per device; and it stays open while the AI is introducing it, `desk.dockHeld`.)
             const kept = (key, set) => { try { if (set !== undefined) localStorage.setItem(key, set ? '1' : '0'); return localStorage.getItem(key) === '1'; } catch { return false; } };
-            const hideSwitch = force => { if (force !== true && (desk.dockHeld || kept('agiDockPin'))) return; sw.classList.remove('open'); document.body.classList.remove('dock-open'); clearTimeout(desk.switchTimer); };
+            const hideSwitch = force => { if (force !== true && (desk.dockHeld || (kept('agiDockPin') && !document.body.classList.contains('ai-on-home')))) return; sw.classList.remove('open'); document.body.classList.remove('dock-open'); clearTimeout(desk.switchTimer); };
             const showSwitch = () => { desk.dockRefresh(); sw.classList.add('open'); document.body.classList.add('dock-open');
                 // Over the home screen's own dock it sits just above it, pointing down at the AI (the owner's sketch, 2026-11-18).
                 { const hd = document.querySelector('#deviceHome:not([hidden]) .home-dock'); if (hd) sw.style.setProperty('--over', Math.round((innerHeight - hd.getBoundingClientRect().top) / pageZoom() + 12) + 'px'); } clearTimeout(desk.switchTimer); if (!fine()) desk.switchTimer = setTimeout(hideSwitch, 5000); };
@@ -2437,7 +2437,7 @@ window.AGI = (function () {
             desk.dockRefresh = () => {
                 desk.shopDock.hidden = !shopOpenable();
                 const pinned = kept('agiDockPin'), wide = kept('agiDockApps');
-                sw.classList.toggle('pinned', pinned); if (pinned) sw.classList.add('open');
+                sw.classList.toggle('pinned', pinned); if (pinned && !document.body.classList.contains('ai-on-home')) sw.classList.add('open');
                 document.body.classList.toggle('dock-pinned', pinned);
                 if (pin.dataset.on !== String(pinned)) { pin.dataset.on = String(pinned); pin.setAttribute('aria-label', pinned ? 'Unpin the dock' : 'Keep the dock open'); pin.title = pin.getAttribute('aria-label');
                     pin.innerHTML = pinned ? '<span class="dock-bar-mark"></span>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3zM12 14v7"/></svg>'; }
@@ -2594,11 +2594,11 @@ window.AGI = (function () {
         const on = phone && !!state.intro['ring:aiBar'];
         document.body.classList.toggle('ai-bar', on);
         // Feedback and Settings leave the bar for a row of their own over the apps, sliding there.
-        { const sys = home.sys, want = on ? sys : home.node.querySelector('.home-dock'), fb = home.tools[0].button, st = home.tools[1].button;
+        { const sys = home.sys, moved = false, want = moved ? sys : home.node.querySelector('.home-dock'), fb = home.tools[0].button, st = home.tools[1].button;   // (moved: the owner tried them as apps over the others and put them back)
             if (fb.parentNode !== want) {
                 const first = [fb, st].map(n => n.getBoundingClientRect());
-                if (on) sys.append(fb, st); else { want.prepend(fb); want.append(st); }
-                if (sys.hidden === on) sys.hidden = !on;
+                want.prepend(fb); want.append(st);
+                if (!sys.hidden) sys.hidden = true;
                 if (on && !reducedMotion()) [fb, st].forEach((n, i) => { const last = n.getBoundingClientRect(); if (first[i].width && last.width) { try { n.animate([{ translate: (first[i].left - last.left) + 'px ' + (first[i].top - last.top) + 'px' }, { translate: '0 0' }], { duration: 700, easing: 'cubic-bezier(0.3, 1.2, 0.5, 1)' }); } catch { /* simply there */ } } });
             } }
         if (L.panel.hidden === on) setHidden(L.panel, !on);
@@ -2647,7 +2647,7 @@ window.AGI = (function () {
         };
         const moveMail = tilted => {
             const mail = home.mail.button, first = mail.getBoundingClientRect();
-            home.tools[2].button.after(mail);
+            home.lab.button.after(mail);
             const last = mail.getBoundingClientRect();
             // (the apps' grid is drawn upside down to fill from the foot, so up is down in it, and a turn goes the other way)
             if (!reducedMotion() && first.width && last.width) { try { mail.animate([{ translate: (first.left - last.left) + 'px ' + (-(first.top - last.top)) + 'px', rotate: tilted ? '14deg' : '0deg' }, { translate: '0px 6px', rotate: '-4deg', offset: 0.7 }, { translate: '0 0', rotate: '0deg' }], { duration: 620, easing: 'cubic-bezier(0.3, 0.9, 0.4, 1)' }); } catch { /* it is simply there */ } }
@@ -2760,7 +2760,7 @@ window.AGI = (function () {
         const logPick = el('div', { class: 'ai-log-pick', hidden: '' });
         const sysRow = el('div', { class: 'home-sys' }); sysRow.hidden = true;
         const logPanel = el('section', { class: 'ai-log', hidden: '', 'aria-label': 'AI log' }, [
-            el('div', { class: 'ai-log-head' }, [el('span', { class: 'ai-log-title', text: 'AI log' }), el('button', { type: 'button', class: 'ai-log-edit', 'aria-label': 'Choose the stats to pin', text: '+ stats', onclick: () => { logPick.hidden = !logPick.hidden; } })]),
+            el('div', { class: 'ai-log-head' }, [el('span', { class: 'ai-log-title', text: 'AI log' }), null]),
             logPins, logPick, logList]);
         logPick.hidden = true; logPanel.hidden = true;
         const clock = el('span', { class: 'home-clock' });
@@ -2772,7 +2772,7 @@ window.AGI = (function () {
         const node = el('div', { class: 'device-home', id: 'deviceHome', hidden: '' }, [
             el('div', { class: 'home-status' }, [clock, el('span', { class: 'home-signal', text: '▂▄▆ 37%' })]),
             logPanel, sysRow,
-            el('div', { class: 'home-icons' }, [tools[2].button, mail.button, lab.button, shopApp.button, snareApp.button, feedApp.button, trainApp.button, evalsApp.button]),
+            el('div', { class: 'home-icons' }, [lab.button, mail.button, tools[2].button, shopApp.button, snareApp.button, feedApp.button, trainApp.button, evalsApp.button]),
             popup,
             // The system apps sit in a row at the foot of the screen (the owner's call): a phone's dock, a laptop's shelf.
             el('div', { class: 'home-dock' }, [tools[0].button, aiSlot, tools[1].button]),
@@ -2811,7 +2811,7 @@ window.AGI = (function () {
             if (!state.intro['ring:aiArrived'] && (!phone || state.intro['assist:hello'] || state.intro['ring:labInstalled'] || labOpened())) state.intro['ring:aiArrived'] = true;
             const onDock = phone && !state.intro['ring:aiArrived'], icons = home.node.querySelector('.home-icons');
             if (onDock && home.mail.button.parentNode !== home.aiSlot) home.aiSlot.prepend(home.mail.button);
-            else if (!onDock && !aiArriving && home.mail.button.parentNode !== icons) home.tools[2].button.after(home.mail.button); }
+            else if (!onDock && !aiArriving && home.mail.button.parentNode !== icons) home.lab.button.after(home.mail.button); }
         if (!on) return;
         const now = new Date(), time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         setText(home.clock, time); setText(home.clock2, time);
@@ -3288,7 +3288,8 @@ window.AGI = (function () {
             ...(RING_PLAY ? [el('button', { type: 'button', class: 'assist-ask assist-form', text: `Orb form: ${orbFormShow || 1} (tap to change)`, onclick: e => { orbFormShow = orbFormShow % 4 + 1; e.currentTarget.textContent = `Orb form: ${orbFormShow} (tap to change)`; assistDotTick(); } })] : []),
             ...(shopOpenable() ? [el('button', { type: 'button', class: 'assist-ask assist-parcel', text: 'Open Parcel', onclick: () => { assistSheetToggle(); pt('assistAsk', { parcel: 1 }); openShop(); } })] : []),
             el('h4', { class: 'assist-sheet-title', text: 'Earlier' }),
-            ...(past.length ? past.reverse() : [el('p', { class: 'assist-answer', text: ASSIST_LINES.empty })])]);
+            // (The owner, 2026-11-18: short. The AI log on the home screen holds the rest.)
+            ...(past.length ? past.reverse().filter(b => !/\{\w+\}/.test(b.textContent)).slice(0, 2) : [el('p', { class: 'assist-answer', text: ASSIST_LINES.empty })])]);
         (assistMode === 'lab' || assistDot.parentNode === home?.aiSlot ? document.body : assistDot.parentNode).append(assistSheet);
         { const k = pageZoom(), d = (assistDot.getClientRects().length ? assistDot : desk?.dot || assistDot).getBoundingClientRect(), w = Math.min(440 * k, innerWidth - 20), below = innerHeight - d.bottom - 16, above = d.top - 16, under = below >= Math.min(320 * k, above) || below >= above;
             const st = assistSheet.style; st.margin = '0'; st.right = 'auto'; st.width = w / k + 'px'; st.maxWidth = 'none';
@@ -3326,7 +3327,7 @@ window.AGI = (function () {
             const r = n.getBoundingClientRect(), size = n === assistDot ? r.width : 38; return { n, x: r.left + r.width / 2, y: r.top + r.height / 2, size }; };
         const was = assistDot && mode !== assistMode && !aiArriving && !reducedMotion() ? orbNow() : null;
         if (was) orbMoveUntil = performance.now() + 1300;
-        document.body.classList.toggle('ai-on-home', mode === 'float');
+        { const wasHome = document.body.classList.contains('ai-on-home'); document.body.classList.toggle('ai-on-home', mode === 'float'); if (!wasHome && mode === 'float' && desk?.hideSwitch) desk.hideSwitch(true); }   // (a pinned dock is put away on the home screen)
         const phone = document.body.classList.contains('device-phone');
         const host = top && mine ? top : mode === 'lab' ? aiHome.firstChild : mode === 'float' && phone && home?.aiSlot ? home.aiSlot : document.body;
         if (assistDot.hidden === mine) { assistDot.hidden = !mine; if (!mine && assistSheet) assistSheetToggle(); }
