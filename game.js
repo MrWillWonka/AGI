@@ -3588,7 +3588,8 @@ window.AGI = (function () {
         const open = document.querySelectorAll('dialog[open]'), host = open.length ? open[open.length - 1] : assistMode === 'lab' && aiHome ? aiHome.lastChild : document.body;
         if (assistBox.parentNode !== host) host.append(assistBox);
         assistBox.classList.toggle('docked', !!aiHome && host === aiHome.lastChild);
-        assistBox.classList.toggle('in-shop', host !== document.body && host.matches?.('.shop-screen'));
+        // (The Feed's list too, outside a session: the line sat over the squad and the hunger bar. The owner's screenshots, 2026-11-19.)
+        assistBox.classList.toggle('in-shop', host !== document.body && (host.matches?.('.shop-screen') || (host.matches?.('.feed-screen') && !state.feed?.session)));
         // On the home screen its line sits under the apps, not over the icon it is pointing at.
         assistBox.classList.toggle('on-home', host === document.body && ringAppNow() === 'home');
         // Over Mail, Settings and the other windows it sits at the foot: at the top it covered their close button and first rows.
