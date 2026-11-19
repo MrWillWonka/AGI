@@ -3142,7 +3142,12 @@ window.AGI = (function () {
     // installed, dragged anywhere (kept per device), glowing while the AI has something to say. Pressed, it opens a
     // small sheet: "What should I do now?", answered with the next goal and a Show me, and every line said so far, to
     // see again.
-    const pageZoom = () => (assistDot && assistDot.offsetWidth ? assistDot.getBoundingClientRect().width / assistDot.offsetWidth : 0) || parseFloat(getComputedStyle(document.body).zoom) || 1;
+    // The page's zoom, measured on a plain box of its own. (It was measured on the orb, so while the orb was scaled, in its
+    // arrival and in every move from place to place, everything placed by it went wrong: the arrival's first lines were
+    // put thousands of pixels off the screen. The owner, 2026-11-18: 'some ai lines got messed up'.)
+    let zoomProbe = null;
+    const pageZoom = () => { if (!zoomProbe || !zoomProbe.isConnected) { zoomProbe = el('div', { 'aria-hidden': 'true' }); zoomProbe.style.cssText = 'position:fixed;left:0;top:0;width:100px;height:1px;visibility:hidden;pointer-events:none;'; document.body.append(zoomProbe); }
+        const w = zoomProbe.getBoundingClientRect().width; return w > 0 ? w / 100 : parseFloat(getComputedStyle(document.body).zoom) || 1; };
     function assistWhatNow() {
         const desk = E.level(state, 'keyboard'), stock = E.isRing() ? E.feedStock(state).some(e => e.total > 0) : false;
         const part = shopOpenable() && shopItems().find(i => i.next && !i.owned);
