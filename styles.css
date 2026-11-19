@@ -5116,3 +5116,6 @@ body.glass-hit .device-cracks { animation: glass-flare 0.7s ease-out both; }
 
 /* The AI's line fades in where it reappears (after a move), so it never snaps on. */
 .assist-wire { transition: opacity 0.25s ease; }
+/* The home screen of a phone keeps a band between the dock and the apps for the AI's line (the owner, 2026-11-18): the
+   apps start above it. (The grid is drawn upside down to fill from the foot, so its foot is its padding-top.) */
+@media (max-width: 640px) { body.device-phone .home-icons { padding-top: 124px; } }

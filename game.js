@@ -3388,17 +3388,19 @@ window.AGI = (function () {
                 const gx = gutter(col === 0 ? 0 : col + 1 === 3 ? 3 : col + 1), gy = gapY(row + 1);
                 return [[x, y], [x, gy], [gx, gy], [gx, topGap], [enter(gx), b.bottom]];
             };
+            // Its line sits in a band of its own between the dock and the apps (the owner, 2026-11-18), so the way is
+            // short: up from the AI into the line, and from the line's top on to the app it means.
             const t = target && target.getClientRects().length ? target : null, tr = t ? t.getBoundingClientRect() : null, r = t ? rowOf(t) : -1;
+            const up = b.bottom < orbTop - 2 ? draw([[ox, orbTop], [enter(ox), b.bottom]]) : '';
             if (t && r >= 0) {                                   // an app among the apps
-                const tx = tr.left + tr.width / 2, col = colOf(tx), a = [[ox, orbTop], [ox, gapY(0)]];
-                if (r === 0) a.push([tx, gapY(0)], [tx, tr.bottom + 6 * k]);
-                else { const gx = gutter(tx > ox ? col : col + 1 > 2 ? 3 : col + 1); a.push([gx, gapY(0)], [gx, gapY(r)], [tx, gapY(r)], [tx, tr.bottom + 6 * k]); }
-                one = draw(a); two = draw(toBubble(tx, tr.top - 6 * k, r, col));
+                const tx = tr.left + tr.width / 2, col = colOf(tx);
+                one = up;
+                if (r === 0) two = draw([[enter(tx), b.top], [tx, tr.bottom + 6 * k]]);
+                else { const gx = enter(gutter(tx > ox ? col : col + 1)); two = draw([[gx, b.top], [gx, gapY(r)], [tx, gapY(r)], [tx, tr.bottom + 6 * k]]); }
             } else if (t && t.closest('.home-dock')) {           // Feedback or Settings, beside the AI on the dock
-                const left = tr.right < ox, tx = tr.left + tr.width / 2, gx = gutter(left ? 0 : 3);
-                one = draw([[ox + (left ? -R : R), oy], [left ? tr.right + 6 * k : tr.left - 6 * k, oy]]);
-                two = draw(rows.length ? [[tx, tr.top - 6 * k], [tx, gapY(0)], [gx, gapY(0)], [gx, topGap], [enter(gx), b.bottom]] : [[tx, tr.top - 6 * k], [enter(tx), b.bottom]]);
-            } else one = draw(toBubble(ox, orbTop, -1, 1));      // nothing pointed at: straight up, or round by a gutter
+                const left = tr.right < ox;
+                one = draw([[ox + (left ? -R : R), oy], [left ? tr.right + 6 * k : tr.left - 6 * k, oy]]); two = up;
+            } else one = up;                                     // nothing pointed at
         } else if (ring) {
             const g = 7 * k, r = { l: ring.left - g, t: ring.top - g, r: ring.right + g, b: ring.bottom + g };
             one = toBox(r);
@@ -3431,8 +3433,9 @@ window.AGI = (function () {
         // top of them once the screen filled up).
         if (node && home && document.body.classList.contains('device-phone') && assistBox.classList.contains('on-home') && !assistBox.classList.contains('away')) {
             const k = pageZoom(), tops = [...home.node.querySelectorAll('.home-icons > .home-icon')].filter(i => i.getClientRects().length && getComputedStyle(i).visibility !== 'hidden').map(i => i.getBoundingClientRect().top);
-            const h = node.getBoundingClientRect().height || 70 * k, top = tops.length ? Math.min(...tops) : innerHeight * 0.6;
-            st.left = '10px'; st.right = '10px'; st.width = 'auto'; st.bottom = 'auto'; st.top = Math.max(48 * k, top - 22 * k - h) / k + 'px';
+            // (The owner, later the same day: the apps move up and the line has a band of its own, just over the dock.)
+            const h = node.getBoundingClientRect().height || 70 * k, dock = home.node.querySelector('.home-dock').getBoundingClientRect();
+            st.left = '10px'; st.right = '10px'; st.width = 'auto'; st.bottom = 'auto'; st.top = Math.max(48 * k, dock.top - 12 * k - h) / k + 'px';
             return;
         }
         if (!beside) { for (const p of ['top', 'left', 'right', 'bottom', 'width']) st.removeProperty(p); return; }
