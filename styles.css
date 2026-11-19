@@ -5113,3 +5113,6 @@ body.glass-hit .device-cracks { animation: glass-flare 0.7s ease-out both; }
 
 /* While it arrives the AI is laid out at its biggest (--big) and scaled down, so it is sharp when it fills the screen. */
 .home-dock-ai > .assist-dot.arriving { width: var(--big, 50px); height: var(--big, 50px); margin: calc(var(--big, 50px) / -2) 0 0 calc(var(--big, 50px) / -2); }
+
+/* The AI's line fades in where it reappears (after a move), so it never snaps on. */
+.assist-wire { transition: opacity 0.25s ease; }

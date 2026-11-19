@@ -3230,6 +3230,7 @@ window.AGI = (function () {
         const orbNow = () => { const n = assistDot && assistDot.getClientRects().length ? assistDot : desk?.dot?.classList.contains('is-ai') && desk.dot.getClientRects().length ? desk.dot : null; if (!n) return null;
             const r = n.getBoundingClientRect(), size = n === assistDot ? r.width : 38; return { n, x: r.left + r.width / 2, y: r.top + r.height / 2, size }; };
         const was = assistDot && mode !== assistMode && !aiArriving && !reducedMotion() ? orbNow() : null;
+        if (was) orbMoveUntil = performance.now() + 1300;
         const phone = document.body.classList.contains('device-phone');
         const host = top && mine ? top : mode === 'lab' ? aiHome.firstChild : mode === 'float' && phone && home?.aiSlot ? home.aiSlot : document.body;
         if (assistDot.hidden === mine) { assistDot.hidden = !mine; if (!mine && assistSheet) assistSheetToggle(); }
@@ -3246,6 +3247,7 @@ window.AGI = (function () {
                 const dist = Math.hypot(dx, dy), bow = Math.min(90, dist * 0.28) * (dx >= 0 ? 1 : -1), cx = dx / 2 + (dist ? -dy / dist : 0) * bow, cy = dy / 2 + (dist ? dx / dist : 0) * bow, steps = [];
                 for (let i = 0; i <= 14; i++) { const u = i / 14, e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2, m = 1 - e;   // m: how much of the way is left
                     steps.push({ translate: (m * m * dx + 2 * m * e * cx).toFixed(1) + 'px ' + (m * m * dy + 2 * m * e * cy).toFixed(1) + 'px', scale: (1 + (k - 1) * m).toFixed(3), offset: u }); }
+                orbMoveUntil = performance.now() + 1250;
                 try { to.n.animate(steps, { duration: 1150, easing: 'linear' }); } catch { /* no animations: it is simply there */ } }));
             assistMode = mode;
             assistDot.classList.toggle('docked', mode === 'lab'); assistDot.classList.toggle('mini', mode === 'mini');
@@ -3277,16 +3279,19 @@ window.AGI = (function () {
     }
     // The line is the orb's: a glowing wire runs from the orb to what it is pointing at and on to the line it is
     // saying, turning in soft elbowed corners rather than cutting straight across (the owner's call, 2026-11-15).
-    let assistWire = null;
+    let assistWire = null, orbMoveUntil = 0;
     function assistThreadTick(on) {
-        const bubble = on && assistLive?.node, shown = bubble && assistDot && !assistDot.hidden && assistDot.getClientRects().length && !assistBox.classList.contains('away') && !assistBox.classList.contains('in-shop') && bubble.getClientRects().length;
+        const bubble = on && assistLive?.node, shown = bubble && assistDot && !assistDot.hidden && assistDot.getClientRects().length && !assistBox.classList.contains('away') && !assistBox.classList.contains('in-shop') && bubble.getClientRects().length
+            && !aiArriving && performance.now() >= orbMoveUntil;   // (no line while the AI is on the move: it trailed loose ends across the screen)
         if (!shown) { if (assistWire) assistWire.style.display = 'none'; return; }
         if (!assistWire) {
             const NS = 'http://www.w3.org/2000/svg', mk = cls => { const p = document.createElementNS(NS, 'path'); p.setAttribute('class', cls); return p; };
             assistWire = document.createElementNS(NS, 'svg'); assistWire.setAttribute('class', 'assist-wire'); assistWire.setAttribute('aria-hidden', 'true');
             assistWire.append(mk('wire'), mk('pulse'), mk('wire'), mk('pulse'));
         }
-        const host = assistMode === 'lab' ? document.body : assistDot.parentNode;
+        // On the page itself, or in the window the AI is in: never inside the dock or the Lab's own boxes, where it was
+        // drawn under their things.
+        const host = assistDot.closest('dialog') || document.body;
         if (assistWire.parentNode !== host) host.append(assistWire);
         const k = pageZoom(), W = innerWidth, H = innerHeight, d = assistDot.getBoundingClientRect(), b = bubble.getBoundingClientRect();
         assistWire.style.display = ''; assistWire.style.width = W / k + 'px'; assistWire.style.height = H / k + 'px'; assistWire.setAttribute('viewBox', `0 0 ${W} ${H}`);
@@ -3361,7 +3366,35 @@ window.AGI = (function () {
         const box = { l: b.left, t: b.top, r: b.right, b: b.bottom };
         const ring = assistBox.classList.contains('beside') && assistLive.ringed?.getClientRects().length ? assistLive.ringed.getBoundingClientRect() : null;
         let one, two = '';
-        if (ring) {
+        const grid = home && document.body.classList.contains('device-phone') && assistBox.classList.contains('on-home') ? home.node.querySelector('.home-icons') : null;
+        if (grid) {
+            // The apps stand in rows and three columns. The line keeps to the gaps: along the gap under a row, up the
+            // gutter between two columns. Rows are counted from the foot.
+            const apps = [...grid.querySelectorAll(':scope > .home-icon')].filter(i => i.getClientRects().length && getComputedStyle(i).visibility !== 'hidden').map(i => ({ i, c: i.getBoundingClientRect() }));
+            const rows = []; for (const a of apps.slice().sort((p, q) => q.c.top - p.c.top)) { const row = rows.find(r => Math.abs(r.t - a.c.top) < 24 * k); if (row) { row.t = Math.min(row.t, a.c.top); row.b = Math.max(row.b, a.c.bottom); row.apps.push(a); } else rows.push({ t: a.c.top, b: a.c.bottom, apps: [a] }); }
+            const g = grid.getBoundingClientRect(), pitch = g.width / 3, gutter = j => clamp(g.left + pitch * j, 9 * k, W - 9 * k), colOf = x => clamp(Math.floor((x - g.left) / pitch), 0, 2);
+            const orbTop = oy - R, gapY = j => !rows.length ? orbTop - 30 * k : j <= 0 ? rows[0].b + Math.max(8 * k, (orbTop - rows[0].b) * 0.5) : j >= rows.length ? rows[rows.length - 1].t - 12 * k : (rows[j - 1].t + rows[j].b) / 2;
+            const enter = x => clamp(x, b.left + 18 * k, b.right - 18 * k), topGap = gapY(rows.length);
+            const rowOf = el2 => rows.findIndex(r => r.apps.some(a => a.i === el2));
+            // up from an app (or the gap it is in) to the bubble, by the gutter beside its column
+            const toBubble = (x, y, row, col) => {
+                const blocked = rows.slice(row + 1).some(r => r.apps.some(a => colOf(a.c.left + a.c.width / 2) === col));
+                if (!blocked) return [[x, y], [enter(x), b.bottom]];
+                const gx = gutter(col === 0 ? 0 : col + 1 === 3 ? 3 : col + 1), gy = gapY(row + 1);
+                return [[x, y], [x, gy], [gx, gy], [gx, topGap], [enter(gx), b.bottom]];
+            };
+            const t = target && target.getClientRects().length ? target : null, tr = t ? t.getBoundingClientRect() : null, r = t ? rowOf(t) : -1;
+            if (t && r >= 0) {                                   // an app among the apps
+                const tx = tr.left + tr.width / 2, col = colOf(tx), a = [[ox, orbTop], [ox, gapY(0)]];
+                if (r === 0) a.push([tx, gapY(0)], [tx, tr.bottom + 6 * k]);
+                else { const gx = gutter(tx > ox ? col : col + 1 > 2 ? 3 : col + 1); a.push([gx, gapY(0)], [gx, gapY(r)], [tx, gapY(r)], [tx, tr.bottom + 6 * k]); }
+                one = draw(a); two = draw(toBubble(tx, tr.top - 6 * k, r, col));
+            } else if (t && t.closest('.home-dock')) {           // Feedback or Settings, beside the AI on the dock
+                const left = tr.right < ox, tx = tr.left + tr.width / 2, gx = gutter(left ? 0 : 3);
+                one = draw([[ox + (left ? -R : R), oy], [left ? tr.right + 6 * k : tr.left - 6 * k, oy]]);
+                two = draw(rows.length ? [[tx, tr.top - 6 * k], [tx, gapY(0)], [gx, gapY(0)], [gx, topGap], [enter(gx), b.bottom]] : [[tx, tr.top - 6 * k], [enter(tx), b.bottom]]);
+            } else one = draw(toBubble(ox, orbTop, -1, 1));      // nothing pointed at: straight up, or round by a gutter
+        } else if (ring) {
             const g = 7 * k, r = { l: ring.left - g, t: ring.top - g, r: ring.right + g, b: ring.bottom + g };
             one = toBox(r);
             const under = b.top >= r.b - 2, x = clamp(b.left + b.width / 2, r.l + 10 * k, r.r - 10 * k);
@@ -3389,6 +3422,14 @@ window.AGI = (function () {
         const st = assistBox.style, node = assistLive?.node;
         const beside = target && node && assistBox.classList.contains('on-home') && !assistBox.classList.contains('away');
         assistBox.classList.toggle('beside', !!beside);
+        // On a phone's home screen the line sits in the clear just above the apps, whatever it is about (it sat on
+        // top of them once the screen filled up).
+        if (node && home && document.body.classList.contains('device-phone') && assistBox.classList.contains('on-home') && !assistBox.classList.contains('away')) {
+            const k = pageZoom(), tops = [...home.node.querySelectorAll('.home-icons > .home-icon')].filter(i => i.getClientRects().length && getComputedStyle(i).visibility !== 'hidden').map(i => i.getBoundingClientRect().top);
+            const h = node.getBoundingClientRect().height || 70 * k, top = tops.length ? Math.min(...tops) : innerHeight * 0.6;
+            st.left = '10px'; st.right = '10px'; st.width = 'auto'; st.bottom = 'auto'; st.top = Math.max(48 * k, top - 22 * k - h) / k + 'px';
+            return;
+        }
         if (!beside) { for (const p of ['top', 'left', 'right', 'bottom', 'width']) st.removeProperty(p); return; }
         const k = pageZoom(), r = target.getBoundingClientRect(), w = Math.min(440 * k, innerWidth - 20), h = node.getBoundingClientRect().height || 90 * k;
         const below = r.bottom + 16 + h <= innerHeight - 70 * k && r.top + r.height / 2 < innerHeight * 0.5;   // (the apps fill from the foot of a phone now: its line goes over one down there, not onto the row under it)
@@ -15316,6 +15357,7 @@ window.AGI = (function () {
             openEvals: () => window.EvalsUI?.open(),
             // A rival passed without playing (the ring's funding rounds): the next one on the score sheet.
             // The AI says a line now (for checking how it sounds and looks while it types).
+            point: (selector, text) => assist('debug:' + Date.now(), text || 'This one. I am pointing at it so that you can see the line.', { target: () => document.querySelector(selector) }),
             say: text => assist('debug:' + Date.now(), text || 'This is a test line. I am saying it so that you can hear what happens while I talk. It is a little longer than most.', {}),
             // A tear, as a run that beat that sector's boss would leave it (the first boss sector if none is named): the scene, the notice, the trickle.
             tear: (sector, packets = 120) => { let k = sector; if (k == null) for (k = 0; k < 60 && !E.isSnareBossSector(k); k++);  state.snare.sector = Math.max(state.snare.sector, k + 1); state.snare.bosses = Math.max(state.snare.bosses || 0, 1); const t = E.tearWin(state, k, packets); if (t) tearNews(t); afterChange(); return t; },
