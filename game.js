@@ -2555,7 +2555,7 @@ window.AGI = (function () {
     // far too big, then finds its size, settles on the dock and pushes Mail out onto the home screen ("I need the room").
     // Then the hello as before. With reduced motion it is simply there. PLACEHOLDER line.
     let aiArriving = false;
-    const AI_ARRIVE_MS = 9400, AI_ROOM_MS = 3200;
+    const AI_ARRIVE_MS = 14000, AI_ROOM_MS = 3200;   // (unhurried: the owner, 2026-11-18)
     function aiArrive() {
         if (aiArriving || state.intro['ring:aiArrived']) return;
         aiArriving = true; pt('home', { aiArrive: 1 });
@@ -2563,7 +2563,7 @@ window.AGI = (function () {
         // The last of it (the owner, 2026-11-18): the AI comes to rest just under Mail, bumps up into it, Mail tips over
         // for a moment, then slides out to its place among the apps and the AI takes the spot.
         const finish = () => {
-            if (assistDot) { assistDot.classList.remove('arriving'); assistDot.style.removeProperty('translate'); assistDot.style.removeProperty('z-index'); }
+            if (assistDot) { assistDot.classList.remove('arriving'); for (const p of ['translate', 'scale', 'z-index', '--big']) assistDot.style.removeProperty(p); for (const im of assistDot.querySelectorAll('.orb-img-calm, .orb-img-talk')) im.src = im.src.replace('-big.webp', '.webp'); }
             state.intro['ring:aiArrived'] = true; aiArriving = false; save();
             assist('room', '', { again: true, done: () => true });
             installFrom = performance.now() + AI_ROOM_MS + HOME_HELLO_MS + HOME_LOAD_GAP_MS;
@@ -2593,29 +2593,33 @@ window.AGI = (function () {
             }, 1050);   // Mail stays tipped for a moment first
         };
         if (!assistDot || reducedMotion() || !assistDot.getClientRects().length) { settle(); return; }
-        assistDot.classList.add('arriving');
         const r = assistDot.getBoundingClientRect(), W = innerWidth, H = innerHeight, bx = r.left + r.width / 2, by = r.top + r.height / 2, k = pageZoom();
-        const at = (x, y) => ((x * W - bx) / k).toFixed(0) + 'px ' + ((y * H - by) / k).toFixed(0) + 'px', huge = (H * 1.05 / r.height).toFixed(1);
+        // It is laid out at its biggest and scaled DOWN from there, with the picture at its full size, so that when it
+        // fills the screen it is as sharp as when it is small (scaled up from 50 px it went soft: the owner, 2026-11-18).
+        const base = r.width / k, big = Math.round(H * 1.05 / k), unit = base / big;
+        for (const im of assistDot.querySelectorAll('.orb-img-calm, .orb-img-talk')) if (!im.src.includes('-big.webp')) im.src = im.src.replace('.webp', '-big.webp');
+        assistDot.style.setProperty('--big', big + 'px'); assistDot.style.scale = String(unit);
+        assistDot.classList.add('arriving');
+        const at = (x, y) => ((x * W - bx) / k).toFixed(0) + 'px ' + ((y * H - by) / k).toFixed(0) + 'px', sc = v => +(v * unit).toFixed(4), huge = 1 / unit;
         // It talks its way through it (the owner, 2026-11-18): pleased with the room, then sees how small it is, then
         // far too big, then right. PLACEHOLDER lines.
         // Its way about the screen is one smooth curve through these places (a spline, so it swoops; it never turns a
         // sharp corner), small; then it stops low in the middle, swells until it hits the glass, and comes down to size.
-        const way = [[0.18, 0.22, 0.34], [0.8, 0.14, 0.42], [0.66, 0.6, 0.3], [0.14, 0.72, 0.46], [0.84, 0.58, 0.34], [0.32, 0.2, 0.42], [0.5, 0.66, 0.36]];
-        const px = (x, y) => ((x * W - bx) / k).toFixed(0) + 'px ' + ((y * H - by) / k).toFixed(0) + 'px', frames = [{ translate: px(way[0][0], way[0][1]), scale: way[0][2], opacity: 0, offset: 0 }];
-        const DART = 0.38, SUB = 8;
+        const way = [[0.18, 0.24, 0.34], [0.8, 0.2, 0.42], [0.72, 0.6, 0.32], [0.18, 0.7, 0.44], [0.5, 0.66, 0.36]];
+        const px = (x, y) => ((x * W - bx) / k).toFixed(0) + 'px ' + ((y * H - by) / k).toFixed(0) + 'px', frames = [{ translate: px(way[0][0], way[0][1]), scale: sc(way[0][2]), opacity: 0, offset: 0 }];
+        const DART = 0.42, SUB = 10;
         for (let i = 0; i < way.length - 1; i++) for (let j = (i ? 1 : 0); j <= SUB; j++) {
             const p0 = way[Math.max(0, i - 1)], p1 = way[i], p2 = way[i + 1], p3 = way[Math.min(way.length - 1, i + 2)], u = j / SUB, u2 = u * u, u3 = u2 * u;
             const cr = c => 0.5 * (2 * p1[c] + (-p0[c] + p2[c]) * u + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * u2 + (-p0[c] + 3 * p1[c] - 3 * p2[c] + p3[c]) * u3);
-            frames.push({ translate: px(cr(0), cr(1)), scale: +cr(2).toFixed(3), opacity: 1, offset: +(0.02 + (DART - 0.02) * (i + u) / (way.length - 1)).toFixed(4) });
+            frames.push({ translate: px(cr(0), cr(1)), scale: sc(cr(2)), opacity: 1, offset: +(0.02 + (DART - 0.02) * (i + u) / (way.length - 1)).toFixed(4) });
         }
-        const H2 = +huge;
-        frames.push({ translate: at(0.5, 0.66), scale: 0.36, offset: 0.52, easing: 'cubic-bezier(0.5, 0, 0.9, 0.4)' },
-            { translate: at(0.5, 0.5), scale: H2, offset: 0.6, easing: 'ease-out' },                 // it hits the glass
-            { translate: at(0.5, 0.5), scale: +(H2 * 0.9).toFixed(1), offset: 0.625, easing: 'ease-in-out' }, { translate: at(0.5, 0.5), scale: +(H2 * 0.97).toFixed(1), offset: 0.65, easing: 'ease-in-out' },
-            { translate: at(0.5, 0.5), scale: +(H2 * 0.94).toFixed(1), offset: 0.8, easing: 'ease-in-out' },
-            { translate: at(0.5, 0.62), scale: 1.4, offset: 0.9, easing: 'ease-in-out' }, { translate: at(0.4, 0.84), scale: 1.15, offset: 0.95, easing: 'ease-in-out' }, { translate: '0px 30px', scale: 1, opacity: 1, offset: 1 });
+        frames.push({ translate: at(0.5, 0.66), scale: sc(0.36), offset: 0.52, easing: 'cubic-bezier(0.5, 0, 0.8, 0.5)' },
+            { translate: at(0.5, 0.5), scale: sc(huge), offset: 0.6, easing: 'ease-out' },                 // it hits the glass
+            { translate: at(0.5, 0.5), scale: sc(huge * 0.9), offset: 0.62, easing: 'ease-in-out' }, { translate: at(0.5, 0.5), scale: sc(huge * 0.97), offset: 0.645, easing: 'ease-in-out' },
+            { translate: at(0.5, 0.5), scale: sc(huge * 0.94), offset: 0.8, easing: 'ease-in-out' },
+            { translate: at(0.5, 0.6), scale: sc(1.4), offset: 0.9, easing: 'ease-in-out' }, { translate: at(0.4, 0.82), scale: sc(1.15), offset: 0.96, easing: 'ease-in-out' }, { translate: '0px 30px', scale: sc(1), opacity: 1, offset: 1 });
         const hit = setTimeout(() => { if (!aiArriving) return; document.body.classList.add('glass-hit'); sfx('error'); setTimeout(() => document.body.classList.remove('glass-hit'), 700); }, 0.6 * AI_ARRIVE_MS);
-        const say = [[0.03, 'arrive1'], [0.39, 'arrive2'], [0.61, 'arrive3']].map(([at2, key]) => setTimeout(() => { if (aiArriving) assist(key, '', { again: true }); }, at2 * AI_ARRIVE_MS));
+        const say = [[0.03, 'arrive1'], [0.43, 'arrive2'], [0.61, 'arrive3']].map(([at2, key]) => setTimeout(() => { if (aiArriving) assist(key, '', { again: true }); }, at2 * AI_ARRIVE_MS));
         let anim = null;
         try { anim = assistDot.animate(frames, { duration: AI_ARRIVE_MS, fill: 'none' }); } catch { settle(); return; }
         let ended = false; const end = () => { if (ended) return; ended = true; say.forEach(clearTimeout); clearTimeout(hit); settle(); };
@@ -3242,7 +3246,7 @@ window.AGI = (function () {
                 const dist = Math.hypot(dx, dy), bow = Math.min(90, dist * 0.28) * (dx >= 0 ? 1 : -1), cx = dx / 2 + (dist ? -dy / dist : 0) * bow, cy = dy / 2 + (dist ? dx / dist : 0) * bow, steps = [];
                 for (let i = 0; i <= 14; i++) { const u = i / 14, e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2, m = 1 - e;   // m: how much of the way is left
                     steps.push({ translate: (m * m * dx + 2 * m * e * cx).toFixed(1) + 'px ' + (m * m * dy + 2 * m * e * cy).toFixed(1) + 'px', scale: (1 + (k - 1) * m).toFixed(3), offset: u }); }
-                try { to.n.animate(steps, { duration: 760, easing: 'linear' }); } catch { /* no animations: it is simply there */ } }));
+                try { to.n.animate(steps, { duration: 1150, easing: 'linear' }); } catch { /* no animations: it is simply there */ } }));
             assistMode = mode;
             assistDot.classList.toggle('docked', mode === 'lab'); assistDot.classList.toggle('mini', mode === 'mini');
             if (mode === 'float' && !phone) assistDot._restore(); else for (const p of ['left', 'top', 'right', 'bottom']) assistDot.style.removeProperty(p);

@@ -853,12 +853,14 @@
             from: 'Your brother',
             subject: 'the {device}',
             body: [
-                'lol {name}. {email}@mail.net?? that\'s the one you picked. ok',
-                'not gonna say anything. (I\'m judging you so hard right now)',
-                'anyway like I said the {device}\'s old and it\'s slow as hell but it\'s never actually died on me so you should be fine for whatever it is you\'re doing',
-                'just don\'t download random stuff ok. and be careful what you click on. I\'m serious',
-                'I sent real money to a "princess" once. she needed help getting to her inheritance and she was super nice about it. still waiting to hear back on that one',
-                'don\'t tell mom'
+                // (The owner, 2026-11-18: plainer, far fewer typos and asides, the content first; and a word on the screen.
+                // PLACEHOLDER until the owner has read it.)
+                "{name}. {email}@mail.net? That's the one you picked. Okay.",
+                "Like I said, the {device}'s old and it's slow, but it has never actually died on me. You should be fine for whatever it is you're doing.",
+                "The screen isn't all that bad. You stop noticing after a day or two.",
+                "Just don't download random stuff, and be careful what you click on. I'm serious.",
+                "I sent real money to a \"princess\" once. She needed help getting to her inheritance and she was very nice about it. Still waiting to hear back.",
+                "Don't tell Mom."
             ] },
         // `ringReply`: under the ring the junk has a reply too, beside Report spam, so the offer's two buttons are no surprise.
         { id: 'parcel', intro: true, spam: true, ringReply: 'Reply: Reschedule', when: () => true,

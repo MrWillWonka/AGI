@@ -47,7 +47,8 @@ test('your brother\'s mail is the ring\'s alone, and speaks of your email name a
     const s = E.defaultState(NOW);
     E.signIn(s, 'Will', 'big.brain', 'phone');
     const body = m.body.map(p => E.mailFill(s, p)).join('\n');
-    assert.ok(body.includes('lol Will. big.brain@mail.net??'));
+    assert.ok(body.includes('Will. big.brain@mail.net?'));
+    assert.ok(/screen isn't all that bad/.test(body), 'he says the screen is not so bad (the owner, 2026-11-18)');
     assert.ok(body.includes('the phone\'s old'));
     assert.ok(!/RAM/.test(body), 'no specs: he is not a spec sheet');
     assert.ok(!/[A-Z]{4,}|!!/.test(body), 'he doesn\'t write like the spam');

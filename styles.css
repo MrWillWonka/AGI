@@ -5110,3 +5110,6 @@ body.glass-hit .device-cracks { animation: glass-flare 0.7s ease-out both; }
 @media (prefers-reduced-motion: reduce) { body.glass-hit .device-home, body.glass-hit .device-status, body.glass-hit .device-cracks { animation: none; } }
 /* While the AI is under Mail on the dock it sits behind it, so the bump reads as a push from below. */
 .home-dock-ai > .home-icon { position: relative; z-index: 2; }
+
+/* While it arrives the AI is laid out at its biggest (--big) and scaled down, so it is sharp when it fills the screen. */
+.home-dock-ai > .assist-dot.arriving { width: var(--big, 50px); height: var(--big, 50px); margin: calc(var(--big, 50px) / -2) 0 0 calc(var(--big, 50px) / -2); }

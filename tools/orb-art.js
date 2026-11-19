@@ -1,7 +1,9 @@
 // tools/orb-art.js — the AI orb's art, made from the owner's pictures (design/orb/*.png, 1254 px on a dark ground).
 //   node tools/orb-art.js
 // Each picture is cropped square about its subject, its dark ground is turned into transparency (so the glow and the
-// loose ribbons sit on the game's own background), and it is written to art/orb-<name>.webp at 512 px.
+// loose ribbons sit on the game's own background), and it is written to art/orb-<name>.webp at 512 px. The calm and
+// talking spheres are also written at the picture's own size (art/orb-<name>-big.webp): the AI fills the whole screen
+// for a moment when it arrives, and the small file went soft there (the owner, 2026-11-18).
 // For the three sphere pictures the inside of the sphere stays solid glass; the crop puts the sphere's edge at
 // SPHERE (a share of half the picture), which styles.css undoes so the sphere fills the orb's circle.
 'use strict';
@@ -10,7 +12,7 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 const { chromium } = require(path.join(root, 'node_modules', 'playwright'));
 
-const HALF = 610, SIZE = 512;
+const HALF = 610;
 // name, source, the subject's centre in the picture, the sphere's radius there (0: no sphere)
 const ART = [
     ['calm', 'calm.png', 619, 615, 492],
@@ -24,7 +26,7 @@ const ART = [
     const browser = await chromium.launch();
     const page = await browser.newPage();
     fs.mkdirSync(path.join(root, 'art'), { recursive: true });
-    for (const [name, file, cx, cy, sphere] of ART) {
+    for (const [name, file, cx, cy, sphere] of ART) for (const [suffix, SIZE] of (name === 'calm' || name === 'talk' ? [['', 512], ['-big', HALF * 2]] : [['', 512]])) {
         const src = 'data:image/png;base64,' + fs.readFileSync(path.join(root, 'design', 'orb', file)).toString('base64');
         const out = await page.evaluate(async ({ src, cx, cy, sphere, HALF, SIZE }) => {
             const img = new Image(); img.src = src; await img.decode();
@@ -52,8 +54,8 @@ const ART = [
             return o.toDataURL('image/webp', 0.92);
         }, { src, cx, cy, sphere, HALF, SIZE });
         const buf = Buffer.from(out.split(',')[1], 'base64');
-        fs.writeFileSync(path.join(root, 'art', `orb-${name}.webp`), buf);
-        console.log(`art/orb-${name}.webp  ${buf.length} bytes  (${out.slice(5, 15)})`);
+        fs.writeFileSync(path.join(root, 'art', `orb-${name}${suffix}.webp`), buf);
+        console.log(`art/orb-${name}${suffix}.webp  ${buf.length} bytes  (${out.slice(5, 15)})`);
     }
     await browser.close();
 })();
