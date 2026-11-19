@@ -15332,7 +15332,8 @@ window.AGI = (function () {
         feedEnd(why) { const r = E.feedLeave(state, why); if (r) feedShow({ events: [r] }); return r; },
         feedCarry(sector) { const ok = E.feedCarry(state, sector); if (ok) { pt('feedCarry', { sector, mites: state.feed.mites, splits: state.feed.layers, life: Math.round(state.feed.life * 100) }); save(); } return ok; },
         // From The Feed's result: back to Packet Snare for more.
-        ringOpen(app) { closeApps(); if (app === 'snare' && state.unlocked['module:snare']) { goHome(); openSnareApp(); } else if (app === 'training' && state.unlocked['module:path']) { goHome(); openTrainingApp(); } },
+        // (Straight to the app: going by the home screen first raced it, and The Feed's 'Spend it in Training' ended in the Lab. The owner's note, 2026-11-19.)
+        ringOpen(app) { closeApps(); if (app === 'snare' && state.unlocked['module:snare']) openSnareApp(); else if (app === 'training' && state.unlocked['module:path']) openTrainingApp(); },
         feedPick(n) { const offer = state.feed.session?.offer, out = E.feedPick(state, n); if (out) { pt('feedCard', { card: offer[n], offered: offer.join(','), level: state.feed.session.cards[offer[n]], split: state.feed.layers }); feedShow(out); save(); } return !!out; },
         debug: {
             // The music: the area's other song, or the next section of this one (on the next downbeat).

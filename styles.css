@@ -5221,3 +5221,14 @@ body.device-phone.ai-bar.ai-on-home .device-status .status-stats { visibility: h
 /* The quick note on a phone asks for the phone's own screenshot: its button is the bright one there. */
 .quick-note-hint { margin: 0 0 8px; font-size: 0.86rem; color: var(--muted); }
 .survey-photos.wanted .survey-photos-button { border-color: var(--primary); color: var(--primary); font-weight: 700; }
+
+/* ---- From the owner's long phone session (2026-11-19). ---- */
+/* Parcel: a part that is full says so on a line of its own under its words (the long line beside them crushed the
+   card's text into a one-word column). */
+.shop-later { white-space: normal; text-align: right; max-width: 11em; }
+@media (max-width: 520px) { .shop-item:has(> .shop-side > .shop-later) { grid-template-columns: 56px 1fr; } .shop-item:has(> .shop-side > .shop-later) > .shop-side { grid-column: 1 / -1; justify-items: end; } .shop-later { max-width: none; } }
+/* The Lab leaves room for the whole dock at its foot, its row of apps included when that is open. */
+body.ring-device.device-phone.ai-in-lab #labRoom { padding-bottom: calc(210px + env(safe-area-inset-bottom, 0px)); }
+/* The quick note's grey prompt breaks between words. */
+.quick-note-box::placeholder { word-break: normal; overflow-wrap: normal; white-space: pre-wrap; }
+.quick-note-box { word-break: normal !important; }
