@@ -3103,6 +3103,9 @@ window.AGI = (function () {
 "tear": "Don't mind me.",
         "evals": "The boss is down. Someone noticed. They want me tested, so I have put Evals on your home screen.",
         "evalsHome": "This one. Evals is where I am tested. You show me how, and then you check my work.",
+        "bossTree": "The server does one more thing. I can study the thing that beat us. There are upgrades for it in Packet Snare now.",
+        "bossNow": "Pattern Matching. I can read it now. I think we can beat the boss.",
+        "bossNowHome": "This one. It is still in there. I would like another try.",
         "training": "The server is in. Thank you. I can train now, if you will help me.",
         "trainingHome": "This one. Training turns research into skills. Hold the button, and let go near the top.",
         "sell": "Parcel will buy compute, if money would help. Ten for a dollar.",
@@ -3853,19 +3856,20 @@ window.AGI = (function () {
         const o = E.stuckOffer(state);
         if (!o) return;
         stuckBusy = true;
-        const done = taken => { pt('surge', { taken: taken ? 1 : 0, cost: o.cost, skill: o.skill }); dlg.close(); };
-        const dlg = el('dialog', { class: 'dialog ring-welcome device-transfer', 'aria-labelledby': 'ringSurgeTitle' }, [
-            el('p', { class: 'device-call-kind', text: 'Lab' }),
-            el('h2', { id: 'ringSurgeTitle', text: `Stuck on ${o.skill}?` }),
-            el('p', { class: 'survey-lead', text: `Spend ${E.format(o.cost)} compute on a surge. Your next ${o.runs} runs start ${Math.round((o.power - 1) * 100)}% stronger.` }),
-            o.ok ? null : el('p', { class: 'survey-lead', text: `You have ${E.format(Math.floor(state.res.cp))} compute. Make more in the Lab.` }),
-            el('div', { class: 'dialog-actions' }, [
-                el('button', { type: 'button', class: 'ghost-button', text: 'Not now', onclick: () => { E.passSurge(state); done(false); } }),
-                o.ok ? el('button', { type: 'button', class: 'button', text: 'Surge', onclick: () => { E.takeSurge(state); sfx('claim'); done(true); } }) : null].filter(Boolean))].filter(Boolean));
-        dlg.addEventListener('cancel', e => { e.preventDefault(); E.passSurge(state); done(false); });
-        dlg.addEventListener('close', () => { dlg.remove(); stuckBusy = false; afterChange(); save(); });
-        document.body.append(dlg);
-        dlg.showModal();
+        const key = 'surge:' + o.skill + ':' + Math.round(state.stats.playTime), pct = Math.round((o.power - 1) * 100);
+        let taken = false;
+        const text = o.ok
+            ? `You are stuck on ${o.skill}. I could spend ${E.format(o.cost)} compute and push harder: the first sprint of your next ${o.runs} runs would hit ${pct}% harder.`
+            : `You are stuck on ${o.skill}. I could push harder for ${E.format(o.cost)} compute, but we have ${E.format(Math.floor(state.res.cp))}. The Lab makes more.`;
+        assist(key, text, { again: true, ...(o.ok ? { action: ['Push harder', () => { taken = true; E.takeSurge(state); sfx('claim'); afterChange(); }] } : {}) });
+        // When its line has gone (the button, or put away), the offer is settled: put away is "not now".
+        const wait = setInterval(() => {
+            if (assistLive?.key === key || assistQueue.some(q => q.key === key)) return;
+            clearInterval(wait);
+            if (!taken) E.passSurge(state);
+            pt('surge', { taken: taken ? 1 : 0, cost: o.cost, skill: o.skill, voice: 1 });
+            stuckBusy = false; afterChange(); save();
+        }, 400);
     }
     // The playtest survey (the owner's call: an icon for surveying the testers). Placeholder questions for now; the
     // answers go into the playtest log as a `survey` event, and the log can be copied from here.
@@ -3927,6 +3931,7 @@ window.AGI = (function () {
             if (E.isRing() && m.ringCallout && !state.intro[m.key]) state.intro[m.key] = true;   // (it was a notice that the app had been added: the AI says it found it, and the app loads in when you are home)
             if (E.isRing() && m.key === 'module:snare') assist('snare', 'The desk is online. Packet Snare is on your home screen. Data goes past in there. Catch the blue packets and leave the red ones. I cannot read red. Yet.', { action: showMe('snare', 'snare'), done: () => state.snare.runs > 0 });
             if (E.isRing() && m.key === 'module:path') assist('training', 'The server is in. Training is on your home screen. Hold the button and let go near the top. Each try costs research. It is worth it. Probably.', { action: showMe('training', 'training'), done: () => state.stats.rolls > 0 });
+            if (E.isRing() && m.key === 'module:path' && state.intro['ring:server']) assist('bossTree', '', { done: () => true });   // (the boss met and lost to: its upgrades are said to be open, not found by chance)
             else if (m.callout && !state.intro[m.key]) {
                 state.intro[m.key] = true;
                 callout(m.key, m.callout[0], m.callout[1]);
@@ -12769,6 +12774,8 @@ window.AGI = (function () {
         markLegEntry(roll, ev.skill + 1);
         (roll.learned = roll.learned || []).push({ skill, xp });
         pt('skill', { n: state.path.learned, name: skill.name, xp: r2(xp), runs: state.stats.rolls + 1 });
+        // The first real skill is what the first boss was waiting on (engine.js snareGateSkill): the AI says so, once the run is over.
+        if (E.isRing() && skill.name === 'Pattern Matching' && state.intro['ring:server']) assist('bossNow', '', { action: showMe('bossNow', 'snare'), when: () => !runInFlightOnScreen(), done: () => ringAppNow() === 'snare' });
         celebrateSummit(skill.name, hill);
         // What it earned, where it happened (it used to wait for the result card), and a beat of stillness.
         path.fx.pops.push({ wx: hill.peak, wh: hill.height, age: 0, life: 2.6, big: true, text: `+${xpText(xp)} XP · ${skill.effect}` });
