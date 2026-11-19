@@ -2551,6 +2551,43 @@ window.AGI = (function () {
     // announcement and again before the loading starts.)
     const HOME_ANNOUNCE_MS = 2000, HOME_LOAD_GAP_MS = 2000, HOME_FLICKER_MS = 1000, HOME_HELLO_MS = 5000;
     let homeFlicker = false;
+    // The AI's arrival on a phone (the owner, 2026-11-18): it turns up wrong, tiny and darting about the screen, swells
+    // far too big, then finds its size, settles on the dock and pushes Mail out onto the home screen ("I need the room").
+    // Then the hello as before. With reduced motion it is simply there. PLACEHOLDER line.
+    let aiArriving = false;
+    const AI_ARRIVE_MS = 4600, AI_ROOM_MS = 3200;
+    function aiArrive() {
+        if (aiArriving || state.intro['ring:aiArrived']) return;
+        aiArriving = true; pt('home', { aiArrive: 1 });
+        assistDotTick();
+        const settle = () => {
+            if (assistDot) assistDot.classList.remove('arriving');
+            // Mail goes from the dock to its place among the apps, sliding.
+            const mail = home.mail.button, first = mail.getBoundingClientRect();
+            home.tools[2].button.after(mail);
+            const last = mail.getBoundingClientRect();
+            if (!reducedMotion() && first.width && last.width) { try { mail.animate([{ translate: (first.left - last.left) + 'px ' + (-(first.top - last.top)) + 'px' }, { translate: '0 0' }], { duration: 520, easing: 'cubic-bezier(0.3, 1.4, 0.5, 1)' }); } catch { /* it is simply there */ } }   // (the apps' grid is drawn upside down to fill from the foot, so up is down in it)
+            state.intro['ring:aiArrived'] = true; aiArriving = false; save();
+            sfx('ui');
+            assist('room', '', { done: () => true });
+            installFrom = performance.now() + AI_ROOM_MS + HOME_HELLO_MS + HOME_LOAD_GAP_MS;
+        };
+        if (!assistDot || reducedMotion() || !assistDot.getClientRects().length) { settle(); return; }
+        assistDot.classList.add('arriving');
+        const r = assistDot.getBoundingClientRect(), W = innerWidth, H = innerHeight, bx = r.left + r.width / 2, by = r.top + r.height / 2, k = pageZoom();
+        const at = (x, y) => ((x * W - bx) / k).toFixed(0) + 'px ' + ((y * H - by) / k).toFixed(0) + 'px', huge = (H * 1.05 / r.height).toFixed(1);
+        const frames = [
+            { translate: at(0.18, 0.22), scale: 0.34, opacity: 0, offset: 0 }, { translate: at(0.18, 0.22), scale: 0.34, opacity: 1, offset: 0.03 },
+            { translate: at(0.82, 0.14), scale: 0.42, offset: 0.12, easing: 'ease-in-out' }, { translate: at(0.62, 0.58), scale: 0.3, offset: 0.2, easing: 'ease-in-out' },
+            { translate: at(0.12, 0.7), scale: 0.46, offset: 0.29, easing: 'ease-in-out' }, { translate: at(0.86, 0.44), scale: 0.34, offset: 0.37, easing: 'ease-in-out' },
+            { translate: at(0.3, 0.3), scale: 0.42, offset: 0.44, easing: 'ease-in-out' }, { translate: at(0.5, 0.45), scale: 0.6, offset: 0.52, easing: 'ease-in' },
+            { translate: at(0.5, 0.48), scale: huge, offset: 0.66, easing: 'ease-out' }, { translate: at(0.5, 0.48), scale: huge, offset: 0.76, easing: 'ease-in-out' },
+            { translate: at(0.5, 0.5), scale: 1.5, offset: 0.88, easing: 'ease-out' }, { translate: '0px 0px', scale: 1, opacity: 1, offset: 1 }];
+        let anim = null;
+        try { anim = assistDot.animate(frames, { duration: AI_ARRIVE_MS, fill: 'none' }); } catch { settle(); return; }
+        let ended = false; const end = () => { if (ended) return; ended = true; settle(); };
+        anim.onfinish = end; anim.oncancel = end; setTimeout(end, AI_ARRIVE_MS + 600);
+    }
     // A new app's own download: it starts when you are on the home screen with the app unlocked, and takes this long.
     const APP_INSTALL_MS = 3500, appInstalls = {};
     function appInstall(key) {
@@ -2644,6 +2681,13 @@ window.AGI = (function () {
         home = home || buildHome();
         if (home.node.hidden === on) home.node.hidden = !on;
         home.tools[2].button.classList.toggle('ghost', !Object.keys(state.achievements).length);
+        // Mail sits on the dock of a phone until the AI arrives and takes that place (the owner, 2026-11-18). A game that
+        // is already past the AI's hello has it on the home screen.
+        { const phone = document.body.classList.contains('device-phone');
+            if (!state.intro['ring:aiArrived'] && (!phone || state.intro['assist:hello'] || state.intro['ring:labInstalled'] || labOpened())) state.intro['ring:aiArrived'] = true;
+            const onDock = phone && !state.intro['ring:aiArrived'], icons = home.node.querySelector('.home-icons');
+            if (onDock && home.mail.button.parentNode !== home.aiSlot) home.aiSlot.prepend(home.mail.button);
+            else if (!onDock && !aiArriving && home.mail.button.parentNode !== icons) home.tools[2].button.after(home.mail.button); }
         if (!on) return;
         const now = new Date(), time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         setText(home.clock, time); setText(home.clock2, time);
@@ -2676,11 +2720,12 @@ window.AGI = (function () {
             installFrom = installFrom || performance.now() + HOME_ANNOUNCE_MS + (state.intro['assist:hello'] ? 0 : HOME_HELLO_MS) + HOME_LOAD_GAP_MS;
             if (!state.intro['assist:hello'] && !state.intro['assist:download'] && !homeFlicker && performance.now() >= installFrom - HOME_LOAD_GAP_MS - HOME_HELLO_MS - HOME_FLICKER_MS) {
                 homeFlicker = true; pt('home', { arrive: 1 });
+                if (!state.intro['ring:aiArrived']) { installFrom = performance.now() + 60000; aiArrive(); }   // (it sets the hello's time itself when it has settled)
                 if (!matchMedia('(prefers-reduced-motion: reduce)').matches) { document.body.classList.add('ai-arriving'); setTimeout(() => document.body.classList.remove('ai-arriving'), HOME_FLICKER_MS + 500); }
             }
-            if (performance.now() >= installFrom - HOME_LOAD_GAP_MS - HOME_HELLO_MS) assist('hello', '', { done: () => true });
-            if (performance.now() >= installFrom - HOME_LOAD_GAP_MS) assist('download', '', { done: () => !!state.intro['ring:labInstalled'] });
-            if (performance.now() - installFrom >= HOME_INSTALL_MS) { state.intro['ring:labInstalled'] = true; pt('home', { installed: 'lab' }); sfx('ui'); }
+            if (state.intro['ring:aiArrived'] && performance.now() >= installFrom - HOME_LOAD_GAP_MS - HOME_HELLO_MS) assist('hello', '', { done: () => true });
+            if (state.intro['ring:aiArrived'] && performance.now() >= installFrom - HOME_LOAD_GAP_MS) assist('download', '', { done: () => !!state.intro['ring:labInstalled'] });
+            if (state.intro['ring:aiArrived'] && performance.now() - installFrom >= HOME_INSTALL_MS) { state.intro['ring:labInstalled'] = true; pt('home', { installed: 'lab' }); sfx('ui'); }
         }
         // Installed: it rings the Lab and asks you in (the owner's call, 2026-11-15); the longer introduction is the Lab's.
         if (accepted && state.intro['ring:labInstalled'] && !labOpened() && !$('inbox').open) assist('meet', '', { target: () => home.lab.button, when: () => ringAppNow() === 'home', done: () => labOpened() });
@@ -2936,6 +2981,7 @@ window.AGI = (function () {
         "now:feed": "The Feed. There is data waiting, and the mites have noticed.",
         "now:server": "Parcel has a server. I cannot beat that boss without somewhere to train.",
         "now:training": "Training. You have research, and I would like to use it. With your permission.",
+        "room": "Sorry. I need the room.",
         "empty": "I have not said anything yet. I did not want to interrupt."
     };
     // Packet Snare's first card and first-run coach, in the same voice (drawn on the field behind a '>').
@@ -3119,7 +3165,7 @@ window.AGI = (function () {
         sfx('ui');
     }
     function assistDotTick() {
-        if (!E.isRing() || !(state.intro['ring:labInstalled'] || labOpened() || assistLive || state.intro['assist:download'])) return;
+        if (!E.isRing() || !(state.intro['ring:labInstalled'] || labOpened() || assistLive || state.intro['assist:download'] || aiArriving)) return;
         if (!assistDot) {
             assistDot = el('button', { type: 'button', class: 'assist-dot', 'aria-label': 'Assistant' }, [el('span', { class: 'assist-mark orb-face', 'aria-hidden': 'true' })]);
             assistDot.firstChild.innerHTML = ORB_FACE;
@@ -3140,18 +3186,23 @@ window.AGI = (function () {
         }
         const open = document.querySelectorAll('dialog[open]'), top = open.length ? open[open.length - 1] : null, mine = !top || top.matches('.feed-screen, .shop-screen, .evals-screen');
         const app = ringAppNow(), mode = top ? 'mini' : app === 'home' ? 'float' : app === 'lab' && aiHome?.isConnected ? 'lab' : 'mini';
+        // Where the AI is now, before it moves: itself, or the handle at the foot of an app that stands for it on a phone.
+        const orbNow = () => { const n = assistDot && assistDot.getClientRects().length ? assistDot : desk?.dot?.classList.contains('is-ai') && desk.dot.getClientRects().length ? desk.dot : null; if (!n) return null;
+            const r = n.getBoundingClientRect(), size = n === assistDot ? r.width : 38; return { n, x: r.left + r.width / 2, y: r.top + r.height / 2, size }; };
+        const was = assistDot && mode !== assistMode && !aiArriving && !reducedMotion() ? orbNow() : null;
         const phone = document.body.classList.contains('device-phone');
         const host = top && mine ? top : mode === 'lab' ? aiHome.firstChild : mode === 'float' && phone && home?.aiSlot ? home.aiSlot : document.body;
         if (assistDot.hidden === mine) { assistDot.hidden = !mine; if (!mine && assistSheet) assistSheetToggle(); }
         if (desk?.dot) { desk.dockHost(top && mine ? top : document.body); if (!desk.dot.classList.contains('is-ai')) { desk.dot.classList.add('is-ai'); desk.dot.setAttribute('aria-label', 'The assistant: the dock, and what it can tell you'); document.body.classList.add('ai-here'); } if (desk.aiRow.hidden) desk.aiRow.hidden = false; }
         if (assistDot.parentNode !== host) { host.append(assistDot); if (assistSheet) (host === aiHome.firstChild || host === home?.aiSlot ? document.body : host).append(assistSheet); }
         if (mode !== assistMode) {
-            // Into the Lab the AI rises from the foot of the screen to its place and grows (the owner, 2026-11-18): the dock
-            // takes the foot there, open, so there is one AI on screen and the way out is still to hand.
-            const rise = mode === 'lab' && assistMode === 'mini' && desk?.dot?.getClientRects().length && !reducedMotion() ? desk.dot.getBoundingClientRect() : null;
+            // The AI goes from one place to the next in one smooth move, growing or shrinking to fit (the owner,
+            // 2026-11-18): up into the Lab and back down, onto the dock, to the foot of an app. In the Lab the dock takes
+            // the foot, open, so the way out is still to hand and there is one AI on screen.
             document.body.classList.toggle('ai-in-lab', mode === 'lab'); if (mode === 'lab' && desk?.dockRefresh) desk.dockRefresh();
-            if (rise) requestAnimationFrame(() => { const to = assistDot.getBoundingClientRect(); if (!to.width) return; const dx = rise.left + rise.width / 2 - (to.left + to.width / 2), dy = rise.top + rise.height / 2 - (to.top + to.height / 2), k = Math.max(0.2, 38 / to.width);
-                try { assistDot.animate([{ transform: 'translate(' + dx + 'px, ' + dy + 'px) scale(' + k + ')' }, { transform: 'none' }], { duration: 620, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }); } catch { /* no animations: it is simply there */ } });
+            if (was) requestAnimationFrame(() => requestAnimationFrame(() => { const to = orbNow(); if (!to || !to.size) return;
+                const z = pageZoom(), dx = (was.x - to.x) / z, dy = (was.y - to.y) / z, k = Math.max(0.15, Math.min(6, was.size / to.size)); if (Math.abs(dx) + Math.abs(dy) < 6 && Math.abs(k - 1) < 0.05) return;
+                try { to.n.animate([{ translate: dx.toFixed(1) + 'px ' + dy.toFixed(1) + 'px', scale: k.toFixed(3) }, { translate: '0px 0px', scale: 1 }], { duration: 620, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }); } catch { /* no animations: it is simply there */ } }));
             assistMode = mode;
             assistDot.classList.toggle('docked', mode === 'lab'); assistDot.classList.toggle('mini', mode === 'mini');
             if (mode === 'float' && !phone) assistDot._restore(); else for (const p of ['left', 'top', 'right', 'bottom']) assistDot.style.removeProperty(p);
@@ -14552,7 +14603,7 @@ window.AGI = (function () {
     function captureTip(then) {
         const snap = desk.status.snap, was = snap.hidden; snap.hidden = false;
         const veil = el('div', { class: 'capture-tip' });
-        const ring = el('span', { class: 'capture-ring', 'aria-hidden': 'true' });
+        const ring = el('span', { class: 'capture-ring', 'aria-hidden': 'true' }), ring2 = el('span', { class: 'capture-ring capture-ring-notice', 'aria-hidden': 'true' });
         const NS = 'http://www.w3.org/2000/svg', line = document.createElementNS(NS, 'svg'), path = document.createElementNS(NS, 'path'); line.setAttribute('class', 'capture-line'); line.setAttribute('aria-hidden', 'true'); line.append(path);
         const art = el('span', { class: 'device-notice-art' }); art.innerHTML = HOME_ICONS.playtest;
         const sample = el('div', { class: 'device-notice device-notice-playtest capture-sample', 'aria-hidden': 'true' }, [art, el('span', { class: 'device-notice-app', text: 'Feedback' }), el('span', { class: 'device-notice-text', text: 'Snapshot saved. Tap to add a quick note.' })]);
@@ -14563,12 +14614,13 @@ window.AGI = (function () {
                 el('li', {}, [el('b', { text: 'Tap the notice' }), ' that drops in, like the one above, to add a quick note. Your keyboard\'s mic works, so you can just say it.']),
                 el('li', {}, [el('b', { text: 'The Feedback app' }), ' is for longer thoughts, whenever you like.'])]),
             el('div', { class: 'dialog-actions' }, [el('button', { type: 'button', class: 'button', text: 'Next', onclick: () => done() })])]);
-        veil.append(line, sample, card, ring);
+        veil.append(line, sample, card, ring, ring2);
         const place = () => { const k = pageZoom(), r = snap.getBoundingClientRect(), c = card.getBoundingClientRect(); if (!r.width) return;
             { const edge = 16 * k, t = Math.max(edge, r.top - 4), bt = r.bottom + 4;   // (kept inside the bezel: its top was cut off on a phone)
                 ring.style.left = (r.left - 4) / k + 'px'; ring.style.top = t / k + 'px'; ring.style.width = (r.width + 8) / k + 'px'; ring.style.height = (bt - t) / k + 'px'; }
+            { const n = sample.getBoundingClientRect(); ring2.style.left = (n.left - 4) / k + 'px'; ring2.style.top = (n.top - 4) / k + 'px'; ring2.style.width = (n.width + 8) / k + 'px'; ring2.style.height = (n.height + 8) / k + 'px'; }
             line.setAttribute('viewBox', '0 0 ' + innerWidth + ' ' + innerHeight); line.style.width = innerWidth / k + 'px'; line.style.height = innerHeight / k + 'px';
-            const x1 = r.left + r.width / 2, y1 = r.bottom + 8, x2 = Math.min(c.right - 40, Math.max(c.left + 40, x1)), y2 = c.top;
+            const nb = sample.getBoundingClientRect(), x1 = nb.left + nb.width / 2, y1 = nb.bottom + 8, x2 = c.left + c.width / 2, y2 = c.top;
             path.setAttribute('d', 'M' + x1 + ' ' + y1 + 'V' + (y1 + (y2 - y1) * 0.5) + 'Q' + x1 + ' ' + (y2 - 10) + ' ' + x2 + ' ' + y2); };
         const timer = setInterval(place, 300);
         const done = () => { clearInterval(timer); veil.remove(); if (was && !inboxOn) snap.hidden = true; pt('captureTip', {}); then(); };

@@ -5091,3 +5091,13 @@ body.tip-up .device-notices { display: none; }
 .setting-row input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--bg); background: var(--success); box-shadow: 0 0 10px color-mix(in srgb, var(--success) 55%, transparent); }
 .setting-row input[type="range"]::-webkit-slider-runnable-track { background: linear-gradient(to right, var(--success) var(--p, 0%), color-mix(in srgb, var(--text) 16%, transparent) var(--p, 0%)); }
 .capture-sample .device-notice-art { color: var(--warning); }
+
+/* ---- The owner's notes after the phone screenshots (2026-11-18). ---- */
+.capture-ring-notice { border-radius: 16px; }
+/* Mail on the dock until the AI arrives; the AI over it while it arrives. */
+.home-dock-ai { position: relative; }
+.home-dock-ai > .home-icon { width: auto; }
+.home-dock-ai > .assist-dot.arriving { position: absolute; left: 50%; top: 50%; margin: -25px 0 0 -25px; z-index: 6001; pointer-events: none; }
+/* One AI: its mark on the dock's row shows only where the dock is pinned and the AI is not up in the Lab. */
+.device-switch-aimark { display: none; }
+body.dock-pinned:not(.ai-in-lab) .device-switch-aimark { display: block; }
