@@ -13,7 +13,10 @@ window.AGI = (function () {
     // start, for testing: no sign-in, no opening, every app on the home screen, no boss waiting on a Training skill
     // (`straightToRing`). It keeps its own save, backup, tab claim and playtest log, so it never touches a `#ring` game.
     // `#bays` is the old game's playground (Evals as the third bay, no gated bosses) with the opening skipped.
-    const RING_PLAY = location.hash === '#playground';
+    // The UI test link (the owner's ask, 2026-11-19): `#test` is the playground on a save of its own, with a list of
+    // preset moments to go through one at a time (`UI_TESTS`).
+    const RING_TEST = location.hash === '#test';
+    const RING_PLAY = location.hash === '#playground' || RING_TEST;
     // The three links (the owner's call, 2026-11-15). The plain link is the PLAYTEST: the ring, on a save and a playtest
     // log kept per playtest number (`E.PLAYTEST_BUILD`), so nothing from an older build comes along. `#ring` (or `#dev`)
     // is for DEV work: the ring on the save it always had, never started over. `#playground` is above. The old game has
@@ -22,8 +25,8 @@ window.AGI = (function () {
     const RING_DEV = location.hash === '#ring' || location.hash === '#dev';
     const PLAYTEST = !RING_DEV && !RING_PLAY && !SNARE_DIRECT && !['#bays', '#debug', '#evals', '#feed'].includes(location.hash);
     if (PLAYTEST || RING_DEV || RING_PLAY) window.AGIEngine.setRing(true);
-    const BUILD_LABEL = PLAYTEST ? `Playtest ${E.PLAYTEST_BUILD} · ${E.BUILD}` : RING_PLAY ? `Playground · ${E.BUILD}` : E.BUILD;
-    const PLAYTEST_LOG_KEY = PLAYTEST ? `agiPlaytest.pt${E.PLAYTEST_BUILD}` : RING_PLAY ? 'agiPlaytest.playground' : undefined;
+    const BUILD_LABEL = PLAYTEST ? `Playtest ${E.PLAYTEST_BUILD} · ${E.BUILD}` : RING_TEST ? `UI test · ${E.BUILD}` : RING_PLAY ? `Playground · ${E.BUILD}` : E.BUILD;
+    const PLAYTEST_LOG_KEY = PLAYTEST ? `agiPlaytest.pt${E.PLAYTEST_BUILD}` : RING_TEST ? 'agiPlaytest.uitest' : RING_PLAY ? 'agiPlaytest.playground' : undefined;
     // Older playtests' saves and logs go, all but the one before this (kept in case it is wanted back).
     if (PLAYTEST) try {
         for (const k of Object.keys(localStorage)) { const m = /^agi(?:Game|Playtest)\.pt(\d+)(?:\.|$)/.exec(k); if (m && +m[1] < E.PLAYTEST_BUILD - 1) localStorage.removeItem(k); }
@@ -31,7 +34,7 @@ window.AGI = (function () {
     const PLAYGROUND = BAYS_DIRECT;
     E.setPlayground(BAYS_DIRECT || RING_PLAY);
     E.setCourses(RING_DEV || PLAYTEST);   // Evals is the courses in the dev link (the owner's call, 2026-11-17) and, from 2026-11-19, in the playtest too (his card: "Switch it now"; the captchas were still showing there)
-    const SAVE_KEY = PLAYTEST ? `agiGame.pt${E.PLAYTEST_BUILD}` : RING_PLAY ? 'agiGame.playground' : 'agiGame';
+    const SAVE_KEY = PLAYTEST ? `agiGame.pt${E.PLAYTEST_BUILD}` : RING_TEST ? 'agiGame.uitest' : RING_PLAY ? 'agiGame.playground' : 'agiGame';
     const BACKUP_KEY = SAVE_KEY + '.bak';         // the last good save (refreshed every BACKUP_MS, and kept before an import)
     const CORRUPT_KEY = SAVE_KEY + '.corrupt';    // a save that couldn't be read, kept as it was
     const BACKUP_MS = 10 * 60000;
@@ -152,7 +155,7 @@ window.AGI = (function () {
         note: () => 'You wrote something down about me. Or about the screen.'
     };
     let aiLog = null;
-    const aiLogKey = () => 'agiAiLog' + (RING_PLAY ? '.playground' : PLAYTEST ? '.pt' + E.PLAYTEST_BUILD : '');
+    const aiLogKey = () => 'agiAiLog' + (RING_TEST ? '.uitest' : RING_PLAY ? '.playground' : PLAYTEST ? '.pt' + E.PLAYTEST_BUILD : '');
     function aiLogAdd(kind, text, key) {
         if (!E.isRing() || !state || !text) return;
         if (!aiLog) { try { aiLog = JSON.parse(storageGet(aiLogKey()) || '[]'); } catch { aiLog = []; } if (!Array.isArray(aiLog)) aiLog = []; }
@@ -2566,8 +2569,8 @@ window.AGI = (function () {
             desk.holdCapture = node => {
                 let timer = 0, at = null;
                 const stop = () => { clearTimeout(timer); timer = 0; at = null; };
-                node.addEventListener('pointerdown', e => { stop(); if (!desk.status || desk.status.snap.hidden) return; at = { x: e.clientX, y: e.clientY };
-                    timer = setTimeout(() => { timer = 0; node._held = performance.now(); pt('holdCapture', {}); sfx('ui'); hideSwitch(true); snapNow(); }, 650); });
+                node.addEventListener('pointerdown', e => { stop(); if (!RING_TEST && (!desk.status || desk.status.snap.hidden)) return; at = { x: e.clientX, y: e.clientY };
+                    timer = setTimeout(() => { timer = 0; node._held = performance.now(); sfx('ui'); hideSwitch(true); if (RING_TEST) { uiTestNext(); return; } pt('holdCapture', {}); snapNow(); }, 650); });
                 node.addEventListener('pointermove', e => { if (at && Math.hypot(e.clientX - at.x, e.clientY - at.y) > 12) stop(); });
                 for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) node.addEventListener(ev, stop);
                 node.addEventListener('click', e => { if (performance.now() - (node._held || 0) < 1200) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
@@ -15024,6 +15027,93 @@ window.AGI = (function () {
         else { state.intro['mailGone:' + item.key.slice(2)] = true; state.intro[item.readKey] = true; renderInbox(); }
         save();
     }
+    // The UI test link (`#test`; the owner's ask, 2026-11-19: "preset experiences so I can go from one to the next
+    // with a brief description card", instead of playing for half an hour to reach each). Each test is a moment set
+    // up on the playground's save, behind a card that says what to try; holding the AI's orb moves to the next
+    // (`desk.holdCapture`), and the next card has a box for a note on the one just done. Each start and note goes in
+    // the playtest log (`uiTest`, `note` with `test`). EVERY WORD HERE IS A PLACEHOLDER.
+    const UI_TEST_KEY = 'agiUiTest';
+    const uiPhone = () => document.body.classList.contains('device-phone'), uiTouch = () => matchMedia('(pointer: coarse)').matches;
+    const UI_TESTS = [
+        { id: 'press', title: 'Press feedback', what: 'The home screen, as it is.',
+            tries: () => ['Press and hold a few app icons. Each should shrink a touch while it is held.', 'Open the Lab and press Generate Compute. That one should not shrink.', 'Is the shrink right, too much or too little?'] },
+        { id: 'notices', title: 'Notifications', what: 'Four notifications arrive together.',
+            tries: () => ['They should sit as one stack: one in front, two edges behind it.', uiTouch() ? 'Rest a finger on the front one. It should stay for as long as you hold it.' : 'Rest the pointer on the front one. It should stay while you are over it.', 'Flick the front one up. It should slide away and the next come forward.', 'Leave the rest. Each should go by itself after a few seconds.'],
+            run: live => [['mail', 'Mail', 'A test message arrived.'], ['bank', 'Bank', 'A test deposit came in.'], ['shop', 'Parcel', 'A test parcel has shipped.'], ['playtest', 'Feedback', 'The last of the four.']].forEach(([k, app, text], i) => setTimeout(() => { if (live()) deviceNotice(k, app, text, () => {}); }, 250 * i)) },
+        { id: 'switches', title: 'Settings switches', what: 'Settings opens.',
+            tries: () => ['Watch it open. It should fade and rise in, not snap.', 'Flip a few switches. A tap anywhere on a row should take.', 'Close it with the ×. Does it fade out, or vanish at once?'],
+            run: () => $('settingsButton').click() },
+        { id: 'tabs', title: 'Tabs', what: 'Achievements opens.',
+            tries: () => ['Tap each tab. They should be easy to hit.', ...(uiTouch() ? [] : ['With a keyboard: Tab to the tabs, then the arrow keys, Home and End should move between them.'])],
+            run: () => $('journalButton').click() },
+        { id: 'hold', title: 'Windows hold until read', what: 'A window opens three seconds after you press Start.',
+            tries: () => ['Keep tapping the empty background until it opens under your finger.', 'It should not close on the tap that was already on its way.', 'A moment later, a tap outside it should close it.'],
+            run: live => { deviceNotice('playtest', 'Feedback', 'A window opens in three seconds. Keep tapping the background.', () => {}); uiTestTimer = setTimeout(() => { if (live()) $('journalButton').click(); }, 3000); } },
+        { id: 'confirm', title: 'A yes-or-no question', what: 'A sample question comes up. Nothing is erased, whichever you pick.',
+            tries: () => (uiPhone() ? ['It should sit at the foot of the screen, with two wide buttons in reach of a thumb.', 'Is Cancel on the side you expect?'] : ['It should sit in the middle and fade in.', 'Escape and Cancel should both close it.']),
+            run: live => openDialog({ title: 'Erase the test save?', message: 'A sample question for this test. Nothing is erased, whichever you pick.', okLabel: 'Erase', danger: true }).then(r => { if (live()) deviceNotice('playtest', 'Feedback', r.ok ? 'You chose Erase.' : 'You chose Cancel.', () => {}); }) },
+        { id: 'sheet', title: 'The assistant\'s sheet', what: 'The AI\'s sheet is open.',
+            tries: () => (uiTouch() ? ['Drag it a little toward the orb and let go. It should spring back.', 'Drag it further, or flick it. It should leave.', 'Open it again from the dock (Need help?) and try once more.'] : ['Click the orb to close and open it.', 'Try dragging the sheet toward the orb with the mouse. Tell me whether you would want that on a laptop.']),
+            run: () => { if (!assistSheet) assistSheetToggle(); } },
+        { id: 'mail', title: 'Mail closes on a tap outside', what: 'Mail opens on its list.',
+            tries: () => ['Tap outside the list. Mail should close.', 'Open Mail again from its icon, open a message, and tap outside. It should stay on the message.'],
+            run: () => openInbox() },
+        { id: 'parcel', title: 'Parcel', what: 'Parcel opens.',
+            tries: () => ['Buy a thing or two. Are the buttons easy to hit, and do they press in?', 'Close it.'],
+            run: () => openShop() },
+        { id: 'lab', title: 'The Lab', what: 'The Lab opens.',
+            tries: () => (uiPhone() ? ['Generate Compute should sit at the foot, over the dock.', 'Scroll the page. Does it scroll past the end of what is there?', 'The orb is the big one at the top here. Hold it to move on.'] : ['Press Generate Compute and the dock\'s buttons.', 'Anything that looks cramped or too small to hit?']),
+            run: () => openLab() },
+        { id: 'call', title: 'The missed call', what: 'M0M calls.',
+            tries: () => ['Do not answer. It rings for nine seconds, then closes by itself and leaves a notification.', 'It is the one window that leaves without you. Keep it as a story beat, or should it wait for you?'],
+            run: () => showCall() },
+        { id: 'calm', title: 'Reduce animations', what: 'Settings opens.',
+            tries: () => ['Switch on Reduce animations and close Settings.', 'Open Settings again from its icon. It should appear at once, with no fade.', 'Switch it off again.'],
+            run: () => $('settingsButton').click() },
+        { id: 'sideways', title: 'Sideways', what: 'The home screen, as it is.', when: uiTouch,
+            tries: () => ['Turn the phone on its side.', 'Every app should fit in one row, with none under the foot row.', 'Open the Lab and Settings sideways. Is anything cut off?', 'Turn it back before you move on.'] }];
+    let uiTestAt = 0, uiTestRan = null, uiTestCard = null, uiTestTimer = 0, uiTestRun = 0;
+    const uiTests = () => UI_TESTS.filter(t => !t.when || t.when());
+    // Back to the bare home screen: whatever the last test left open is closed.
+    function uiTestClear() {
+        uiTestRun++; clearTimeout(uiTestTimer);
+        for (const d of [...document.querySelectorAll('dialog[open]')].reverse()) { try { d.close(); } catch { /* already gone */ } }
+        closeApps();
+        if (assistSheet) assistSheetToggle();
+        if (noticeBox) for (const n of [...noticeBox.children]) n.remove();
+        goHome();
+    }
+    // (A keyboard has N as well: on a laptop a notification can sit over the orb.)
+    if (RING_TEST) document.addEventListener('keydown', e => { if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.target.closest?.('input, textarea, select, [contenteditable]')) { e.preventDefault(); uiTestNext(); } });
+    function uiTestNext() { if (!uiTestCard) uiTestShow(uiTestAt + (uiTestRan ? 1 : 0)); }
+    function uiTestShow(i) {
+        if (!RING_TEST) return;
+        const list = uiTests(), prev = uiTestRan;
+        uiTestClear();
+        i = Math.max(0, Math.min(list.length, i));
+        uiTestAt = i; uiTestRan = null; storageSet(UI_TEST_KEY, String(i));
+        const t = list[i], run = uiTestRun;
+        const box = prev ? el('textarea', { class: 'quick-note-box ui-test-note', rows: '2', placeholder: 'Type, or use the mic on your keyboard.', 'aria-label': `A note on the last test: ${prev.title}` }) : null;
+        let then = null, wrote = false;
+        const keep = () => { const text = box ? box.value.trim() : ''; if (text && !wrote) { wrote = true; pt('note', { test: prev.id, text: text.slice(0, 2000) }); } };
+        const go = f => { then = f; dlg.close(); };
+        const dlg = uiTestCard = el('dialog', { class: 'dialog ring-welcome ring-playtest ui-test-card', 'aria-labelledby': 'uiTestTitle' }, [
+            el('p', { class: 'ui-test-kicker', text: t ? `Test ${i + 1} of ${list.length}` : 'UI tests' }),
+            el('h2', { id: 'uiTestTitle', text: t ? t.title : 'That is all of them' }),
+            el('p', { text: t ? t.what : 'Thank you. Your notes and the log have been sent.' }),
+            t ? el('ul', { class: 'ui-test-tries' }, t.tries().map(x => el('li', { text: x }))) : null,
+            box ? el('label', { class: 'ui-test-notelabel' }, [el('span', { text: `Anything to say about the last one (${prev.title})?` }), box]) : null,
+            t ? el('p', { class: 'ui-test-how', text: 'When you are done, close what is open and hold the AI\'s orb for a second' + (uiTouch() ? '.' : ', or press N.') }) : null,
+            el('div', { class: 'dialog-actions' }, [
+                i > 0 ? el('button', { type: 'button', class: 'ghost-button', text: 'Redo the last', onclick: () => go(() => uiTestShow(i - 1)) }) : null,
+                t ? el('button', { type: 'button', class: 'ghost-button', text: 'Skip', onclick: () => go(() => uiTestShow(i + 1)) }) : el('button', { type: 'button', class: 'ghost-button', text: 'Start again', onclick: () => go(() => uiTestShow(0)) }),
+                el('button', { type: 'button', class: 'button', autofocus: '', text: t ? 'Start' : 'Close', onclick: () => go(() => { if (!t) return; uiTestRan = t; pt('uiTest', { n: i + 1, id: t.id, phone: uiPhone() ? 1 : 0, touch: uiTouch() ? 1 : 0, screen: innerWidth + 'x' + innerHeight }); setTimeout(() => { if (run === uiTestRun) t.run?.(() => run === uiTestRun); }, 80); }) })])]);   // (after its own tap is over: that tap closed the AI's sheet)
+        dlg.addEventListener('cancel', e => e.preventDefault());
+        dlg.addEventListener('close', () => { keep(); dlg.remove(); if (uiTestCard === dlg) uiTestCard = null; if (wrote || !t) { try { playtestSample(true); } catch { /* the log goes as it stands */ } inboxLog(); } then?.(); });
+        document.body.append(dlg);
+        dlg.showModal();
+        dlg.querySelector('.dialog-actions .button')?.focus();   // (not the note box: a phone's keyboard would come up over the card)
+    }
     // The playtest note (the owner's call): once, before the sign-in, not a line under every mail.
     function showPlaytestNote(then) {
         // (The owner's order, 2026-11-18: the sign-in, then this thank-you, then the capture tip, then the home screen.)
@@ -15422,6 +15512,7 @@ window.AGI = (function () {
         }
         if (RING_PLAY) straightToRing();
         deliverMail(true);
+        if (RING_TEST) setTimeout(() => uiTestShow(Math.max(0, parseInt(storageGet(UI_TEST_KEY), 10) || 0)), 700);
         // The ring: a new game opens on the sign-in and then the device's home screen (Mail is opened from there).
         if (!introDone()) { if (!E.isRing()) openInbox(); else if (!state.player.email) showLogin(); else if (!state.intro['ring:playtestNote']) showPlaytestNote(() => {}); }
     }
@@ -15584,6 +15675,8 @@ window.AGI = (function () {
             },
             // A brand-new game, from the inbox (no confirmation: the debug panel is the owner's).
             startOver() { startFresh('debugStartOver'); },
+            uiTest: n => uiTestShow(n),   // the UI test link's card n (0-based)
+            uiLog: () => playtest?.events || [],
             notice(key, app, text) { deviceNotice(key, app, text, key === 'mail' ? openInbox : () => {}); },   // tools/review/ring-nav.js
             // The Packet Snare run in play (tests and the debug view; read it, don't change it).
             snareRun: () => snare.run,

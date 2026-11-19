@@ -5393,3 +5393,18 @@ body.device-phone #dialog:not([open]) { transform: translateY(100%); opacity: 1;
 .inbox-message { max-height: min(72dvh, 560px); }
 /* A list scrolled to its end does not start scrolling what is behind it. */
 .journal-body, .inbox-list, .inbox-message, .shop-list, .assist-sheet, .ai-log-list { overscroll-behavior: contain; }
+
+/* ---- The UI test link (#test): its card, and the last layout fixes it was made to check ------------------------- */
+.ui-test-kicker { margin: 0 0 4px !important; font: 700 0.78rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--success) !important; }
+.ui-test-tries { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 6px; }
+.ui-test-notelabel { display: grid; gap: 6px; margin: 0 0 12px; color: var(--muted); font-size: 0.92rem; }
+.ui-test-note { width: 100%; }
+.ui-test-how { font-size: 0.9rem; }
+.ui-test-card { max-height: calc(100dvh / var(--zoom, 1) - 24px); overflow-y: auto; overscroll-behavior: contain; }
+.ui-test-card .dialog-actions { flex-wrap: wrap; }
+/* A phone on its side: all eight apps in one row (the eighth wrapped under the foot row). */
+@media (orientation: landscape) and (max-height: 520px) {
+    body.device-phone .home-icons > .home-icon { width: calc((100% - 28px) / 8); min-width: 0; }
+}
+/* Evals' option chips and Mail's rows were a few pixels short of a touch target. */
+@media (pointer: coarse) { .maze-tool, .inbox-open { min-height: 44px; } }
