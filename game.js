@@ -139,7 +139,29 @@ window.AGI = (function () {
         }
         if (out.events.length || out.research) window.FeedUI?.events(out.events, out.research || 0);   // (the research, for the numbers that fly up)
     }
+    // The AI log (the owner's card, 2026-11-18): what the AI said and what it noticed, newest last, on the phone's home
+    // screen. Its notes are the AI's own short entries on things that happen (PLACEHOLDER words, a few to start with).
+    const AI_NOTES = {
+        login: () => 'A new owner. First name on file.',
+        shopDelivered: d => `A part arrived (${d.item}). I could feel it.`,
+        skill: d => `Learned: ${d.name}.`,
+        achievement: () => 'You earned something. I made a note.',
+        shopSell: d => `Sold ${Math.round(d.cp || 0)} compute. It is only numbers.`,
+        snareRun: d => `A run in Packet Snare: ${d.caught ?? d.packets ?? 'some'} caught.`,
+        fund: () => 'Funding came in.',
+        note: () => 'You wrote something down about me. Or about the screen.'
+    };
+    let aiLog = null;
+    const aiLogKey = () => 'agiAiLog' + (RING_PLAY ? '.playground' : PLAYTEST ? '.pt' + E.PLAYTEST_BUILD : '');
+    function aiLogAdd(kind, text, key) {
+        if (!E.isRing() || !state || !text) return;
+        if (!aiLog) { try { aiLog = JSON.parse(storageGet(aiLogKey()) || '[]'); } catch { aiLog = []; } if (!Array.isArray(aiLog)) aiLog = []; }
+        const last = aiLog[aiLog.length - 1]; if (last && last.x === text) return;
+        aiLog.push({ t: Math.round(state.stats.playTime), k: kind, x: String(text).slice(0, 220), id: key || '' }); if (aiLog.length > 80) aiLog.splice(0, aiLog.length - 80);
+        aiLog.dirty = true; try { storageSet(aiLogKey(), JSON.stringify(aiLog)); } catch { /* no storage: it lasts the visit */ }
+    }
     function pt(type, data) {
+        if (state && AI_NOTES[type] && state.intro && state.intro['ring:aiArrived']) { try { aiLogAdd('note', AI_NOTES[type](data || {})); } catch { /* a note is never worth a fault */ } }
         if (!playtest || !state) return;
         playtest.event(state.stats.playTime, type, data);
         if (PT_FLUSH.has(type)) playtest.flush();
@@ -2552,6 +2574,44 @@ window.AGI = (function () {
     // (The owner's call, 2026-11-15: the AI announces the download, with a little space on the home screen before the
     // announcement and again before the loading starts.)
     const HOME_ANNOUNCE_MS = 2000, HOME_LOAD_GAP_MS = 2000, HOME_FLICKER_MS = 1000, HOME_HELLO_MS = 5000;
+    // What can be pinned to the AI log, and what the player has pinned (per device).
+    const AI_STATS = [
+        ['cps', 'Compute a second', () => E.format(E.derive(state).cpNet ?? 0) + '/s', () => true],
+        ['cp', 'Compute', () => E.format(Math.floor(state.res.cp)), () => true],
+        ['cash', 'Money', () => '$' + E.format(Math.floor(bankNow())), () => shopOpenable()],
+        ['rp', 'Research', () => E.format(Math.floor(state.res.rp)), () => E.feedOpen(state) || state.res.rp > 0],
+        ['signal', 'Signal', () => E.format(Math.floor(state.snare.signal)), () => !!state.unlocked['module:snare']],
+        ['xp', 'XP', () => E.format(Math.floor(state.res.xp)), () => !!state.unlocked['module:path']],
+        ['skills', 'Skills', () => String(state.path.learned), () => !!state.unlocked['module:path']],
+        ['ach', 'Achievements', () => `${Object.keys(state.achievements).length}/${E.ACHIEVEMENTS.length}`, () => true],
+        ['time', 'Time played', () => E.formatDuration(Math.floor(state.stats.playTime)), () => true]];
+    const aiPins = () => { try { const v = JSON.parse(storageGet('agiAiPins') || 'null'); if (Array.isArray(v)) return v; } catch { /* default */ } return ['cps', 'time']; };
+    function renderAiLog() {
+        const L = home?.log; if (!L) return;
+        const on = document.body.classList.contains('device-phone') && !!state.intro['ring:aiArrived'];
+        document.body.classList.toggle('ai-bar', on);
+        if (L.panel.hidden === on) setHidden(L.panel, !on);
+        if (!on) return;
+        const pins = aiPins(), can = AI_STATS.filter(a => a[3]()), pinKey = pins.join(',') + '|' + can.map(a => a[0]).join(',');
+        if (L.pinKey !== pinKey) {
+            L.pinKey = pinKey; L.cells = {};
+            L.pins.replaceChildren(...can.filter(a => pins.includes(a[0])).map(([id, name]) => { const v = el('b'); L.cells[id] = v; return el('span', { class: 'ai-log-pin' }, [el('i', { text: name }), v]); }));
+            L.pick.replaceChildren(...can.map(([id, name]) => { const box = el('input', { type: 'checkbox' }); box.checked = pins.includes(id);
+                box.onchange = () => { const now = aiPins().filter(x => x !== id); if (box.checked) now.push(id); try { storageSet('agiAiPins', JSON.stringify(now.slice(0, 6))); } catch { /* this visit only */ } pt('aiPins', { n: now.length }); };
+                return el('label', { class: 'ai-log-choice' }, [box, el('span', { text: name })]); }));
+        }
+        for (const [id, , value] of AI_STATS) if (L.cells[id]) setText(L.cells[id], value());
+        if (!aiLog) aiLogAdd('note', '');   // (reads what was kept)
+        if (!aiLog) { try { aiLog = JSON.parse(storageGet(aiLogKey()) || '[]'); } catch { aiLog = []; } if (!Array.isArray(aiLog)) aiLog = []; aiLog.dirty = true; }
+        if (aiLog.dirty) {
+            aiLog.dirty = false;
+            const stick = L.list.scrollTop + L.list.clientHeight >= L.list.scrollHeight - 12;
+            L.list.replaceChildren(...(aiLog.length ? aiLog.slice(-40).map(e => { const row = el(e.k === 'say' ? 'button' : 'div', { class: 'ai-log-row ai-log-' + e.k }, [el('span', { class: 'ai-log-time', text: E.formatDuration(e.t) }), el('span', { class: 'ai-log-text', text: (e.k === 'say' ? '> ' : '· ') + e.x })]);
+                if (e.k === 'say') { row.type = 'button'; row.onclick = () => { pt('assistAsk', { again: e.id || 'log' }); assist('log:' + e.t, e.x, { again: true }); }; }
+                return row; }) : [el('p', { class: 'ai-log-empty', text: 'Nothing yet.' })]));
+            if (stick) L.list.scrollTop = L.list.scrollHeight;
+        }
+    }
     let homeFlicker = false;
     // The AI's arrival on a phone (the owner, 2026-11-18): it turns up wrong, tiny and darting about the screen, swells
     // far too big, then finds its size, settles on the dock and pushes Mail out onto the home screen ("I need the room").
@@ -2680,6 +2740,13 @@ window.AGI = (function () {
         // (The owner's sketch, 2026-11-18: Feedback and Settings on the dock, a space between them that the AI takes when
         // it arrives; Achievements is an app beside Mail, there once one is earned.)
         const aiSlot = el('div', { class: 'home-dock-ai' });
+        // The AI log: pinned stats over the log itself. Shown once the AI is on the device.
+        const logPins = el('div', { class: 'ai-log-pins' }), logList = el('div', { class: 'ai-log-list', role: 'log', 'aria-label': 'What the assistant has said and noticed' });
+        const logPick = el('div', { class: 'ai-log-pick', hidden: '' });
+        const logPanel = el('section', { class: 'ai-log', hidden: '', 'aria-label': 'AI log' }, [
+            el('div', { class: 'ai-log-head' }, [el('span', { class: 'ai-log-title', text: 'AI log' }), el('button', { type: 'button', class: 'ai-log-edit', 'aria-label': 'Choose the stats to pin', text: '+ stats', onclick: () => { logPick.hidden = !logPick.hidden; } })]),
+            logPins, logPick, logList]);
+        logPick.hidden = true; logPanel.hidden = true;
         const clock = el('span', { class: 'home-clock' });
         const bar = el('div', { class: 'home-bar-fill' });
         const popupText = el('p', { class: 'home-popup-text' });
@@ -2688,6 +2755,7 @@ window.AGI = (function () {
             el('div', { class: 'home-popup-title', text: 'Download' }), popupText, el('div', { class: 'home-bar' }, [bar]), el('div', { class: 'home-popup-actions' }, [popupOpen])]);
         const node = el('div', { class: 'device-home', id: 'deviceHome', hidden: '' }, [
             el('div', { class: 'home-status' }, [clock, el('span', { class: 'home-signal', text: '▂▄▆ 37%' })]),
+            logPanel,
             el('div', { class: 'home-icons' }, [tools[2].button, mail.button, lab.button, shopApp.button, snareApp.button, feedApp.button, trainApp.button, evalsApp.button]),
             popup,
             // The system apps sit in a row at the foot of the screen (the owner's call): a phone's dock, a laptop's shelf.
@@ -2700,7 +2768,7 @@ window.AGI = (function () {
         let lastTap = 0;
         node.addEventListener('touchend', e => { const now = Date.now(); if (now - lastTap < 320 && !e.target.closest('button')) e.preventDefault(); lastTap = now; }, { passive: false });
         document.body.append(node);
-        return { node, aiSlot, mail, lab, snare: snareApp, feed: feedApp, train: trainApp, shop: shopApp, evals: evalsApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
+        return { node, aiSlot, log: { panel: logPanel, pins: logPins, pick: logPick, list: logList, key: '' }, mail, lab, snare: snareApp, feed: feedApp, train: trainApp, shop: shopApp, evals: evalsApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
     }
     function renderHome() {
         if (!E.isRing()) return;
@@ -2720,6 +2788,7 @@ window.AGI = (function () {
         home = home || buildHome();
         if (home.node.hidden === on) home.node.hidden = !on;
         home.tools[2].button.classList.toggle('ghost', !Object.keys(state.achievements).length);
+        renderAiLog();
         // Mail sits on the dock of a phone until the AI arrives and takes that place (the owner, 2026-11-18). A game that
         // is already past the AI's hello has it on the home screen.
         { const phone = document.body.classList.contains('device-phone');
@@ -3096,6 +3165,7 @@ window.AGI = (function () {
         assistTypeStart(typed, q.text);
         assistBox.replaceChildren(node);
         assistLive = { ...q, node, at: performance.now(), ringed: null }; lastArrival = performance.now();
+        if (!String(q.key).startsWith('help:')) aiLogAdd('say', q.text, q.key);
         if (!q.again) state.intro['assist:' + q.key] = true;
         pt('assist', q.again ? { key: q.key, again: 1 } : { key: q.key });
         sfx('ui');

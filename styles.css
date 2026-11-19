@@ -5132,3 +5132,43 @@ body.device-phone .home-icons { transition: translate 0.28s cubic-bezier(0.2, 0.
 body.device-phone.ai-on-home.dock-open .home-icons { translate: 0 -64px; }
 body.device-phone.ai-on-home.dock-open .assist.on-home { opacity: 0; pointer-events: none; }
 .assist { transition: opacity 0.2s ease; }
+
+/* ---- The owner's third cards (2026-11-18). ---- */
+/* The dock's panel: its app row on top and the AI's three buttons under it, everywhere. */
+body.ring-device .device-switch, body.ring-device.device-phone .device-switch { flex-direction: column-reverse; }
+.device-switch-ai { padding-bottom: 0; margin-bottom: 0; border-bottom: 0; padding-top: 6px; margin-top: 2px; border-top: 1px solid var(--border); }
+/* On a phone's home screen the AI has replaced the old bar once it is here: the bar's own two apps and its frame go,
+   and the AI stands alone at the foot; Feedback and Settings are on its panel. */
+body.device-phone .home-dock { transition: background 0.5s ease, border-color 0.5s ease; }
+body.device-phone .home-dock > .home-icon { transition: opacity 0.5s ease, visibility 0s linear 0.5s; }
+body.device-phone.ai-bar .home-dock { background: transparent; border-color: transparent; }
+body.device-phone.ai-bar .home-dock > .home-icon { opacity: 0; visibility: hidden; pointer-events: none; }
+/* The AI log, at the top of a phone's home screen. */
+.ai-log { flex: 0 1 auto; min-height: 0; max-height: 250px; display: flex; flex-direction: column; gap: 6px; margin: 34px 10px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 14px; background: color-mix(in srgb, var(--bg) 70%, transparent); }
+.ai-log[hidden] { display: none; }
+.ai-log-head { display: flex; align-items: center; gap: 10px; }
+.ai-log-title { flex: 1; font: 700 0.7rem var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--success); }
+.ai-log-edit { min-height: 30px; padding: 2px 10px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--muted); font: 600 0.72rem var(--font-display); cursor: pointer; }
+.ai-log-pins { display: flex; flex-wrap: wrap; gap: 6px; }
+.ai-log-pin { display: inline-flex; align-items: baseline; gap: 6px; padding: 3px 9px; border: 1px solid var(--border); border-radius: 8px; font: 600 0.74rem var(--font-mono); }
+.ai-log-pin i { font-style: normal; color: var(--muted); font-size: 0.66rem; } .ai-log-pin b { color: var(--text); }
+.ai-log-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; padding: 6px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.ai-log-pick[hidden] { display: none; }
+.ai-log-choice { display: flex; align-items: center; gap: 8px; min-height: 34px; font-size: 0.82rem; }
+.ai-log-list { flex: 1 1 auto; min-height: 44px; overflow-y: auto; display: grid; gap: 1px; align-content: start; }
+.ai-log-row { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 3.6em 1fr; gap: 8px; padding: 3px 0; font: 500 0.74rem/1.35 var(--font-mono); color: var(--terminal, var(--text)); }
+button.ai-log-row { cursor: pointer; }
+.ai-log-note { color: var(--muted); }
+.ai-log-time { color: var(--muted); opacity: 0.7; font-size: 0.66rem; padding-top: 1px; }
+.ai-log-empty { margin: 0; font: 500 0.74rem var(--font-mono); color: var(--muted); }
+body:not(.device-phone) .ai-log { display: none; }
+body.ring-device.ai-here .device-switch, body.ring-device.device-phone.ai-here .device-switch { flex-direction: column-reverse; }
+/* The log's stat picker opens inside the panel, in place of the log, and scrolls there. */
+.ai-log { overflow: hidden; }
+.ai-log-pick { max-height: 150px; overflow-y: auto; }
+.ai-log-pick:not([hidden]) ~ .ai-log-list { display: none; }
+/* The apps make room for the open panel by pushing up against the AI log, which gives way (they were slid over it). */
+@media (max-width: 640px) {
+    body.device-phone .home-icons { transition: padding 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+    body.device-phone.ai-on-home.dock-open .home-icons { translate: none; padding-top: 190px; }
+}
