@@ -2067,7 +2067,9 @@ window.AGI = (function () {
         const input = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', multiple: '', class: 'survey-photos-input', onchange: async () => { const files = [...input.files]; if (!files.length) return; note.textContent = 'Sending…'; const n = await inboxPhotos(files); sent += n; note.textContent = n ? `${n} sent` : 'Could not send'; input.value = ''; } });
         let sent = 0, wrote = false;
         const phone = matchMedia('(pointer: coarse)').matches;
-        const done = () => { const text = box.value.trim(); if (text) { wrote = true; pt('note', { snap, app, text: text.slice(0, 600) }); inboxLog(); } dlg.close(); };
+        // What was typed is kept however the note is closed (Save, the ×, Escape, Full survey): the × used to throw it away.
+        const keep = () => { const text = box.value.trim(); if (text && !wrote) { wrote = true; pt('note', { snap, app, text: text.slice(0, 2000) }); } };
+        const done = () => { keep(); dlg.close(); };
         const dlg = el('dialog', { class: 'dialog ring-welcome quick-note', 'aria-labelledby': 'quickNoteTitle' }, [
             el('div', { class: 'win-head' }, [el('h2', { id: 'quickNoteTitle', text: 'Quick note' }), el('button', { type: 'button', class: 'ghost-button win-x', 'aria-label': 'Close', text: '×', onclick: () => dlg.close() })]),
             box,
@@ -2078,7 +2080,7 @@ window.AGI = (function () {
                 el('button', { type: 'button', class: 'ghost-button', text: 'Full survey', onclick: () => { done(); openSurvey(); } }),
                 el('button', { type: 'button', class: 'button', text: 'Save', onclick: done })])]);
         // Closed with nothing added, the playtest log still goes, up to the moment, and the notice says so (the owner's call, 2026-11-18).
-        dlg.addEventListener('close', () => { dlg.remove(); pt('noteClosed', { snap, wrote: wrote ? 1 : 0, photos: sent }); try { playtestSample(true); } catch { /* the log goes as it stands */ } inboxLog();
+        dlg.addEventListener('close', () => { keep(); dlg.remove(); pt('noteClosed', { snap, wrote: wrote ? 1 : 0, photos: sent }); try { playtestSample(true); } catch { /* the log goes as it stands */ } inboxLog();
             deviceNotice('playtest', 'Feedback', wrote || sent ? 'Note saved and sent.' : 'Your log has been sent.', () => {}); });
         document.body.append(dlg); dlg.showModal(); box.focus();
     }
