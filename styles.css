@@ -5213,3 +5213,7 @@ body.device-phone.ai-bar.ai-on-home .device-status .status-stats { visibility: h
 /* The AI log keeps clear of the top row of apps and their NEW tags, and its list fades in under the stats. */
 .ai-log { margin-bottom: 20px; }
 .ai-log-list { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14px); mask-image: linear-gradient(to bottom, transparent, #000 14px); padding-top: 6px; }
+/* An iPhone zooms the whole page in when a box with text under 16px takes the keyboard, and does not zoom back: the
+   quick note opened pushed off the right of the screen, its Save out of reach (the owner's photo, 2026-11-18). Every
+   box you type in is 16px on a touch screen. */
+@media (pointer: coarse) { input[type="text"], input:not([type]), textarea, select, .quick-note-box, .dialog textarea { font-size: 16px; } }
