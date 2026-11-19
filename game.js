@@ -2037,8 +2037,9 @@ window.AGI = (function () {
         inboxLog();
         snapBusy = false;
         // Tapping the notice opens a one-line note about it (the owner's call: a quick note, then back to playing).
-        const said = ok ? 'Snapshot saved. Tap to add a quick note.' : 'The snapshot could not be saved.';
-        if (E.isRing()) deviceNotice('playtest', 'Feedback', said, () => { if (ok) quickNote(base, app); }); else toast('Playtest', ok ? 'Snapshot saved.' : said, 'info');
+        // The quick note opens at once (the owner's call: no notice to tap first); the notice comes when it is put away.
+        if (ok && E.isRing()) quickNote(base, app);
+        else if (E.isRing()) deviceNotice('playtest', 'Feedback', 'The snapshot could not be saved.', () => {}); else toast('Playtest', ok ? 'Snapshot saved.' : 'The snapshot could not be saved.', 'info');
     }
     // The whole page as it stands, for a snapshot on a phone that can't photograph its own screen: the document with its
     // canvases turned into pictures and its form values written in, no scripts. tools/review/snap-page.js draws it.
@@ -2063,16 +2064,20 @@ window.AGI = (function () {
     function quickNote(snap, app) {
         const box = el('textarea', { class: 'quick-note-box', rows: '3', placeholder: 'What did you see? Type, or use the mic on your keyboard.', 'aria-label': 'A quick note about this snapshot' });
         const note = el('span', { class: 'survey-photos-note' });
-        const input = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', multiple: '', class: 'survey-photos-input', onchange: async () => { const files = [...input.files]; if (!files.length) return; note.textContent = 'Sending…'; const n = await inboxPhotos(files); note.textContent = n ? `${n} sent` : 'Could not send'; input.value = ''; } });
-        const done = () => { const text = box.value.trim(); if (text) { pt('note', { snap, app, text: text.slice(0, 600) }); inboxLog(); } dlg.close(); };
+        const input = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', multiple: '', class: 'survey-photos-input', onchange: async () => { const files = [...input.files]; if (!files.length) return; note.textContent = 'Sending…'; const n = await inboxPhotos(files); sent += n; note.textContent = n ? `${n} sent` : 'Could not send'; input.value = ''; } });
+        let sent = 0, wrote = false;
+        const phone = matchMedia('(pointer: coarse)').matches;
+        const done = () => { const text = box.value.trim(); if (text) { wrote = true; pt('note', { snap, app, text: text.slice(0, 600) }); inboxLog(); } dlg.close(); };
         const dlg = el('dialog', { class: 'dialog ring-welcome quick-note', 'aria-labelledby': 'quickNoteTitle' }, [
             el('div', { class: 'win-head' }, [el('h2', { id: 'quickNoteTitle', text: 'Quick note' }), el('button', { type: 'button', class: 'ghost-button win-x', 'aria-label': 'Close', text: '×', onclick: () => dlg.close() })]),
             box,
-            el('label', { class: 'survey-photos' }, [el('span', { class: 'survey-photos-button', text: 'Add a screenshot from this device' }), input, note]),
+            // (On a phone its own screenshot is the true picture: the snapshot is a rebuild. PLACEHOLDER words.)
+            phone ? el('p', { class: 'quick-note-hint', text: 'Your phone\'s own screenshot shows exactly what you saw. Take one, then add it here.' }) : null,
+            el('label', { class: 'survey-photos' + (phone ? ' wanted' : '') }, [el('span', { class: 'survey-photos-button', text: phone ? 'Add a screenshot' : 'Add a screenshot from this device' }), input, note]),
             el('div', { class: 'dialog-actions' }, [
                 el('button', { type: 'button', class: 'ghost-button', text: 'Full survey', onclick: () => { done(); openSurvey(); } }),
                 el('button', { type: 'button', class: 'button', text: 'Save', onclick: done })])]);
-        dlg.addEventListener('close', () => dlg.remove());
+        dlg.addEventListener('close', () => { dlg.remove(); deviceNotice('playtest', 'Feedback', wrote || sent ? 'Note saved and sent.' : 'Snapshot saved and sent.', () => {}); });
         document.body.append(dlg); dlg.showModal(); box.focus();
     }
     // Screenshots made with the phone's own buttons, picked from its photos: saved beside the log with the play time.
@@ -14832,12 +14837,12 @@ window.AGI = (function () {
         const ring = el('span', { class: 'capture-ring', 'aria-hidden': 'true' }), ring2 = el('span', { class: 'capture-ring capture-ring-notice', 'aria-hidden': 'true' });
         const NS = 'http://www.w3.org/2000/svg', line = document.createElementNS(NS, 'svg'), path = document.createElementNS(NS, 'path'); line.setAttribute('class', 'capture-line'); line.setAttribute('aria-hidden', 'true'); line.append(path);
         const art = el('span', { class: 'device-notice-art' }); art.innerHTML = HOME_ICONS.playtest;
-        const sample = el('div', { class: 'device-notice device-notice-playtest capture-sample', 'aria-hidden': 'true' }, [art, el('span', { class: 'device-notice-app', text: 'Feedback' }), el('span', { class: 'device-notice-text', text: 'Snapshot saved. Tap to add a quick note.' })]);
+        const sample = el('div', { class: 'device-notice device-notice-playtest capture-sample', 'aria-hidden': 'true' }, [art, el('span', { class: 'device-notice-app', text: 'Feedback' }), el('span', { class: 'device-notice-text', text: 'Note saved and sent.' })]);
         const card = el('div', { class: 'capture-card', role: 'dialog', 'aria-labelledby': 'captureTipTitle' }, [
             el('h2', { id: 'captureTipTitle', text: 'See something? Capture it' }),
             el('ul', { class: 'playtest-tools' }, [
-                el('li', {}, [el('b', { text: 'The ◉ button' }), ' at the top saves what is on screen.']),
-                el('li', {}, [el('b', { text: 'Tap the notice' }), ' that drops in, like the one above, to add a quick note. Your keyboard\'s mic works, so you can just say it.']),
+                el('li', {}, [el('b', { text: 'The ◉ button' }), ' at the top saves what is on screen and opens a quick note. Your keyboard\'s mic works, so you can just say it.']),
+                el('li', {}, [el('b', { text: 'A notice' }), ' like the one above tells you it was sent.']),
                 el('li', {}, [el('b', { text: 'The Feedback app' }), ' is for longer thoughts, whenever you like.'])]),
             el('div', { class: 'dialog-actions' }, [el('button', { type: 'button', class: 'button', text: 'Next', onclick: () => done() })])]);
         veil.append(line, sample, card, ring, ring2);

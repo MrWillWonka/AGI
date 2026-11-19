@@ -5217,3 +5217,7 @@ body.device-phone.ai-bar.ai-on-home .device-status .status-stats { visibility: h
    quick note opened pushed off the right of the screen, its Save out of reach (the owner's photo, 2026-11-18). Every
    box you type in is 16px on a touch screen. */
 @media (pointer: coarse) { input[type="text"], input:not([type]), textarea, select, .quick-note-box, .dialog textarea { font-size: 16px; } }
+
+/* The quick note on a phone asks for the phone's own screenshot: its button is the bright one there. */
+.quick-note-hint { margin: 0 0 8px; font-size: 0.86rem; color: var(--muted); }
+.survey-photos.wanted .survey-photos-button { border-color: var(--primary); color: var(--primary); font-weight: 700; }
