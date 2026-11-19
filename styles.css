@@ -5206,3 +5206,10 @@ body.device-phone.ai-bar .home-icons { flex: 1 1 auto; }
 /* The stats picker, held by the AI in its sheet. */
 .assist-pins { max-height: none; border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; }
 .assist-pins[hidden] { display: none; }
+
+/* ---- The owner's marks, 9 pm (2026-11-18). ---- */
+/* On a phone's home screen the status strip's numbers go: the AI log shows them. The clock, capture and signal stay. */
+body.device-phone.ai-bar.ai-on-home .device-status .status-stats { visibility: hidden; }
+/* The AI log keeps clear of the top row of apps and their NEW tags, and its list fades in under the stats. */
+.ai-log { margin-bottom: 20px; }
+.ai-log-list { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14px); mask-image: linear-gradient(to bottom, transparent, #000 14px); padding-top: 6px; }

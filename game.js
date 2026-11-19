@@ -156,7 +156,7 @@ window.AGI = (function () {
     function aiLogAdd(kind, text, key) {
         if (!E.isRing() || !state || !text) return;
         if (!aiLog) { try { aiLog = JSON.parse(storageGet(aiLogKey()) || '[]'); } catch { aiLog = []; } if (!Array.isArray(aiLog)) aiLog = []; }
-        const last = aiLog[aiLog.length - 1]; if (last && last.x === text) return;
+        if (aiLog.slice(-8).some(e => e.x === text) || text === ASSIST_LINES.empty) return;   // (a line asked for again is not news)
         aiLog.push({ t: Math.round(state.stats.playTime), k: kind, x: String(text).slice(0, 220), id: key || '' }); if (aiLog.length > 80) aiLog.splice(0, aiLog.length - 80);
         aiLog.dirty = true; try { storageSet(aiLogKey(), JSON.stringify(aiLog)); } catch { /* no storage: it lasts the visit */ }
     }
@@ -2453,7 +2453,9 @@ window.AGI = (function () {
             const aiRow = el('div', { class: 'device-switch-row device-switch-ai' }, [
                 el('span', { class: 'device-switch-aimark', 'aria-hidden': 'true' }),
                 el('button', { type: 'button', class: 'device-switch-aibtn', text: 'Need help?', onclick: () => { hideSwitch(true); pt('assistAsk', { help: 'dock' }); assistSheetToggle(); } }),
-                el('button', { type: 'button', class: 'device-switch-aibtn', text: 'What next', onclick: () => { hideSwitch(true); const [text] = assistWhatNow(); pt('assistAsk', { now: 'dock' }); assist('whatNow', text, { again: true }); } }),
+                el('button', { type: 'button', class: 'device-switch-aibtn', text: 'What next', onclick: () => { hideSwitch(true); const [text, app] = assistWhatNow(); pt('assistAsk', { now: app || 'dock' });
+                    // (On the home screen it points at the app it names: the owner's sketch, 2026-11-18.)
+                    assist('whatNow', text, { again: true, target: () => home?.[app === 'training' ? 'train' : app]?.button || null }); } }),
                 el('button', { type: 'button', class: 'device-switch-aibtn', text: 'Last tip', onclick: () => { hideSwitch(true); pt('assistAsk', { last: assistLastKey || '' }); const s = assistLastKey && assistSeen[assistLastKey]; if (s) assist(assistLastKey, s.text, { ...s.o, done: null, again: true }); else assist('lastNone', ASSIST_LINES.empty, { again: true }); } })]);
             aiRow.hidden = true; desk.aiRow = aiRow;
             sw.append(aiRow, appsRow, mainRow);
@@ -3280,13 +3282,14 @@ window.AGI = (function () {
         const said = Object.keys(ASSIST_LINES).filter(k => state.intro['assist:' + k] && !k.endsWith('Home') && !k.startsWith('help:'));
         const past = said.map(k => { const seen = assistSeen[k], text = seen ? seen.text : ASSIST_LINES[k].replace(' for sector {sector}', '');
             return el('button', { type: 'button', class: 'assist-past', text, onclick: () => { assistSheetToggle(); pt('assistAsk', { again: k }); assist(k, text, { ...(seen ? seen.o : {}), done: null, again: true }); } }); });
-        assistSheet = el('div', { class: 'assist-sheet', role: 'dialog', 'aria-label': 'Assistant' }, [
-            el('div', { class: 'assist-sheet-head' }, [el('span', { class: 'assist-mark', 'aria-hidden': 'true' }), el('strong', { text: 'Assistant' }), el('button', { type: 'button', class: 'assist-close', 'aria-label': 'Close', text: '×', onclick: () => assistSheetToggle() })]),
-            ask, answer, go,
+        const slim = document.body.classList.contains('device-phone');   // (a phone's sheet is short: the owner's marks, 2026-11-18. The AI closes it.)
+        assistSheet = el('div', { class: 'assist-sheet' + (slim ? ' slim' : ''), role: 'dialog', 'aria-label': 'Assistant' }, [
+            slim ? null : el('div', { class: 'assist-sheet-head' }, [el('span', { class: 'assist-mark', 'aria-hidden': 'true' }), el('strong', { text: 'Assistant' }), el('button', { type: 'button', class: 'assist-close', 'aria-label': 'Close', text: '×', onclick: () => assistSheetToggle() })]),
+            ...(slim ? [] : [ask, answer, go]),
             el('button', { type: 'button', class: 'assist-ask assist-what', text: 'What is this?', onclick: () => assistAskStart() }),
             // The playground can look at each form (0 goes back to the form the compute gives).
-            ...(RING_PLAY ? [el('button', { type: 'button', class: 'assist-ask assist-form', text: `Orb form: ${orbFormShow || 1} (tap to change)`, onclick: e => { orbFormShow = orbFormShow % 4 + 1; e.currentTarget.textContent = `Orb form: ${orbFormShow} (tap to change)`; assistDotTick(); } })] : []),
-            ...(shopOpenable() ? [el('button', { type: 'button', class: 'assist-ask assist-parcel', text: 'Open Parcel', onclick: () => { assistSheetToggle(); pt('assistAsk', { parcel: 1 }); openShop(); } })] : []),
+            ...(RING_PLAY && !slim ? [el('button', { type: 'button', class: 'assist-ask assist-form', text: `Orb form: ${orbFormShow || 1} (tap to change)`, onclick: e => { orbFormShow = orbFormShow % 4 + 1; e.currentTarget.textContent = `Orb form: ${orbFormShow} (tap to change)`; assistDotTick(); } })] : []),
+            ...(shopOpenable() && !slim ? [el('button', { type: 'button', class: 'assist-ask assist-parcel', text: 'Open Parcel', onclick: () => { assistSheetToggle(); pt('assistAsk', { parcel: 1 }); openShop(); } })] : []),
             // The AI holds the picker for the stats on its log (the owner's card, 2026-11-18). PLACEHOLDER words.
             ...(document.body.classList.contains('device-phone') && state.intro['ring:aiBar'] ? (() => { const box = el('div', { class: 'ai-log-pick assist-pins' }); box.hidden = true;
                 box.append(...AI_STATS.filter(x => x[3]()).map(([id, name]) => { const c = el('input', { type: 'checkbox' }); c.checked = aiPins().includes(id);
@@ -3319,7 +3322,7 @@ window.AGI = (function () {
             assistDot.addEventListener('pointermove', e => { if (!d || assistMode !== 'float' || document.body.classList.contains('device-phone')) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; if (!d.moved && Math.hypot(dx, dy) < 8) return; d.moved = true; place(d.l + dx, d.t + dy); });
             assistDot.addEventListener('pointerup', () => { const was = d; d = null; if (!was) return;
                 // (The owner, 2026-11-18: a tap on the AI brings up the dock with its buttons on top, on the home screen as in an app.)
-                if (!was.moved) { if (document.body.classList.contains('device-phone') && assistMode === 'float' && desk?.toggleSwitch) desk.toggleSwitch(); else assistSheetToggle(); return; }
+                if (!was.moved) { if (assistSheet) assistSheetToggle(); else if (document.body.classList.contains('device-phone') && assistMode === 'float' && desk?.toggleSwitch) desk.toggleSwitch(); else assistSheetToggle(); return; }
                 const b = assistDot.getBoundingClientRect(); try { localStorage.setItem('agiAssistDot2', JSON.stringify({ x: b.left / innerWidth, y: b.top / innerHeight })); } catch { /* private mode */ } });
             assistDot.addEventListener('pointercancel', () => { d = null; });
             document.body.append(assistDot);
