@@ -27,7 +27,7 @@ function createBot(s, opt = {}) {
     // A full bubble's radius on this field (as packet-snare.js works it out), the size a loop is drawn at.
     const fullR = () => {
         const o = s.opts, short = Math.min(s.w, s.h);
-        return Math.min(Math.min(o.bubbleMax * short, Math.sqrt(o.bubbleShare * s.w * s.h / Math.PI)) * (1 + (o.bubbleSize || 0)), Math.sqrt(s.w * s.h / 2 / Math.PI), 0.6 * short);
+        return Math.min(Math.min(o.bubbleMax * short, Math.sqrt(o.bubbleShare * s.w * s.h / Math.PI)) * (o.bubbleStart ?? 1) * (1 + (o.bubbleSize || 0)), Math.sqrt(s.w * s.h / 2 / Math.PI), 0.6 * short);
     };
     // A drawn loop round (cx, cy), a finger's (no pen kind); held still once closed if Race Condition is owned.
     const drawn = (cx, cy, rad) => {

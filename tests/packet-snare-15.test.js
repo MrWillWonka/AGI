@@ -57,7 +57,7 @@ test('the game always plays bubbles, with Bigger Buffers and Steady Hand sizing 
     assert.equal(E.snareOpts(s).bubble, 1);
     s.levels.snareLongWire = 1; s.levels.snareSteady = 1;
     const o = E.snareOpts(s);
-    assert.equal(o.bubbleSize, 0.25);
+    assert.equal(o.bubbleSize, 0.2); assert.equal(o.bubbleStart, 0.9);
     assert.equal(o.bubbleGrow, 0.25);
     const big = still({ bubbleSize: 0.25 }), plain = still();
     bubble(big, 6, 4, 3, true); bubble(plain, 6, 4, 3, true);

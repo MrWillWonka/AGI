@@ -53,7 +53,7 @@ delete PACE.from;
 // Buys like a person does: the cheapest affordable node on this list (the seed, the four roots coming back to over time,
 // the Decoder Bot, gold, the abilities; a tie goes to the earlier one), else the cheapest off it. The first affordable in
 // list order sank everything into Attention Span's nine levels before the first Sanitizer.
-const ORDER = ['snareSeed', 'snareFocus', 'snareSprawl', 'snareSanitizer', 'snarePacketStream', 'snareCleanerBot', 'snareGold', 'snareContain',
+const ORDER = ['snareSeed', 'snareFocus', 'snareSprawl', 'snareSanitizer', 'snarePacketStream', 'snareQuickFill', 'snareCleanerBot', 'snareGold', 'snareContain',
     'snareBandwidth', 'snareSchools', 'snareChain', 'snareKernelPanic', 'snareLongWire', 'snareSteady', 'snareGoldPlate', 'snareParry',
     'snareRiposte', 'snareChainStorm', 'snareTowers'];
 const rank = id => { const i = ORDER.indexOf(id); return i < 0 ? 99 : i; };

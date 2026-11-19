@@ -671,6 +671,7 @@
     // Nodes on ring 4 and out (|x| + |y| ≥ 4) cost ×1.75 what they did before the pacing sweep (the owner's call: the tree
     // was bought out in 25–28 min at a person's pace; the target is about 40), except the drones' and turrets' first
     // levels and the nodes on the way to them, which keep their prices so automation still comes by mid-game (4,000 or less).
+    const SNARE_BUBBLE_START = 0.9;   // a full bubble's radius before Bigger Buffers, × the old size (PLACEHOLDER)
     const SNARE_TREE = [
         // LOOP (up): the pen and the loop; Chain Lightning on its right arm; the herders and Infinite Loop at its tip.
         // The seed at the centre, like the Training tree's Initial Weights (the owner's call): cheap, one level, and the four
@@ -679,11 +680,13 @@
         { id: 'snareFocus', name: 'Attention Span', snare: { x: -1, y: 0 }, requires: 'snareSeed', deep: true, cost: { signal: 25 }, scale: 2, max: 9, perLevel: [{ focus: 0.25 }, { focus: 0.25 }, { focus: 0.25 }, { focus: 0.1 }], sn: { focus: 0.25 }, effect: 'You get 25% more Focus. From level 4, each level adds a little less.' },
         { id: 'snarePacketStream', name: 'Packet Stream', snare: { x: 0, y: -1 }, requires: 'snareSeed', deep: true, cost: { signal: 55 }, scale: 2.2, max: 9, sn: { density: 0.45, respawnMult: -0.05 }, effect: 'You see 45% more packets, and caught ones come back 5% sooner.' },
         { id: 'snareChain', name: 'Chain Lightning', mechanic: 'chain', snare: { x: 1, y: -2 }, requires: 'snareBandwidth', cost: { signal: 250 }, scale: 1.55, max: 5, sn: { chain: 5 }, effect: 'Each catch sends out a bolt that jumps through 5 more packets.' },
+        // Early bubbles (the owner's card, 2026-11-19): a cheap two-level node beside Packet Stream fills bubbles faster. PLACEHOLDER numbers.
+        { id: 'snareQuickFill', name: 'Quick Fill', snare: { x: -1, y: -1 }, requires: 'snarePacketStream', cost: { signal: 180 }, scale: 2.2, max: 2, sn: { bubbleGrow: 0.15 }, effect: 'Bubbles grow 15% faster.' },
         { id: 'snareBandwidth', name: 'Bandwidth', snare: { x: 0, y: -2 }, requires: 'snarePacketStream', cost: { signal: 130 }, costs: [{ signal: 130 }, { signal: 230 }], scale: 2, max: 2, sn: { maxMult: 2, fullMult: 0.25 }, effect: 'Full bubbles pay ×1.25 more, and the multiplier cap rises by 2.' },
         { id: 'snareSteady', name: 'Steady Hand', snare: { x: -1, y: -3 }, requires: 'snareLongWire', cost: { signal: 1600 }, scale: 2, max: 2, sn: { bubbleGrow: 0.25, drawnCap: 0.1 }, effect: 'Bubbles grow 25% faster, and a drawn loop\'s MAX rises 10%.' },
         { id: 'snareChainStorm', name: 'Chain Storm', snare: { x: 1, y: -3 }, requires: 'snareChain', cost: { signal: 4200 }, scale: 1.3, max: 5, sn: { chainForks: 1, chainRange: 0.4 }, effect: 'Each catch sends out one more bolt, and bolts jump 40% further.' },
         { id: 'snareRace', name: 'Race Condition', mechanic: 'race', snare: { x: 2, y: -3 }, requires: 'snareChainStorm', cost: { signal: 12250 }, scale: 2, max: 2, sn: { race: 1 }, stages: { 2: { raceMax: 2 } }, effect: 'Hold a full bubble or closed loop still, and let go on the mark for +1 ×.' },
-        { id: 'snareLongWire', name: 'Bigger Buffers', snare: { x: 0, y: -3 }, requires: 'snareBandwidth', cost: { signal: 1400 }, scale: 2, max: 1, sn: { bubbleSize: 0.25 }, effect: 'Full bubbles are 25% bigger, and the wire reaches round more of the field.' },
+        { id: 'snareLongWire', name: 'Bigger Buffers', snare: { x: 0, y: -3 }, requires: 'snareBandwidth', cost: { signal: 1400 }, scale: 2, max: 2, sn: { bubbleSize: 0.2 }, effect: 'Full bubbles are 20% bigger, and the wire reaches round more of the field.' },
         { id: 'snareFreeze', name: 'Freeze Frame', mechanic: 'freeze', snare: { x: -1, y: -4 }, requires: 'snareSteady', cost: { signal: 6100 }, scale: 1.6, max: 3, sn: { freeze: 1 }, effect: 'Freeze pickups drift in. Tap one to stop the field for 3 s.' },
         { id: 'snareFork', name: 'Split', mechanic: 'fork', snare: { x: 0, y: -5 }, requires: 'snareHerders', cost: { signal: 10500 }, scale: 2, max: 2, sn: { fork: 1 }, effect: 'A full bubble, or a loop at MAX, splits in two. Their multipliers multiply.' },
         { id: 'snareDilation', name: 'Time Dilation', snare: { x: -2, y: -4 }, requires: 'snareFreeze', cost: { signal: 17300 }, scale: 2, max: 2, sn: { freezeSeconds: 1.5 }, effect: 'Freeze lasts 1.5 s longer.' },
@@ -2607,7 +2610,7 @@
             // After the 18.7 log (the owner: racing, not one circle round the screen): the wire reaches round 20% of the field
             // (a full bubble's share), more with Bigger Buffers, and catches in quick succession build a combo: each within
             // `comboWindow` s of the last adds 10%, up to ×2.
-            wireShare: 0.2 * (1 + g('bubbleSize')) ** 2 * (1 + g('wireMult')),
+            wireShare: 0.2 * Math.max(1, SNARE_BUBBLE_START * (1 + g('bubbleSize'))) ** 2 * (1 + g('wireMult')),
             comboWindow: 2,
             streakPay: 0.1,
             closeRadius: B.closeRadius * (1 + g('closeMult')),
@@ -2617,6 +2620,8 @@
             // boss: `snareDesktop` turns it off)
             loopCatch: 1,
             bubbleSize: g('bubbleSize'),
+            // Early bubbles (the owner's card, 2026-11-19): a full bubble starts a bit smaller; Bigger Buffers' two levels bring it to ×1.08, then ×1.26 of the old size.
+            bubbleStart: SNARE_BUBBLE_START,
             bubbleGrow: g('bubbleGrow'),
             // Steady Hand raises a drawn loop's cap too (after the 18.7 log: loop players never make bubbles to speed up)
             drawnCap: g('drawnCap'),
@@ -3949,7 +3954,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, PLAYTEST_BUILD, HOLD_RATE, HOLD_INTERVAL_MS, holdClock, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, SNARE_OPEN_AT_START, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
-        SNARE_RED_UNIT, SNARE_RED_FLOOR, snareRedShare, SNARE_DESKTOP, snareDesktop, SNARE_RUN_FLOORS, snareCatch, snareBossDown, snareMeltPool, snareMeltPay, snareGoalMet, snareGoal, isSnareBossSector, SNARE_BOSS_EVERY, SNARE_FIRST_BOSS, snareBossOrdinal, finishSnare, snareOpts, SNARE_STAGES, RED_SECTOR, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, SNARE_GATE_SKILLS, SNARE_GATE_ARMOR, setPlayground, isPlayground, snareGateSkill, SNARE_END_BOSS, snareGoalOrdinal, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
+        SNARE_RED_UNIT, SNARE_RED_FLOOR, snareRedShare, SNARE_DESKTOP, snareDesktop, SNARE_RUN_FLOORS, snareCatch, snareBossDown, snareMeltPool, snareMeltPay, snareGoalMet, snareGoal, isSnareBossSector, SNARE_BOSS_EVERY, SNARE_FIRST_BOSS, snareBossOrdinal, finishSnare, snareOpts, SNARE_BUBBLE_START, SNARE_STAGES, RED_SECTOR, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, SNARE_GATE_SKILLS, SNARE_GATE_ARMOR, setPlayground, isPlayground, snareGateSkill, SNARE_END_BOSS, snareGoalOrdinal, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

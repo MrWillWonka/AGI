@@ -146,6 +146,7 @@
         bubbleTime: 1.8,            // seconds to grow to its full size (2.5 until Snare 18.7, the owner: closer to drawing a loop)…
         bubblePow: 1.15,            // …a little faster as it goes (radius ∝ t^pow)
         bubbleMax: 0.48,            // its full radius at most, × the field's shorter side…
+        bubbleStart: 1,             // × a full bubble's radius before Bigger Buffers (the game passes 0.9: engine.js SNARE_BUBBLE_START)
         bubbleShare: 0.2,           // …and a full bubble is this share of the field whatever its shape (round 2 of the review: a full
                                     // bubble was ×1.75 on a wide desktop field, ×2.07 on an upright phone's)
         streakPay: 0.05,            // each clean catch in a row pays this much more, up to streakMax (round 2: careful play hardly
@@ -3065,7 +3066,7 @@
         // ---- Bubbles (the way to catch, Snare 15) --------------------------------------------------------------
         // While a bubble grows its outline is the wire, so whatever hunts or snaps a wire pops it.
         // never past half the field however big Bigger Buffers makes it (round 3: a maxed bubble covered a third and aiming stopped mattering)
-        const bubbleMaxR = Math.min(Math.min(o.bubbleMax * shortSide, Math.sqrt(o.bubbleShare * w * h / Math.PI)) * (1 + o.bubbleSize), Math.sqrt(w * h / 2 / Math.PI), 0.6 * shortSide);
+        const bubbleMaxR = Math.min(Math.min(o.bubbleMax * shortSide, Math.sqrt(o.bubbleShare * w * h / Math.PI)) * o.bubbleStart * (1 + o.bubbleSize), Math.sqrt(w * h / 2 / Math.PI), 0.6 * shortSide);
         const bubbleTime = o.bubbleTime / (1 + o.bubbleGrow);
         function circle(x, y, r, n = 32) {
             const pts = [];
