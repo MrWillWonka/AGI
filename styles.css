@@ -5101,3 +5101,12 @@ body.tip-up .device-notices { display: none; }
 /* One AI: its mark on the dock's row shows only where the dock is pinned and the AI is not up in the Lab. */
 .device-switch-aimark { display: none; }
 body.dock-pinned:not(.ai-in-lab) .device-switch-aimark { display: block; }
+
+/* The AI at its biggest hits the glass (the owner, 2026-11-18): the screen jolts and the cracks flare for a moment. */
+body.glass-hit .device-home, body.glass-hit .device-status { animation: glass-jolt 0.5s cubic-bezier(0.3, 0.7, 0.4, 1) both; }
+body.glass-hit .device-cracks { animation: glass-flare 0.7s ease-out both; }
+@keyframes glass-jolt { 0% { transform: translate(0, 0); } 12% { transform: translate(-7px, 5px); } 26% { transform: translate(6px, -4px); } 42% { transform: translate(-4px, 3px); } 60% { transform: translate(3px, -2px); } 100% { transform: translate(0, 0); } }
+@keyframes glass-flare { 0% { filter: brightness(1); } 10% { filter: brightness(3.2) drop-shadow(0 0 6px #fff); } 100% { filter: brightness(1); } }
+@media (prefers-reduced-motion: reduce) { body.glass-hit .device-home, body.glass-hit .device-status, body.glass-hit .device-cracks { animation: none; } }
+/* While the AI is under Mail on the dock it sits behind it, so the bump reads as a push from below. */
+.home-dock-ai > .home-icon { position: relative; z-index: 2; }

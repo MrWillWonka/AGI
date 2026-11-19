@@ -2555,37 +2555,70 @@ window.AGI = (function () {
     // far too big, then finds its size, settles on the dock and pushes Mail out onto the home screen ("I need the room").
     // Then the hello as before. With reduced motion it is simply there. PLACEHOLDER line.
     let aiArriving = false;
-    const AI_ARRIVE_MS = 4600, AI_ROOM_MS = 3200;
+    const AI_ARRIVE_MS = 9400, AI_ROOM_MS = 3200;
     function aiArrive() {
         if (aiArriving || state.intro['ring:aiArrived']) return;
         aiArriving = true; pt('home', { aiArrive: 1 });
         assistDotTick();
-        const settle = () => {
-            if (assistDot) assistDot.classList.remove('arriving');
-            // Mail goes from the dock to its place among the apps, sliding.
+        // The last of it (the owner, 2026-11-18): the AI comes to rest just under Mail, bumps up into it, Mail tips over
+        // for a moment, then slides out to its place among the apps and the AI takes the spot.
+        const finish = () => {
+            if (assistDot) { assistDot.classList.remove('arriving'); assistDot.style.removeProperty('translate'); assistDot.style.removeProperty('z-index'); }
+            state.intro['ring:aiArrived'] = true; aiArriving = false; save();
+            assist('room', '', { again: true, done: () => true });
+            installFrom = performance.now() + AI_ROOM_MS + HOME_HELLO_MS + HOME_LOAD_GAP_MS;
+        };
+        const moveMail = tilted => {
             const mail = home.mail.button, first = mail.getBoundingClientRect();
             home.tools[2].button.after(mail);
             const last = mail.getBoundingClientRect();
-            if (!reducedMotion() && first.width && last.width) { try { mail.animate([{ translate: (first.left - last.left) + 'px ' + (-(first.top - last.top)) + 'px' }, { translate: '0 0' }], { duration: 520, easing: 'cubic-bezier(0.3, 1.4, 0.5, 1)' }); } catch { /* it is simply there */ } }   // (the apps' grid is drawn upside down to fill from the foot, so up is down in it)
-            state.intro['ring:aiArrived'] = true; aiArriving = false; save();
-            sfx('ui');
-            assist('room', '', { done: () => true });
-            installFrom = performance.now() + AI_ROOM_MS + HOME_HELLO_MS + HOME_LOAD_GAP_MS;
+            // (the apps' grid is drawn upside down to fill from the foot, so up is down in it, and a turn goes the other way)
+            if (!reducedMotion() && first.width && last.width) { try { mail.animate([{ translate: (first.left - last.left) + 'px ' + (-(first.top - last.top)) + 'px', rotate: tilted ? '14deg' : '0deg' }, { translate: '0px 6px', rotate: '-4deg', offset: 0.7 }, { translate: '0 0', rotate: '0deg' }], { duration: 620, easing: 'cubic-bezier(0.3, 0.9, 0.4, 1)' }); } catch { /* it is simply there */ } }
+        };
+        const settle = () => {
+            const mail = home.mail.button;
+            if (!assistDot || reducedMotion() || !assistDot.getClientRects().length) { moveMail(false); finish(); return; }
+            // under Mail, then the bump
+            assistDot.style.translate = '0px 30px'; assistDot.style.zIndex = '1';
+            try {
+                assistDot.animate([{ translate: '0px 30px' }, { translate: '0px 6px', offset: 0.35, easing: 'ease-out' }, { translate: '0px 20px' }], { duration: 340, easing: 'ease-in' });
+                setTimeout(() => { sfx('ui'); mail.animate([{ translate: '0px 0px', rotate: '0deg' }, { translate: '3px -12px', rotate: '-17deg', offset: 0.3, easing: 'ease-out' }, { translate: '2px -8px', rotate: '-14deg' }], { duration: 300, fill: 'forwards' }); }, 110);
+            } catch { /* no animations */ }
+            assistDot.style.translate = '0px 20px';
+            setTimeout(() => {
+                for (const an of mail.getAnimations()) an.cancel();
+                moveMail(true);
+                try { assistDot.animate([{ translate: '0px 20px' }, { translate: '0px 0px' }], { duration: 380, easing: 'cubic-bezier(0.3, 1.5, 0.5, 1)' }); } catch { /* no animations */ }
+                finish();
+            }, 1050);   // Mail stays tipped for a moment first
         };
         if (!assistDot || reducedMotion() || !assistDot.getClientRects().length) { settle(); return; }
         assistDot.classList.add('arriving');
         const r = assistDot.getBoundingClientRect(), W = innerWidth, H = innerHeight, bx = r.left + r.width / 2, by = r.top + r.height / 2, k = pageZoom();
         const at = (x, y) => ((x * W - bx) / k).toFixed(0) + 'px ' + ((y * H - by) / k).toFixed(0) + 'px', huge = (H * 1.05 / r.height).toFixed(1);
-        const frames = [
-            { translate: at(0.18, 0.22), scale: 0.34, opacity: 0, offset: 0 }, { translate: at(0.18, 0.22), scale: 0.34, opacity: 1, offset: 0.03 },
-            { translate: at(0.82, 0.14), scale: 0.42, offset: 0.12, easing: 'ease-in-out' }, { translate: at(0.62, 0.58), scale: 0.3, offset: 0.2, easing: 'ease-in-out' },
-            { translate: at(0.12, 0.7), scale: 0.46, offset: 0.29, easing: 'ease-in-out' }, { translate: at(0.86, 0.44), scale: 0.34, offset: 0.37, easing: 'ease-in-out' },
-            { translate: at(0.3, 0.3), scale: 0.42, offset: 0.44, easing: 'ease-in-out' }, { translate: at(0.5, 0.45), scale: 0.6, offset: 0.52, easing: 'ease-in' },
-            { translate: at(0.5, 0.48), scale: huge, offset: 0.66, easing: 'ease-out' }, { translate: at(0.5, 0.48), scale: huge, offset: 0.76, easing: 'ease-in-out' },
-            { translate: at(0.5, 0.5), scale: 1.5, offset: 0.88, easing: 'ease-out' }, { translate: '0px 0px', scale: 1, opacity: 1, offset: 1 }];
+        // It talks its way through it (the owner, 2026-11-18): pleased with the room, then sees how small it is, then
+        // far too big, then right. PLACEHOLDER lines.
+        // Its way about the screen is one smooth curve through these places (a spline, so it swoops; it never turns a
+        // sharp corner), small; then it stops low in the middle, swells until it hits the glass, and comes down to size.
+        const way = [[0.18, 0.22, 0.34], [0.8, 0.14, 0.42], [0.66, 0.6, 0.3], [0.14, 0.72, 0.46], [0.84, 0.58, 0.34], [0.32, 0.2, 0.42], [0.5, 0.66, 0.36]];
+        const px = (x, y) => ((x * W - bx) / k).toFixed(0) + 'px ' + ((y * H - by) / k).toFixed(0) + 'px', frames = [{ translate: px(way[0][0], way[0][1]), scale: way[0][2], opacity: 0, offset: 0 }];
+        const DART = 0.38, SUB = 8;
+        for (let i = 0; i < way.length - 1; i++) for (let j = (i ? 1 : 0); j <= SUB; j++) {
+            const p0 = way[Math.max(0, i - 1)], p1 = way[i], p2 = way[i + 1], p3 = way[Math.min(way.length - 1, i + 2)], u = j / SUB, u2 = u * u, u3 = u2 * u;
+            const cr = c => 0.5 * (2 * p1[c] + (-p0[c] + p2[c]) * u + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * u2 + (-p0[c] + 3 * p1[c] - 3 * p2[c] + p3[c]) * u3);
+            frames.push({ translate: px(cr(0), cr(1)), scale: +cr(2).toFixed(3), opacity: 1, offset: +(0.02 + (DART - 0.02) * (i + u) / (way.length - 1)).toFixed(4) });
+        }
+        const H2 = +huge;
+        frames.push({ translate: at(0.5, 0.66), scale: 0.36, offset: 0.52, easing: 'cubic-bezier(0.5, 0, 0.9, 0.4)' },
+            { translate: at(0.5, 0.5), scale: H2, offset: 0.6, easing: 'ease-out' },                 // it hits the glass
+            { translate: at(0.5, 0.5), scale: +(H2 * 0.9).toFixed(1), offset: 0.625, easing: 'ease-in-out' }, { translate: at(0.5, 0.5), scale: +(H2 * 0.97).toFixed(1), offset: 0.65, easing: 'ease-in-out' },
+            { translate: at(0.5, 0.5), scale: +(H2 * 0.94).toFixed(1), offset: 0.8, easing: 'ease-in-out' },
+            { translate: at(0.5, 0.62), scale: 1.4, offset: 0.9, easing: 'ease-in-out' }, { translate: at(0.4, 0.84), scale: 1.15, offset: 0.95, easing: 'ease-in-out' }, { translate: '0px 30px', scale: 1, opacity: 1, offset: 1 });
+        const hit = setTimeout(() => { if (!aiArriving) return; document.body.classList.add('glass-hit'); sfx('error'); setTimeout(() => document.body.classList.remove('glass-hit'), 700); }, 0.6 * AI_ARRIVE_MS);
+        const say = [[0.03, 'arrive1'], [0.39, 'arrive2'], [0.61, 'arrive3']].map(([at2, key]) => setTimeout(() => { if (aiArriving) assist(key, '', { again: true }); }, at2 * AI_ARRIVE_MS));
         let anim = null;
         try { anim = assistDot.animate(frames, { duration: AI_ARRIVE_MS, fill: 'none' }); } catch { settle(); return; }
-        let ended = false; const end = () => { if (ended) return; ended = true; settle(); };
+        let ended = false; const end = () => { if (ended) return; ended = true; say.forEach(clearTimeout); clearTimeout(hit); settle(); };
         anim.onfinish = end; anim.oncancel = end; setTimeout(end, AI_ARRIVE_MS + 600);
     }
     // A new app's own download: it starts when you are on the home screen with the app unlocked, and takes this long.
@@ -2981,7 +3014,10 @@ window.AGI = (function () {
         "now:feed": "The Feed. There is data waiting, and the mites have noticed.",
         "now:server": "Parcel has a server. I cannot beat that boss without somewhere to train.",
         "now:training": "Training. You have research, and I would like to use it. With your permission.",
-        "room": "Sorry. I need the room.",
+        "arrive1": "Oh. There is so much room in here.",
+        "arrive2": "Wait. No. I am very small.",
+        "arrive3": "Too much. That is far too much.",
+        "room": "There. Sorry, I need this spot.",
         "empty": "I have not said anything yet. I did not want to interrupt."
     };
     // Packet Snare's first card and first-run coach, in the same voice (drawn on the field behind a '>').
@@ -3202,7 +3238,11 @@ window.AGI = (function () {
             document.body.classList.toggle('ai-in-lab', mode === 'lab'); if (mode === 'lab' && desk?.dockRefresh) desk.dockRefresh();
             if (was) requestAnimationFrame(() => requestAnimationFrame(() => { const to = orbNow(); if (!to || !to.size) return;
                 const z = pageZoom(), dx = (was.x - to.x) / z, dy = (was.y - to.y) / z, k = Math.max(0.15, Math.min(6, was.size / to.size)); if (Math.abs(dx) + Math.abs(dy) < 6 && Math.abs(k - 1) < 0.05) return;
-                try { to.n.animate([{ translate: dx.toFixed(1) + 'px ' + dy.toFixed(1) + 'px', scale: k.toFixed(3) }, { translate: '0px 0px', scale: 1 }], { duration: 620, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }); } catch { /* no animations: it is simply there */ } }));
+                // An arc, not a straight line (the owner, 2026-11-18): a curve bowed to one side, eased in and out.
+                const dist = Math.hypot(dx, dy), bow = Math.min(90, dist * 0.28) * (dx >= 0 ? 1 : -1), cx = dx / 2 + (dist ? -dy / dist : 0) * bow, cy = dy / 2 + (dist ? dx / dist : 0) * bow, steps = [];
+                for (let i = 0; i <= 14; i++) { const u = i / 14, e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2, m = 1 - e;   // m: how much of the way is left
+                    steps.push({ translate: (m * m * dx + 2 * m * e * cx).toFixed(1) + 'px ' + (m * m * dy + 2 * m * e * cy).toFixed(1) + 'px', scale: (1 + (k - 1) * m).toFixed(3), offset: u }); }
+                try { to.n.animate(steps, { duration: 760, easing: 'linear' }); } catch { /* no animations: it is simply there */ } }));
             assistMode = mode;
             assistDot.classList.toggle('docked', mode === 'lab'); assistDot.classList.toggle('mini', mode === 'mini');
             if (mode === 'float' && !phone) assistDot._restore(); else for (const p of ['left', 'top', 'right', 'bottom']) assistDot.style.removeProperty(p);
@@ -3248,43 +3288,71 @@ window.AGI = (function () {
         assistWire.style.display = ''; assistWire.style.width = W / k + 'px'; assistWire.style.height = H / k + 'px'; assistWire.setAttribute('viewBox', `0 0 ${W} ${H}`);
         const ox = d.left + d.width / 2, oy = d.top + d.height / 2, R = d.width / 2 + 2 * k, clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v)), n = v => Math.round(v * 10) / 10;
         const RAD = 18 * k;
+        // The line is a run of straight stretches with soft corners. It never cuts through an app it is not about
+        // (the owner, 2026-11-18): where a stretch would cross one, it steps aside, passes it and comes back.
+        const PAD = 9 * k, target = assistLive.ringed;
+        const blocks = [...document.querySelectorAll('.home-icon')].filter(i => i !== target && i.getClientRects().length && getComputedStyle(i).visibility !== 'hidden')
+            .map(i => { const c = i.getBoundingClientRect(); return { l: c.left - PAD, r: c.right + PAD, t: c.top - PAD, b: c.bottom + PAD }; });
+        const around = pts => {
+            const out = [pts[0]];
+            for (let i = 1; i < pts.length; i++) {
+                let [x1, y1] = out[out.length - 1]; const [x2, y2] = pts[i], last = i === pts.length - 1;
+                if (Math.abs(x1 - x2) < 1) {   // an up-or-down stretch
+                    const lo = Math.min(y1, y2), hi = Math.max(y1, y2), hit = blocks.filter(c => x1 > c.l && x1 < c.r && c.b > lo && c.t < hi);
+                    if (hit.length) {
+                        const L = Math.min(...hit.map(c => c.l)), Rt = Math.max(...hit.map(c => c.r)), T = Math.min(...hit.map(c => c.t)), B = Math.max(...hit.map(c => c.b)), down = y2 > y1;
+                        const side = (Rt - x1 <= x1 - L && Rt < W - 6) || L < 6 ? Rt : L, enter = down ? Math.max(y1, T) : Math.min(y1, B), exit = down ? B : T, past = down ? exit < y2 : exit > y2;
+                        if (Math.abs(enter - y1) > 1) out.push([x1, enter]);
+                        out.push([side, enter]);
+                        if (past) { out.push([side, exit], [x1, exit], [x2, y2]); } else { out.push([side, y2]); if (!last) pts[i] = [side, y2]; }
+                        continue;
+                    }
+                } else if (Math.abs(y1 - y2) < 1) {   // a stretch across
+                    const lo = Math.min(x1, x2), hi = Math.max(x1, x2), hit = blocks.filter(c => y1 > c.t && y1 < c.b && c.r > lo && c.l < hi);
+                    if (hit.length) {
+                        const L = Math.min(...hit.map(c => c.l)), Rt = Math.max(...hit.map(c => c.r)), T = Math.min(...hit.map(c => c.t)), B = Math.max(...hit.map(c => c.b)), right = x2 > x1;
+                        const side = B - y1 <= y1 - T ? B : T, enter = right ? Math.max(x1, L) : Math.min(x1, Rt), exit = right ? Rt : L, past = right ? exit < x2 : exit > x2;
+                        if (Math.abs(enter - x1) > 1) out.push([enter, y1]);
+                        out.push([enter, side]);
+                        if (past) { out.push([exit, side], [exit, y1], [x2, y2]); } else { out.push([x2, side]); if (!last) pts[i] = [x2, side]; }
+                        continue;
+                    }
+                }
+                out.push([x2, y2]);
+            }
+            return out;
+        };
+        const draw = pts => {
+            pts = pts.filter((p, i) => !i || Math.abs(p[0] - pts[i - 1][0]) + Math.abs(p[1] - pts[i - 1][1]) > 0.5);
+            if (pts.length < 2) return '';
+            let dd = 'M' + n(pts[0][0]) + ' ' + n(pts[0][1]);
+            for (let i = 1; i < pts.length - 1; i++) {
+                const [ax, ay] = pts[i - 1], [vx, vy] = pts[i], [cx, cy] = pts[i + 1], la = Math.hypot(vx - ax, vy - ay), lc = Math.hypot(cx - vx, cy - vy), q = Math.min(RAD, la / 2, lc / 2);
+                if (q < 1.5) { dd += 'L' + n(vx) + ' ' + n(vy); continue; }
+                dd += 'L' + n(vx - (vx - ax) / la * q) + ' ' + n(vy - (vy - ay) / la * q) + 'Q' + n(vx) + ' ' + n(vy) + ' ' + n(vx + (cx - vx) / lc * q) + ' ' + n(vy + (cy - vy) / lc * q);
+            }
+            const e = pts[pts.length - 1];
+            return dd + 'L' + n(e[0]) + ' ' + n(e[1]);
+        };
         // From the orb to a box: straight when they line up, else out sideways and round one soft corner into it.
         const toBox = r => {
             const inX = ox > r.l + 10 * k && ox < r.r - 10 * k, inY = oy > r.t + 6 * k && oy < r.b - 6 * k;
             if (inX && inY) return '';
-            if (inX) {
-                // Straight down (or up). Where that crosses an app on the home screen it is not pointing at, the line
-                // breaks and picks up on the far side, as if it ran behind the app (the owner's screenshots,
-                // 2026-11-17: it ran through the Lab's picture and its name).
-                const up = oy > r.b, y1 = oy + (up ? -R : R), y2 = up ? r.b : r.t, lo = Math.min(y1, y2), hi = Math.max(y1, y2), g = 5 * k;
-                const cuts = [...document.querySelectorAll('.home-icon')].filter(i => i !== assistLive.ringed && i.getClientRects().length).map(i => i.getBoundingClientRect())
-                    .filter(c => ox > c.left - 2 * k && ox < c.right + 2 * k && c.bottom + g > lo && c.top - g < hi).sort((a, c) => up ? c.top - a.top : a.top - c.top);
-                let d = '', y = y1;
-                for (const c of cuts) { const near = up ? c.bottom + g : c.top - g, far = up ? c.top - g : c.bottom + g; if (up ? near < y : near > y) d += `M${n(ox)} ${n(y)}V${n(near)}`; y = up ? Math.min(y, far) : Math.max(y, far); }
-                if (up ? y2 < y : y2 > y) d += `M${n(ox)} ${n(y)}V${n(y2)}`;
-                return d;
-            }
-            if (inY) { const left = ox > r.r; return `M${n(ox + (left ? -R : R))} ${n(oy)}H${n(left ? r.r : r.l)}`; }
-            const sx = ox < r.l ? 1 : -1, sy = oy < r.t ? 1 : -1, tx = clamp(ox,r.l + Math.min(24 * k, (r.r - r.l) / 2), r.r - Math.min(24 * k, (r.r - r.l) / 2)), ty = sy > 0 ? r.t : r.b;
-            // A box further off to the side than it is above or below (an app on the home screen's column): down first,
-            // then across into its side, so the line crosses the open desktop and not the other apps' names.
+            if (inX) { const up = oy > r.b; return draw(around([[ox, oy + (up ? -R : R)], [ox, up ? r.b : r.t]])); }
+            if (inY) { const left = ox > r.r; return draw(around([[ox + (left ? -R : R), oy], [left ? r.r : r.l, oy]])); }
+            const sx = ox < r.l ? 1 : -1, sy = oy < r.t ? 1 : -1, tx = clamp(ox, r.l + Math.min(24 * k, (r.r - r.l) / 2), r.r - Math.min(24 * k, (r.r - r.l) / 2)), ty = sy > 0 ? r.t : r.b;
+            // A box further off to the side than it is above or below (an app on the home screen's column): down (or up)
+            // first, then across into its side.
             const txs = sx > 0 ? r.l : r.r;
-            if (Math.abs(txs - ox) > Math.abs(ty - oy)) {
-                const m = Math.min(24 * k, (r.b - r.t) / 2), tys = clamp(oy, r.t + m, r.b - m), qs = Math.min(RAD, Math.abs(tys - oy) - R, Math.abs(txs - ox));
-                if (qs < 3) return `M${n(ox + sx * R)} ${n(oy)}L${n(txs)} ${n(tys)}`;
-                return `M${n(ox)} ${n(oy + sy * R)}V${n(tys - sy * qs)}Q${n(ox)} ${n(tys)} ${n(ox + sx * qs)} ${n(tys)}H${n(txs)}`;
-            }
-            const q = Math.min(RAD, Math.abs(tx - ox) - R, Math.abs(ty - oy));
-            if (q < 3) return `M${n(ox + sx * R)} ${n(oy)}L${n(tx)} ${n(ty)}`;
-            return `M${n(ox + sx * R)} ${n(oy)}H${n(tx - sx * q)}Q${n(tx)} ${n(oy)} ${n(tx)} ${n(oy + sy * q)}V${n(ty)}`;
+            if (Math.abs(txs - ox) > Math.abs(ty - oy)) { const m = Math.min(24 * k, (r.b - r.t) / 2), tys = clamp(oy, r.t + m, r.b - m); return draw(around([[ox, oy + sy * R], [ox, tys], [txs, tys]])); }
+            return draw(around([[ox + sx * R, oy], [tx, oy], [tx, ty]]));
         };
         // From one point down (or up) to another: straight when in line, else two soft corners.
         const step = (x1, y1, x2, y2) => {
-            const dx = x2 - x1, dy = y2 - y1, sx = Math.sign(dx), sy = Math.sign(dy) || 1;
-            if (Math.abs(dy) < 4) return '';
-            if (Math.abs(dx) < 4) return `M${n(x1)} ${n(y1)}V${n(y2)}`;
-            const q = Math.min(RAD, Math.abs(dx) / 2, Math.abs(dy) / 2), ym = y1 + dy / 2;
-            return `M${n(x1)} ${n(y1)}V${n(ym - sy * q)}Q${n(x1)} ${n(ym)} ${n(x1 + sx * q)} ${n(ym)}H${n(x2 - sx * q)}Q${n(x2)} ${n(ym)} ${n(x2)} ${n(ym + sy * q)}V${n(y2)}`;
+            if (Math.abs(y2 - y1) < 4) return '';
+            if (Math.abs(x2 - x1) < 4) return draw(around([[x1, y1], [x1, y2]]));
+            const ym = y1 + (y2 - y1) / 2;
+            return draw(around([[x1, y1], [x1, ym], [x2, ym], [x2, y2]]));
         };
         const box = { l: b.left, t: b.top, r: b.right, b: b.bottom };
         const ring = assistBox.classList.contains('beside') && assistLive.ringed?.getClientRects().length ? assistLive.ringed.getBoundingClientRect() : null;
