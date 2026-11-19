@@ -3287,6 +3287,12 @@ window.AGI = (function () {
             // The playground can look at each form (0 goes back to the form the compute gives).
             ...(RING_PLAY ? [el('button', { type: 'button', class: 'assist-ask assist-form', text: `Orb form: ${orbFormShow || 1} (tap to change)`, onclick: e => { orbFormShow = orbFormShow % 4 + 1; e.currentTarget.textContent = `Orb form: ${orbFormShow} (tap to change)`; assistDotTick(); } })] : []),
             ...(shopOpenable() ? [el('button', { type: 'button', class: 'assist-ask assist-parcel', text: 'Open Parcel', onclick: () => { assistSheetToggle(); pt('assistAsk', { parcel: 1 }); openShop(); } })] : []),
+            // The AI holds the picker for the stats on its log (the owner's card, 2026-11-18). PLACEHOLDER words.
+            ...(document.body.classList.contains('device-phone') && state.intro['ring:aiBar'] ? (() => { const box = el('div', { class: 'ai-log-pick assist-pins' }); box.hidden = true;
+                box.append(...AI_STATS.filter(x => x[3]()).map(([id, name]) => { const c = el('input', { type: 'checkbox' }); c.checked = aiPins().includes(id);
+                    c.onchange = () => { const now = aiPins().filter(x => x !== id); if (c.checked) now.push(id); try { storageSet('agiAiPins', JSON.stringify(now.slice(0, 6))); } catch { /* this visit only */ } pt('aiPins', { n: now.length }); };
+                    return el('label', { class: 'ai-log-choice' }, [c, el('span', { text: name })]); }));
+                return [el('button', { type: 'button', class: 'assist-ask assist-stats', text: 'What should I keep on my log?', onclick: () => { box.hidden = !box.hidden; } }), box]; })() : []),
             el('h4', { class: 'assist-sheet-title', text: 'Earlier' }),
             // (The owner, 2026-11-18: short. The AI log on the home screen holds the rest.)
             ...(past.length ? past.reverse().filter(b => !/\{\w+\}/.test(b.textContent)).slice(0, 2) : [el('p', { class: 'assist-answer', text: ASSIST_LINES.empty })])]);

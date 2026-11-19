@@ -5203,3 +5203,6 @@ body.device-phone.ai-bar .home-dock > .home-icon { opacity: 1; visibility: visib
 .assist-sheet .assist-close { width: 44px; height: 44px; margin: -6px -6px -6px 0; font-size: 1.5rem; color: var(--text); border: 1px solid var(--border); border-radius: 10px; }
 /* (The apps fill down to the foot again: a rule from the row that was tried over them had let them float up.) */
 body.device-phone.ai-bar .home-icons { flex: 1 1 auto; }
+/* The stats picker, held by the AI in its sheet. */
+.assist-pins { max-height: none; border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; }
+.assist-pins[hidden] { display: none; }
