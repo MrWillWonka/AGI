@@ -2713,6 +2713,18 @@ window.AGI = (function () {
     }
     // A new app's own download: it starts when you are on the home screen with the app unlocked, and takes this long.
     const APP_INSTALL_MS = 3500, appInstalls = {};
+    // Is the AI still saying (or about to say) its line about this app's icon? A beat after the typing ends, it is said.
+    const APP_TOLD_MS = 500;
+    let appToldAt = 0, appTellSoon = 0;   // (appTellSoon: Show me goes home a moment before its line is queued)
+    function appTold(button) {
+        const aims = q => { try { return q?.target?.() === button; } catch { return false; } };
+        if (performance.now() - appTellSoon < 400 || assistQueue.some(aims)) return true;
+        if (!aims(assistLive)) return false;
+        if (assistType) { appToldAt = 0; return true; }
+        appToldAt = appToldAt || performance.now();
+        if (performance.now() - appToldAt < APP_TOLD_MS) return true;
+        appToldAt = 0; return false;
+    }
     function appInstall(key) {
         const i = state.intro;
         if (i['ring:inst:' + key] || i['ring:seen:' + key]) return 1;
@@ -2876,6 +2888,9 @@ window.AGI = (function () {
         setText(home.shop.badge, canBuy ? '1' : '');
         if (home.shop.badge.hidden === canBuy) home.shop.badge.hidden = !canBuy;
         for (const [key, app] of [['shop', home.shop], ['snare', home.snare], ['feed', home.feed], ['training', home.train], ['evals', home.evals]]) {
+            // The order on the home screen (the owner's note, 2026-11-19): the AI's line about a new app starts first; the app
+            // appears and starts loading once the line has been said (it was already loading, and the line came in pieces).
+            if (!app.button.hidden && !state.intro['ring:inst:' + key] && !state.intro['ring:seen:' + key] && !appInstalls[key] && appTold(app.button)) app.button.hidden = true;
             const share = app.button.hidden ? 1 : appInstall(key), loading = share < 1;
             app.button.classList.toggle('loading', loading); if (app.button.disabled !== loading) app.button.disabled = loading;
             app.button.style.setProperty('--load', String(share));
@@ -3175,7 +3190,7 @@ window.AGI = (function () {
     };
     const appUp = app => (app === 'shop' ? !!shop?.dlg.open : app === 'evals' ? evalsUp() : app === 'feed' ? !!window.FeedUI?.isOpen : ringAppNow() === app);
     function showMe(app, key) {
-        return ['Show me', () => { goHome(); assist(key + 'Home', SHOW_WHY[key] || '', { target: () => home?.[app === 'training' ? 'train' : app].button, done: () => appUp(app) }); }];
+        return ['Show me', () => { appTellSoon = performance.now(); goHome(); assist(key + 'Home', SHOW_WHY[key] || '', { target: () => home?.[app === 'training' ? 'train' : app].button, done: () => appUp(app) }); }];
     }
     function assistNext() {
         if (assistQueue.length && snareRunLive()) { setTimeout(() => { if (!assistLive) assistNext(); }, 1000); return; }
