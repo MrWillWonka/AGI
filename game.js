@@ -7444,7 +7444,25 @@ window.AGI = (function () {
     }
 
     // The bay bar's Upgrades button (once a run has been made), with the tree's badge; mid-run the tree pauses the run.
+    // The cards' stockpile follows The Feed (the owner's note, 2026-11-19: a card left open under The Feed still showed the
+    // stockpile from before the session that emptied it).
+    let snareStockKey = '';
+    function snareStockRefresh() {
+        const card = $('snareCard');
+        if (!card || card.hidden || !E.isRing() || !E.feedOpen(state)) return;
+        const key = E.feedStock(state).map(e => e.sector + ':' + e.total + '/' + e.cap).join(',');
+        if (key === snareStockKey) return;
+        snareStockKey = key;
+        const pick = card.querySelector('.snare-sector-pick'), top = state.snare.sector;
+        if (pick) for (const o of pick.options) {
+            const k = Number(o.value), st = snareStock(k), fill = st && st.cap ? ' · ' + (st.full ? 'stockpile full' : 'stockpile ' + st.total + '/' + st.cap) : '';
+            o.textContent = (k === top ? 'Frontier · ' : 'Replay · ') + snareSector(k) + fill;
+        }
+        const old = card.querySelector('.snare-stock'), now = snareStockLine(snareNextSector());
+        if (old && now) old.replaceWith(now); else if (old) old.remove(); else if (now) card.querySelector('.snare-sector-row')?.after(now);
+    }
     function renderSnareBar() {
+        snareStockRefresh();
         const b = $('snareTreeButton');
         // The Training Cluster's Upgrades and Restart live in the same bar: never here.
         if (openBay === 'pipeline') { setHidden($('treeButton'), true); setHidden($('restartButton'), true); }
