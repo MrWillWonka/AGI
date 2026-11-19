@@ -2517,6 +2517,15 @@ window.AGI = (function () {
                         if (up && !up.hidden && !(app === 'snare' && snare.tree)) main = ['Upgrades', () => up.click(), up.dataset.ready || ''];
                     }
                 }
+                // The Lab's jobs sit at the foot, over the dock or the orb, where either thumb reaches them (the owner's card,
+                // 2026-11-19); the page keeps room for them under its last panel.
+                const jobs = app === 'lab' && !inDialog, wb = $('workbench');
+                document.body.classList.toggle('lab-jobs-foot', jobs);
+                if (jobs && wb) {
+                    const k = pageZoom(), up = dockUp ? innerHeight - sw.getBoundingClientRect().top + 8 * k : 64 * k;
+                    document.body.style.setProperty('--lab-foot', Math.round(up / k) + 'px');
+                    document.body.style.setProperty('--lab-jobs', Math.round(wb.getBoundingClientRect().height / k + 12) + 'px');
+                }
                 footDo = { main: main && main[1], close: close && close[1] };
                 for (const [node, v] of [[footMain, main], [footClose, close]]) {
                     if (node.hidden === !!v) node.hidden = !v;

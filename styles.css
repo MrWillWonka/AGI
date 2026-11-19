@@ -5295,3 +5295,12 @@ body:has(.device-switch.open) .device-foot { opacity: 0; pointer-events: none; }
 /* The AI's line at the foot of an app on a phone (the owner's card, 2026-11-19); game.js sets how far up. */
 body.ring-device.device-phone .assist.foot-line { position: fixed; top: auto !important; width: auto; z-index: 2400; }
 dialog[open] > .assist.foot-line { z-index: 5; }
+
+/* The Lab's jobs pinned at the foot of a phone (the owner's card, 2026-11-19): one row, full width, thumb height. */
+@media (max-width: 640px) {
+    body.lab-jobs-foot.ring-device.device-phone #workbench { position: fixed; left: 10px; right: 10px; width: auto !important; max-width: none; box-sizing: border-box; bottom: var(--lab-foot, 64px); z-index: 40; margin: 0 !important; padding: 8px; background: color-mix(in srgb, var(--panel, #10201f) 96%, #000); box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.45); }
+    body.lab-jobs-foot.ring-device.device-phone #workbench > .station-title { display: none; }
+    body.lab-jobs-foot.ring-device.device-phone #workbench .action-row { display: grid; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; overflow: visible; }
+    body.lab-jobs-foot.ring-device.device-phone #workbench .action-button { width: 100%; min-height: 64px; }
+    body.lab-jobs-foot.ring-device.device-phone main.layout { padding-bottom: calc(var(--lab-foot, 64px) + var(--lab-jobs, 100px)); }
+}
