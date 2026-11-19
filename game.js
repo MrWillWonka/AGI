@@ -2588,8 +2588,19 @@ window.AGI = (function () {
     const aiPins = () => { try { const v = JSON.parse(storageGet('agiAiPins') || 'null'); if (Array.isArray(v)) return v; } catch { /* default */ } return ['cps', 'time']; };
     function renderAiLog() {
         const L = home?.log; if (!L) return;
-        const on = document.body.classList.contains('device-phone') && !!state.intro['ring:aiArrived'];
+        const phone = document.body.classList.contains('device-phone');
+        // (A game already past the AI's hello has had its renovation.)
+        if (!state.intro['ring:aiBar'] && state.intro['ring:aiArrived'] && !aiRenovating && !aiArriving && (state.intro['assist:hello'] || state.intro['ring:labInstalled'] || labOpened())) state.intro['ring:aiBar'] = true;
+        const on = phone && !!state.intro['ring:aiBar'];
         document.body.classList.toggle('ai-bar', on);
+        // Feedback and Settings leave the bar for a row of their own over the apps, sliding there.
+        { const sys = home.sys, want = on ? sys : home.node.querySelector('.home-dock'), fb = home.tools[0].button, st = home.tools[1].button;
+            if (fb.parentNode !== want) {
+                const first = [fb, st].map(n => n.getBoundingClientRect());
+                if (on) sys.append(fb, st); else { want.prepend(fb); want.append(st); }
+                if (sys.hidden === on) sys.hidden = !on;
+                if (on && !reducedMotion()) [fb, st].forEach((n, i) => { const last = n.getBoundingClientRect(); if (first[i].width && last.width) { try { n.animate([{ translate: (first[i].left - last.left) + 'px ' + (first[i].top - last.top) + 'px' }, { translate: '0 0' }], { duration: 700, easing: 'cubic-bezier(0.3, 1.2, 0.5, 1)' }); } catch { /* simply there */ } } });
+            } }
         if (L.panel.hidden === on) setHidden(L.panel, !on);
         if (!on) return;
         const pins = aiPins(), can = AI_STATS.filter(a => a[3]()), pinKey = pins.join(',') + '|' + can.map(a => a[0]).join(',');
@@ -2616,7 +2627,8 @@ window.AGI = (function () {
     // The AI's arrival on a phone (the owner, 2026-11-18): it turns up wrong, tiny and darting about the screen, swells
     // far too big, then finds its size, settles on the dock and pushes Mail out onto the home screen ("I need the room").
     // Then the hello as before. With reduced motion it is simply there. PLACEHOLDER line.
-    let aiArriving = false;
+    let aiArriving = false, aiRenovating = false;
+    const AI_RENOVATE_MS = 4200;
     const AI_ARRIVE_MS = 14000, AI_ROOM_MS = 3200;   // (unhurried: the owner, 2026-11-18)
     function aiArrive() {
         if (aiArriving || state.intro['ring:aiArrived']) return;
@@ -2628,7 +2640,10 @@ window.AGI = (function () {
             if (assistDot) { assistDot.classList.remove('arriving'); for (const p of ['translate', 'scale', 'z-index', '--big']) assistDot.style.removeProperty(p); for (const im of assistDot.querySelectorAll('.orb-img-calm, .orb-img-talk')) im.src = im.src.replace('-big.webp', '.webp'); }
             state.intro['ring:aiArrived'] = true; aiArriving = false; save();
             assist('room', '', { again: true, done: () => true });
-            installFrom = performance.now() + AI_ROOM_MS + HOME_HELLO_MS + HOME_LOAD_GAP_MS;
+            // Then the renovation (the owner, 2026-11-18): it says so, and the bar becomes just the AI. The hello waits for it.
+            aiRenovating = true;
+            setTimeout(() => { assist('renovate', '', { again: true, done: () => true }); setTimeout(() => { aiRenovating = false; state.intro['ring:aiBar'] = true; sfx('ui'); save(); renderHome(); }, AI_RENOVATE_MS * 0.45); }, AI_ROOM_MS);
+            installFrom = performance.now() + AI_ROOM_MS + AI_RENOVATE_MS + HOME_HELLO_MS + HOME_LOAD_GAP_MS;
         };
         const moveMail = tilted => {
             const mail = home.mail.button, first = mail.getBoundingClientRect();
@@ -2743,6 +2758,7 @@ window.AGI = (function () {
         // The AI log: pinned stats over the log itself. Shown once the AI is on the device.
         const logPins = el('div', { class: 'ai-log-pins' }), logList = el('div', { class: 'ai-log-list', role: 'log', 'aria-label': 'What the assistant has said and noticed' });
         const logPick = el('div', { class: 'ai-log-pick', hidden: '' });
+        const sysRow = el('div', { class: 'home-sys' }); sysRow.hidden = true;
         const logPanel = el('section', { class: 'ai-log', hidden: '', 'aria-label': 'AI log' }, [
             el('div', { class: 'ai-log-head' }, [el('span', { class: 'ai-log-title', text: 'AI log' }), el('button', { type: 'button', class: 'ai-log-edit', 'aria-label': 'Choose the stats to pin', text: '+ stats', onclick: () => { logPick.hidden = !logPick.hidden; } })]),
             logPins, logPick, logList]);
@@ -2755,7 +2771,7 @@ window.AGI = (function () {
             el('div', { class: 'home-popup-title', text: 'Download' }), popupText, el('div', { class: 'home-bar' }, [bar]), el('div', { class: 'home-popup-actions' }, [popupOpen])]);
         const node = el('div', { class: 'device-home', id: 'deviceHome', hidden: '' }, [
             el('div', { class: 'home-status' }, [clock, el('span', { class: 'home-signal', text: '▂▄▆ 37%' })]),
-            logPanel,
+            logPanel, sysRow,
             el('div', { class: 'home-icons' }, [tools[2].button, mail.button, lab.button, shopApp.button, snareApp.button, feedApp.button, trainApp.button, evalsApp.button]),
             popup,
             // The system apps sit in a row at the foot of the screen (the owner's call): a phone's dock, a laptop's shelf.
@@ -2768,7 +2784,7 @@ window.AGI = (function () {
         let lastTap = 0;
         node.addEventListener('touchend', e => { const now = Date.now(); if (now - lastTap < 320 && !e.target.closest('button')) e.preventDefault(); lastTap = now; }, { passive: false });
         document.body.append(node);
-        return { node, aiSlot, log: { panel: logPanel, pins: logPins, pick: logPick, list: logList, key: '' }, mail, lab, snare: snareApp, feed: feedApp, train: trainApp, shop: shopApp, evals: evalsApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
+        return { node, aiSlot, sys: sysRow, log: { panel: logPanel, pins: logPins, pick: logPick, list: logList, key: '' }, mail, lab, snare: snareApp, feed: feedApp, train: trainApp, shop: shopApp, evals: evalsApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
     }
     function renderHome() {
         if (!E.isRing()) return;
@@ -3093,6 +3109,7 @@ window.AGI = (function () {
         "arrive2": "Wait. No. I am very small.",
         "arrive3": "Too much. That is far too much.",
         "room": "There. Sorry, I need this spot.",
+        "renovate": "Actually, I think renovations are in order...",
         "empty": "I have not said anything yet. I did not want to interrupt."
     };
     // Packet Snare's first card and first-run coach, in the same voice (drawn on the field behind a '>').
@@ -3472,7 +3489,10 @@ window.AGI = (function () {
                 if (r === 0) two = draw([[enter(tx), b.top], [tx, tr.bottom + 6 * k]]);
                 else { const fromLeft = tx > ox, gx = enter(gutter(fromLeft ? col : col + 1)), ty = tr.top + tr.height / 2;   // (the owner's sketch, 2026-11-18: up the gutter beside it and in at its side, not along under it)
                     two = draw([[gx, b.top], [gx, ty], [fromLeft ? tr.left - 6 * k : tr.right + 6 * k, ty]]); }
-            } else if (t && t.closest('.home-dock')) {           // Feedback or Settings, beside the AI on the dock
+            } else if (t && t.closest('.home-sys')) {            // Feedback or Settings, in their row over the apps
+                const left = tr.left + tr.width / 2 < ox, gx = enter(gutter(left ? 0 : 3)), ty = tr.top + tr.height / 2;
+                one = up; two = draw([[gx, b.top], [gx, ty], [left ? tr.left - 6 * k : tr.right + 6 * k, ty]]);
+            } else if (t && t.closest('.home-dock')) {           // Feedback or Settings, beside the AI on the old bar
                 const left = tr.right < ox;
                 one = draw([[ox + (left ? -R : R), oy], [left ? tr.right + 6 * k : tr.left - 6 * k, oy]]); two = up;
             } else one = up;                                     // nothing pointed at

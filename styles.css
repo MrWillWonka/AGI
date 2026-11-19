@@ -5172,3 +5172,20 @@ body.ring-device.ai-here .device-switch, body.ring-device.device-phone.ai-here .
     body.device-phone .home-icons { transition: padding 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
     body.device-phone.ai-on-home.dock-open .home-icons { translate: none; padding-top: 190px; }
 }
+
+/* After the AI's renovation (the owner, 2026-11-18): Feedback and Settings sit in a row of their own over the apps, in
+   the same three columns; and the AI's panel on the home screen is its three buttons alone. */
+.home-sys { display: grid; grid-template-columns: repeat(3, 1fr); justify-items: center; padding: 0 6px; margin-top: auto; }
+.home-sys[hidden] { display: none; }
+.home-sys > .home-icon:last-child { grid-column: 3; }
+body.device-phone.ai-bar .home-icons { flex: 0 0 auto; }
+body.device-phone.ai-bar .home-dock > .home-icon, .home-sys > .home-icon { opacity: 1; visibility: visible; pointer-events: auto; }
+body.ring-device.device-phone.ai-on-home .device-switch > .device-switch-row:not(.device-switch-ai), body.ring-device.device-phone.ai-on-home .device-switch > .device-switch-apps { display: none; }
+body.ai-on-home .device-switch-ai { border-top: 0; padding-top: 0; margin-top: 0; }
+@media (max-width: 640px) { body.device-phone.ai-on-home.dock-open .home-icons { padding-top: 150px; } }
+/* The AI stays in the middle of the foot when it is alone there; and its buttons-only panel fits the band, so the apps
+   need not move for it. */
+body.device-phone .home-dock-ai { grid-column: 2; }
+@media (max-width: 640px) { body.device-phone.ai-on-home.dock-open .home-icons { padding-top: 124px; } }
+body.ring-device.device-phone.ai-on-home .device-switch { width: min(400px, calc(100% - 28px)); }
+body.ai-on-home .device-switch-ai .device-switch-aibtn { min-height: 48px; font-size: 0.88rem; }
