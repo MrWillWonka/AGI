@@ -859,7 +859,7 @@
                 "Like I said, the {device}'s old and it's slow, but it has never actually died on me. You should be fine for whatever it is you're doing.",
                 "The screen isn't all that bad. You stop noticing after a day or two.",
                 "Just don't download random stuff, and be careful what you click on. I'm serious.",
-                "I sent real money to a \"princess\" once. She needed help getting to her inheritance and she was very nice about it. Still waiting to hear back.",
+                "I sent real money to a \"princess\" once.",
                 "Don't tell Mom."
             ] },
         // `ringReply`: under the ring the junk has a reply too, beside Report spam, so the offer's two buttons are no surprise.
