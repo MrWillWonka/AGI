@@ -5262,3 +5262,13 @@ body.dock-told .assist.low { bottom: calc(250px + env(safe-area-inset-bottom, 0p
 .survey-form textarea { word-break: normal; overflow-wrap: break-word; }
 /* Parcel and The Feed leave room at their foot for a pinned dock. */
 body.dock-pinned.ring-device.device-phone .shop-screen, body.dock-pinned.ring-device.device-phone .feed-screen { padding-bottom: calc(196px + env(safe-area-inset-bottom, 0px)); }
+
+/* ---- From a second look through the owner's 32 phone screenshots (2026-11-19). ---- */
+/* The Lab's sparklines start under their cell's label (a flat line ran through "TRAINING XP"). */
+@media (max-width: 640px) { body.ring-device.device-phone #labRoom .supply-cell .spark { top: 30px; height: calc(100% - 30px); } }
+/* The count on the bar's Upgrades button sits inside it (at its corner it went under the capture button). */
+body.ring-device.device-phone #snareTreeButton[data-ready], body.ring-device.device-phone #treeButton[data-ready] { padding-right: 32px; }
+body.ring-device.device-phone #snareTreeButton[data-ready]::after, body.ring-device.device-phone #treeButton[data-ready]::after { top: 50%; right: 7px; transform: translateY(-50%); box-shadow: none; }
+/* Packet Snare's cards: Start at lines up with the rows above and below it, and its list fills the row. */
+body.ring-device.device-phone .snare-card .snare-sector-row { justify-content: flex-start; margin-left: 0; margin-right: 0; }
+body.ring-device.device-phone .snare-card .snare-sector-row .snare-sector-pick { flex: 1 1 auto; }
