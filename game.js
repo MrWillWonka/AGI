@@ -3079,25 +3079,56 @@ window.AGI = (function () {
         renderHome();
         jumpTo('bay:pipeline');
     }
+    // Several notifications wait as one stack, like Sonner's: the oldest in front, up to two more showing an edge
+    // behind it, the rest out of sight. Only the front one's clock runs, so a burst (a run's achievements) is read
+    // one at a time and never covers the screen; one that has waited comes forward for a shorter stay.
+    const NOTICE_MS = 6000, NOTICE_NEXT_MS = 4000;
+    let noticeFront = null, noticeClock = 0, noticeSince = 0, noticeHeld = false;
+    function noticeStop() { if (noticeClock) { clearTimeout(noticeClock); noticeClock = 0; if (noticeFront) noticeFront._left = Math.max(600, noticeFront._left - (performance.now() - noticeSince)); } }
+    function noticeGo() { noticeStop(); if (!noticeFront || noticeHeld || document.hidden) return; noticeSince = performance.now(); const n = noticeFront; noticeClock = setTimeout(() => { noticeClock = 0; noticeOut(n); }, n._left); }
+    function noticeHold(node, on) { if (node !== noticeFront) return; noticeHeld = on; if (on) noticeStop(); else noticeGo(); }
+    // It leaves upward, the way it came, rather than vanishing.
+    function noticeOut(node) {
+        if (node._out) return; node._out = true; node.classList.add('out');
+        if (node === noticeFront) { noticeStop(); noticeFront = null; noticeHeld = false; }
+        setTimeout(() => node.remove(), reducedMotion() ? 0 : 180);
+        noticeStack();
+    }
+    function noticeStack() {
+        if (!noticeBox) return;
+        const live = [...noticeBox.children].filter(n => !n._out && n.classList.contains('device-notice'));
+        live.forEach((n, i) => { n.style.setProperty('--i', String(Math.min(i, 3))); n.classList.toggle('behind', i > 0); n.classList.toggle('deep', i > 2); n.inert = i > 0; });
+        for (const n of live.slice(1)) n._waited = true;
+        if (live[0] === noticeFront) return;
+        noticeStop();
+        if (noticeFront && live.includes(noticeFront)) noticeFront = null;
+        if (live[0] && live[0]._waited) live[0]._left = Math.min(live[0]._left, NOTICE_NEXT_MS);
+        noticeFront = live[0] || null; noticeHeld = false;
+        noticeGo();
+    }
+    document.addEventListener('visibilitychange', () => { if (document.hidden) noticeStop(); else noticeGo(); });
     // A notification drops from the top of the device's screen (the owner's call): new mail, a new app. Tapping it
     // opens the app; it goes on its own after a few seconds. Several stack.
     let noticeBox = null;
     function deviceNotice(key, app, text, open) {
-        if (!noticeBox) document.body.append(noticeBox = el('div', { class: 'device-notices', popover: 'manual' }));
+        if (!noticeBox) { document.body.append(noticeBox = el('div', { class: 'device-notices', popover: 'manual' })); new MutationObserver(noticeStack).observe(noticeBox, { childList: true }); }
         const art = el('span', { class: 'device-notice-art' });
         art.innerHTML = HOME_ICONS[key];
-        const node = el('button', { type: 'button', class: `device-notice device-notice-${key}`, onclick: () => { node.remove(); pt('notice', { open: key }); open(); } },
+        const node = el('button', { type: 'button', class: `device-notice device-notice-${key}`, onclick: () => { if (swiped) return; node.remove(); pt('notice', { open: key }); open(); } },
             [art, el('span', { class: 'device-notice-app', text: app }), el('span', { class: 'device-notice-text', text })]);
-        // Flicked up, it goes (the owner's call: every notification and achievement can be swiped away).
+        node._left = NOTICE_MS;
+        // Flicked up, it goes (the owner's call: every notification and achievement can be swiped away). While a
+        // finger or the pointer rests on it, its clock stops (as Sonner's toasts do), so it cannot leave mid-read.
         let from = null, swiped = false;
-        node.addEventListener('pointerdown', e => { from = e.clientY; swiped = false; });
-        node.addEventListener('pointermove', e => { if (from === null) return; const dy = Math.min(0, e.clientY - from); node.style.transform = dy ? `translateY(${dy}px)` : ''; node.style.opacity = String(Math.max(0.2, 1 + dy / 80)); if (dy < -28) { swiped = true; pt('notice', { swiped: key }); node.remove(); } });
-        for (const type of ['pointerup', 'pointercancel', 'pointerleave']) node.addEventListener(type, () => { from = null; if (!swiped) { node.style.transform = ''; node.style.opacity = ''; } });
+        node.addEventListener('pointerdown', e => { from = e.clientY; swiped = false; noticeHold(node, true); });
+        node.addEventListener('pointermove', e => { if (from === null || swiped) return; const dy = Math.min(0, e.clientY - from); node.style.transform = dy ? `translateY(${dy}px)` : ''; node.style.opacity = String(Math.max(0.2, 1 + dy / 80)); if (dy < -28) { swiped = true; pt('notice', { swiped: key }); noticeOut(node); } });
+        for (const type of ['pointerup', 'pointercancel', 'pointerleave']) node.addEventListener(type, () => { from = null; noticeHold(node, false); if (!swiped) { node.style.transform = ''; node.style.opacity = ''; } });
+        node.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') noticeHold(node, true); });
         noticeBox.append(node);
         // Shown again as a popover each time, so it sits above whatever dialog is open (Mail, The Feed, Settings).
         try { if (noticeBox.matches(':popover-open')) noticeBox.hidePopover(); noticeBox.showPopover(); } catch { /* no popovers: it stays under dialogs */ }
         sfx('ui');
-        setTimeout(() => node.remove(), 6000);
+        noticeStack();
     }
     // The AI's own voice on your device (the owner's call, 2026-11-14): from the Lab on, the tutorials are its lines, in
     // a bubble of its own at the foot of the screen, in a plain face that is nothing like the rest of the device. Dry,
@@ -3392,6 +3423,30 @@ window.AGI = (function () {
             st.left = Math.max(10, Math.min(innerWidth - w - 10, d.left + d.width / 2 - w / 2)) / k + 'px';
             st.maxHeight = Math.max(160, (under ? below : above)) / k + 'px';
             if (under) { st.top = (d.bottom + 8) / k + 'px'; st.bottom = 'auto'; } else { st.top = 'auto'; st.bottom = (innerHeight - d.top + 8) / k + 'px'; } }
+        // Dragged toward the AI, the sheet goes (Vaul's drawer: it follows the finger, resists the wrong way, and
+        // a quarter of its height or a quick flick dismisses it; short of that it springs back). Only when it has
+        // nothing to scroll, so a drag is never mistaken for a scroll.
+        { const sheet = assistSheet, dir = sheet.style.top === 'auto' ? 1 : -1;   // (above the AI: down. Under it: up.)
+            if (sheet.scrollHeight <= sheet.clientHeight + 1) {
+                sheet.classList.add('drags', dir > 0 ? 'drag-down' : 'drag-up');
+                sheet[dir > 0 ? 'prepend' : 'append'](el('span', { class: 'assist-grab', 'aria-hidden': 'true' }));
+                let g = null;
+                sheet.addEventListener('pointerdown', e => { if (e.target.closest('input, label')) return; g = { y: e.clientY, t: performance.now(), on: false, dy: 0 }; });
+                sheet.addEventListener('pointermove', e => { if (!g) return; const raw = (e.clientY - g.y) * dir;
+                    if (!g.on) { if (Math.abs(raw) < 8) return; g.on = true; try { sheet.setPointerCapture(e.pointerId); } catch { /* gone */ } sheet.classList.add('dragging'); }
+                    g.dy = raw > 0 ? raw : -Math.sqrt(-raw) * 2; sheet.style.transform = `translateY(${g.dy * dir}px)`; });
+                const end = e => { const was = g; g = null; if (!was || !was.on) return;
+                    sheet.classList.remove('dragging');
+                    sheet._dragged = performance.now();
+                    const speed = was.dy / Math.max(1, performance.now() - was.t);
+                    if (e.type === 'pointerup' && (was.dy > sheet.offsetHeight * 0.25 || (was.dy > 24 && speed > 0.5))) {
+                        sheet.style.transform = `translateY(${(sheet.offsetHeight + 40) * dir}px)`; sheet.style.opacity = '0'; pt('assistOpen', { dragged: 1 });
+                        setTimeout(() => { if (assistSheet === sheet) assistSheetToggle(); }, reducedMotion() ? 0 : 200);
+                    } else sheet.style.transform = ''; };
+                sheet.addEventListener('pointerup', end); sheet.addEventListener('pointercancel', end);
+                // (A drag is not a tap on whatever was under the finger.)
+                sheet.addEventListener('click', e => { if (performance.now() - (sheet._dragged || -1e9) < 350) { e.stopPropagation(); e.preventDefault(); } }, true);
+            } }
         pt('assistOpen', { said: said.length });
         sfx('ui');
     }

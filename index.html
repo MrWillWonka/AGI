@@ -446,14 +446,14 @@
                         <button type="button" class="ghost-button" id="restoreButton">Restore backup</button>
                         <button type="button" class="ghost-button danger" id="resetButton">Start over</button>
                     </div>
-                    <label class="toggle playtest-toggle"><input type="checkbox" id="settingPlaytest"> Record a playtest log (this device)</label>
+                    <label class="toggle playtest-toggle"><input type="checkbox" role="switch" id="settingPlaytest"> Record a playtest log (this device)</label>
                     <div class="button-row">
                         <button type="button" class="ghost-button" id="playtestButton">Playtest log</button>
                         <button type="button" class="ghost-button" id="playtestClear">Clear log</button>
                     </div>
-                    <label class="toggle"><input type="checkbox" id="settingAutosave"> Autosave every 30 seconds</label>
+                    <label class="toggle"><input type="checkbox" role="switch" id="settingAutosave"> Autosave every 30 seconds</label>
                 </div>
-                <label class="toggle"><input type="checkbox" id="settingShake"> Screen shake and flashes</label>
+                <label class="toggle"><input type="checkbox" role="switch" id="settingShake"> Screen shake and flashes</label>
                 <label class="setting-row">Sound <input type="range" id="settingSound" min="0" max="1" step="0.05" aria-label="Sound volume"> <span id="settingSoundValue" class="muted small"></span></label>
                 <label class="setting-row">Music <input type="range" id="settingMusic" min="0" max="1" step="0.05" aria-label="Music volume"> <span id="settingMusicValue" class="muted small"></span></label>
                 <div class="music-parts">
@@ -483,11 +483,11 @@
                     <summary>Sound groups</summary>
                     <div id="soundGroups"></div>
                 </details>
-                <label class="toggle"><input type="checkbox" id="settingSimpleSfx"> Simple sounds only</label>
-                <label class="toggle"><input type="checkbox" id="settingCalm"> Reduce animations</label>
-                <label class="toggle"><input type="checkbox" id="settingAwake"> Keep the screen on while playing (this device)</label>
-                <label class="toggle"><input type="checkbox" id="settingSnareRing"> Packet Snare: show the closing ring at the wire's start (this device)</label>
-                <label class="toggle"><input type="checkbox" id="settingSnareHunt"> Packet Snare (testing): unreadable packets hunt your bubble (this device)</label>
+                <label class="toggle"><input type="checkbox" role="switch" id="settingSimpleSfx"> Simple sounds only</label>
+                <label class="toggle"><input type="checkbox" role="switch" id="settingCalm"> Reduce animations</label>
+                <label class="toggle"><input type="checkbox" role="switch" id="settingAwake"> Keep the screen on while playing (this device)</label>
+                <label class="toggle"><input type="checkbox" role="switch" id="settingSnareRing"> Packet Snare: show the closing ring at the wire's start (this device)</label>
+                <label class="toggle"><input type="checkbox" role="switch" id="settingSnareHunt"> Packet Snare (testing): unreadable packets hunt your bubble (this device)</label>
                 <label class="setting-row">Text size
                     <select id="settingTextSize" aria-label="Text size">
                         <option value="1">100%</option>

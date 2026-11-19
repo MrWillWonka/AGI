@@ -5314,3 +5314,27 @@ body.ring-device.device-phone #devView .tree-viewport { order: 1; flex: 1 1 auto
 body.device-phone .tree-zoom, body.ring-device.device-phone .snare-tree-zoom { top: auto; bottom: 8px; left: 8px; flex-direction: column; }
 /* (Room under Training's bar for the foot strip.) */
 body.foot-on.ring-device.device-phone #devView { padding-bottom: 56px; box-sizing: border-box; }
+
+/* Settings: each on/off is a switch on the right of its row (the Lab's auto-switch look), not a checkbox. */
+.toggle { justify-content: space-between; min-height: 44px; gap: 14px; }
+.toggle input[type="checkbox"] { -webkit-appearance: none; appearance: none; order: 2; flex: none; position: relative; width: 44px; height: 26px; margin: 0; border-radius: 999px; border: 1px solid var(--border); background: color-mix(in srgb, var(--muted) 25%, transparent); cursor: pointer; transition: background 0.2s ease-out, border-color 0.2s ease-out; }
+.toggle input[type="checkbox"]::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--muted); transition: transform 0.2s ease-out, background 0.2s ease-out; }
+.toggle input[type="checkbox"]:checked { background: color-mix(in srgb, var(--success) 35%, transparent); border-color: color-mix(in srgb, var(--success) 60%, transparent); }
+.toggle input[type="checkbox"]:checked::after { transform: translateX(18px); background: var(--success); box-shadow: 0 0 8px var(--success); }
+.toggle input[type="checkbox"]:focus-visible { outline: 2px solid var(--success); outline-offset: 2px; }
+
+/* Notifications stack (Sonner's pattern): one in front, up to two edges behind it, the rest hidden. `translate` and
+   `scale` place the stack so `transform` stays free for the drop, the flick and the exit. */
+.device-notices { gap: 0; }
+.device-notice { grid-area: 1 / 1; align-self: start; transform-origin: 50% 100%; z-index: calc(10 - var(--i, 0)); translate: 0 calc(var(--i, 0) * 9px); scale: calc(1 - var(--i, 0) * 0.05); transition: translate 0.25s ease-out, scale 0.25s ease-out, opacity 0.18s ease-out, transform 0.18s ease-out; }
+.device-notice.behind { align-self: stretch; pointer-events: none; }
+.device-notice.behind > * { opacity: 0; }
+.device-notice.deep { opacity: 0; }
+.device-notice.out { transform: translateY(-140%) !important; opacity: 0 !important; pointer-events: none; }
+
+/* The assistant's sheet can be dragged away toward the AI (Vaul's drawer): a grab bar on its far edge, the sheet
+   follows the finger, and it springs back or leaves on Vaul's curve. */
+.assist-sheet.drags { touch-action: none; transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s ease-out; }
+.assist-sheet.dragging { transition: none; }
+.assist-grab { flex: none; align-self: center; width: 36px; height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--text) 28%, transparent); }
+body:not(.device-phone) .assist-grab { display: none; }
