@@ -42,6 +42,8 @@ test('the milestones the ring can reach have their own Journal words, not the ol
     for (const m of reach) {
         assert.ok(m.ringDesc, m.key);
         assert.doesNotMatch(m.ringDesc, /Edge Detection|Data Pipeline|Collect data|DP\b/);
+        // The ring's name for the place, where the old game's differs ("Training Cluster" is "Training" on the home screen).
+        assert.doesNotMatch(m.ringName || m.name, /Cluster|Pipeline|Path/);
     }
 });
 

@@ -1511,6 +1511,9 @@ window.AGI = (function () {
         if (racks.length > MAX_RACKS) art.append(el('span', { class: 'cabinet-more', text: `+${racks.length - MAX_RACKS} more racks` }));
     }
 
+    // The Journal's words under the ring (the audit, 2026-11-19: it spoke of CP, versions and the Training Path).
+    const ringWords = text => (!E.isRing() ? text : text.replace(/\bCP\b/g, 'compute').replace(/^compute/, 'Compute').replace(' on the Training Path', ' in Training')
+        .replace(/ (this version|in one version|\(all versions\))/, ''));
     function buildChecklists() {
         for (const m of E.MILESTONES) {
             const item = el('li', {}, [el('strong', { text: '???' }), el('span', { class: 'muted small' })]);
@@ -4171,7 +4174,7 @@ window.AGI = (function () {
         for (const a of changes.achievements) {
             pt('achievement', { id: a.id });
             log(`Achievement unlocked: ${a.name}`, 'special');
-            toast(`Achievement · ${a.name}`, a.desc, 'achievement');
+            toast(`Achievement · ${a.name}`, ringWords(a.desc), 'achievement');
         }
         if (changes.challenge) {
             const c = changes.challenge;
@@ -4590,7 +4593,9 @@ window.AGI = (function () {
             item.dataset.filled = '1';
             item.classList.toggle('done', done);
             const m = E.MILESTONES.find(x => x.key === key);
-            item.firstChild.textContent = done ? m.name : '???';
+            // The ring: only its own milestones show (the others can never be reached: five rows of ??? for good), in its words.
+            if (E.isRing()) { item.hidden = !m.ringCallout; if (item.hidden) continue; }
+            item.firstChild.textContent = done ? (E.isRing() && m.ringName) || m.name : '???';
             item.lastChild.textContent = done ? (E.isRing() && m.ringDesc) || m.desc : '';
         }
         // Unearned achievements keep quiet about things you haven't met yet (a `seen` rule on the achievement).
@@ -4598,7 +4603,15 @@ window.AGI = (function () {
             const item = ui.achievements[a.id];
             const done = !!state.achievements[a.id];
             item.classList.toggle('done', done);
-            setText(item.lastChild, done || !a.seen || a.seen(state) ? a.desc : '???');
+            setText(item.lastChild, done || !a.seen || a.seen(state) ? ringWords(a.desc) : '???');
+        }
+        // The Stats tab under the ring: no versions and no Insight there, and compute is called compute.
+        if (E.isRing() && !ui.ringStats) {
+            ui.ringStats = true;
+            for (const dt of document.querySelectorAll('#journal .stat-list dt')) {
+                if (/^(Insight bonus|Time this version|Model version)$/.test(dt.textContent)) dt.parentNode.hidden = true;
+                else dt.textContent = ringWords(dt.textContent);
+            }
         }
 
         setDisabled($('prestigeButton'), E.prestigeGain(state) < 1);
@@ -7114,7 +7127,19 @@ window.AGI = (function () {
     // How many tree nodes Signal can buy now: the badge on every Packet Snare Upgrades button, the rack's bay and the map.
     const snareReadyCount = () => E.SNARE_TREE.filter(up => E.isUpgradeVisible(state, up) && !E.isMaxed(state, up) && E.canAfford(state, E.upgradeCost(up, E.level(state, up.id)))).length;
 
+    // One Upgrades button at a time (the audit, 2026-11-19: the card's and the bar's or the foot strip's showed together).
+    // On a phone with the foot strip the strip's is the one, in the thumb's reach; elsewhere the card's, and the bar's rests.
+    const snareFootUpgrades = () => document.body.matches('.foot-on.ring-device.device-phone');
+    const snareCardUpgrades = () => { const c = $('snareCard'); return !!c && !c.hidden && !!c.querySelector('.snare-upgrades'); };
+    // Why a run costs what it does (the audit: the price rose 100, 130, 150, 203 with nothing said). Placeholder words.
+    function snareRateNote() {
+        if (!E.isRing()) return null;
+        const sector = snareNextSector(), clock = E.snareClock(state, sector, snareRunOpts(sector).focus);
+        if (clock.free || !clock.full) return null;
+        return el('p', { class: 'muted small snare-rate-note', text: `A run here costs ${E.format(clock.perSecond)} compute a second: ${E.format(clock.seconds)} s for ${E.format(clock.price)}.` });
+    }
     function snareUpgradesButton() {
+        if (snareFootUpgrades()) return null;
         const b = el('button', { type: 'button', class: 'ghost-button snare-upgrades', text: 'Upgrades', onclick: openSnareTree });
         const n = snareReadyCount();
         if (n) b.dataset.ready = String(n);
@@ -7242,7 +7267,7 @@ window.AGI = (function () {
                 state.snare.runs < 3 && !first && !meetRed ? el('p', { class: 'snare-intro-line', text: snareHowTo() }) : null,
                 best > 0 ? el('ul', { class: 'result-lines' }, [['Best haul', `+${E.format(best)} Signal`], snareRpLine(), snareTrainingLine()].filter(Boolean)
                     .map(([a, b]) => el('li', {}, [el('span', { text: a }), el('span', { text: b })]))) : null,
-                snareClockNote(),
+                snareClockNote(), snareRateNote(),
                 el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: snareStartText('Start'), onclick: startSnare }), state.snare.runs > 0 ? snareUpgradesButton() : null].filter(Boolean))].filter(Boolean));
         } else {
             const d = snare.done;
@@ -7306,7 +7331,7 @@ window.AGI = (function () {
                 ...snarePickerParts(),
                 // (after a gated escape the gate's line above says it; the objective doesn't repeat it)
                 el('p', { class: 'snare-intro-line snare-goal-line', text: gate ? snareGoalText(snareNextSector()).replace(snareGateText(snareNextSector()), '') : snareGoalText(snareNextSector()) }),
-                snareClockNote(),
+                snareClockNote(), snareRateNote(),
                 el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: snareStartText('Snare again'), onclick: startSnare }), snareUpgradesButton(),
                     gate ? (E.isRing() && !state.unlocked['module:path']
                         ? el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: 'Get a server in Parcel', onclick: () => { goHome(); openShop(); } })
@@ -7679,7 +7704,7 @@ window.AGI = (function () {
         if (openBay === 'pipeline') { setHidden($('treeButton'), true); setHidden($('restartButton'), true); }
         // Before the first run its place in the bar is kept (round 4: the bay moved 5 px when it appeared).
         setHidden(b, openBay !== 'pipeline' || snare.tree);
-        b.classList.toggle('reserve', state.snare.runs < 1);
+        b.classList.toggle('reserve', state.snare.runs < 1 || snareCardUpgrades());
         const n = snareReadyCount();
         if (n) b.dataset.ready = n > 9 ? '9+' : String(n); else delete b.dataset.ready;
         const inRun = snare.run && !snare.run.over && !snare.preview;

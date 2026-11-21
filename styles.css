@@ -4043,6 +4043,10 @@ body.ring-device.screen-monitor dialog[open]::before { border-color: #20292c; bo
 /* The ring's mail: Report spam is a button like the reply, and both come at the mail's end, after its words (not pinned
    over them), so a long mail is read before it is answered. */
 body.ring-device .inbox-message .dialog-actions { position: static; margin: 16px 0 0; padding: 0; background: none; border: 0; box-shadow: none; flex-wrap: wrap; }
+/* On the laptop the offer's reply sat 105 px under the mail's fold at 800 px tall (the audit, 2026-11-19): the mail gets
+   the window's height, so the reply is on screen at the mail's end without a scroll. */
+body.ring-device.device-laptop #inbox { margin-top: clamp(8px, 4vh, 120px); }
+body.ring-device.device-laptop .inbox-message { max-height: calc(100dvh / var(--zoom, 1) - 110px); }
 .inbox-notice { min-height: 1.4em; margin: 0 0 6px; padding: 0 2px; font: 0.82rem var(--font-mono); color: var(--success); }
 
 /* The device's home screen (game.js renderHome): over the page, under the bezel and the crack. A laptop's desktop has
