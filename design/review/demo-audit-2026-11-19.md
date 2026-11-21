@@ -23,7 +23,7 @@ could reach it.
 | "No packets captured" over "+40 Signal", "Goal 0/40" | A run ended by a debug command | **Testing artifact** |
 | "+39 Signal" beside "Goal 38/40" | Reviewer | **Real, small.** Signal is rounded per catch, the goal once (`engine.js` `snareCatch`). Not changed: it touches pay |
 | "No packets captured" with "+1 Signal" | A scripted run | **Unproven.** Every paying catch pays at least 1; I could not tie it to regular play |
-| Two Upgrades buttons, the run price rising unexplained | Screenshots | **Real** (stand as quick fixes) |
+| Two Upgrades buttons, the run price rising unexplained | Screenshots | **Real, fixed 2026-11-20** (one button; a line says what a run costs) |
 | The Lab is one button for half an hour; 63% of the time in the Lab | The owner's log, and an agent holding the button 75 s | **Withdrawn.** The log was a mistake, and an agent grinding is not a player's pace |
 | Pacing misses the 65-minute line | The owner's log, two agents, the pacing bot | **Unmeasured.** No human run at an intended pace exists yet |
 | The Feed clears with a blind zig-zag | A scripted sweep | **Unproven** |
@@ -140,10 +140,10 @@ Gains are my estimates of the overall score. Each names what it lifts.
 | Q2 | Done 2026-11-20: a second "Show me" says its line again; the stockpile line names The Feed. The "no Feed icon" case is withdrawn | Tutorials, ring cohesion | done |
 | Q3 | Withdrawn: lines wait until tapped, by design. An owner's call if a line should ever time out | Tutorials | |
 | Q4 | Withdrawn: the start card waits for the AI's two lines, by design | | |
-| Q5 | Result card: one headline from the same number as the haul; Goal and Signal agree; no Loops row before loops; one Upgrades button; say why a run ended and that the price rose | Clarity | 0.07 |
+| Q5 | Result card. Done 2026-11-20: one Upgrades button, a line on what a run costs, "Catches" on a bubble run. Left: Goal and Signal can differ by one (touches pay) | Clarity | part done |
 | Q6 | Phone Packet Snare: fit 844 px with no page scroll; tree controls at least 44 px; no node off the edge | Phone fit | 0.05 |
-| Q7 | Offer mail: the reply button in view without scrolling (desktop and phone) | First five minutes | 0.03 |
-| Q8 | Old copy (the Journal milestone done 2026-11-20): achievements and stats for systems not in the demo, "Garage · later" tabs, the window title, "tap" on a desktop, the build string | Story and copy | 0.03 |
+| Q7 | Done 2026-11-20: the offer's reply is in view on a laptop (it sat 105 px under the fold at 800 px tall). The phone already showed it | First five minutes | done |
+| Q8 | Old copy. Done 2026-11-20: the Journal's milestones, achievements and stats use the ring's words. Left for the owner: "Garage · later" tabs, the window title, "tap" on a desktop, the build string | Story and copy | part done |
 | Q9 | The AI's bubble and notices stay off what they point at (Parcel's fourth item, the Snare field, the result card, Mail icon, the Lab title, BANK) | Visuals, clarity | 0.03 |
 | Q10 | Mom's thread: her mail before or with her money; the second $100 gets a line | Story | 0.02 |
 | Q11 | The Feed: one line each for garbled sand and "Split 36%"; no empty tank as "Carry on"; the card pick with time left; Start session clear of the foot strip at 800 px | Clarity | 0.03 |
