@@ -3209,7 +3209,7 @@ window.AGI = (function () {
         "moneyHome": "This one. Parcel pays for compute and sells desk parts. A tower would let you make more with each tap.",
         "snare": "The desk is working. Thank you. There is data going past out there, and I would like to see some. Would you catch a little?",
         "snareHome": "This one. Packet Snare is where the data goes by. The blue I can read. The red I cannot. Not yet.",
-        "feed": "The stockpile for sector {sector} is full. I would rather it was not wasted. There is a place for it.",
+        "feed": "The stockpile for sector {sector} is full. I would rather it was not wasted. I have put The Feed on your home screen.",
         "feedHome": "This one. The Feed turns what you caught into research. Research is how I learn. I would like to learn.",
         "feed1": "These are your stockpiles. Pick one and the mites will start. The bar at the top is their hunger. Please keep it up.",
         "feed2": "They go where you tap. They try harder where you hold. So would I.",
@@ -3275,6 +3275,7 @@ window.AGI = (function () {
         "sellHome": "This one. I only want you to have what you need.",
         "nowHome": "This one.",
         "now:lab": "The Lab, I think. Each tap is a little more compute, and Parcel will buy it.",
+        "now:labEarly": "The Lab, I think. Each tap is a little more compute.",   // before Parcel is on the screen (the audit, 2026-11-19)
         "now:shop": "Parcel. You could sell some compute and buy the next part. I would be grateful.",
         "now:snare": "Packet Snare, if you have a moment. I have nothing to learn from just now.",
         "now:feed": "The Feed. There is data waiting, and the mites have noticed.",
@@ -3338,7 +3339,8 @@ window.AGI = (function () {
     };
     const appUp = app => (app === 'shop' ? !!shop?.dlg.open : app === 'evals' ? evalsUp() : app === 'feed' ? !!window.FeedUI?.isOpen : ringAppNow() === app);
     function showMe(app, key) {
-        return ['Show me', () => { appTellSoon = performance.now(); goHome(); assist(key + 'Home', SHOW_WHY[key] || '', { target: () => home?.[app === 'training' ? 'train' : app].button, done: () => appUp(app) }); }];
+        return ['Show me', () => { appTellSoon = performance.now(); goHome(); assist(key + 'Home', SHOW_WHY[key] || '', { again: true,   // asked for, so it says it every time (a second "Show me", from Last tip, went home and said nothing: the owner's note, and the audit of 2026-11-19)
+            target: () => home?.[app === 'training' ? 'train' : app].button, done: () => appUp(app) }); }];
     }
     function assistNext() {
         if (assistQueue.length && snareRunLive()) { setTimeout(() => { if (!assistLive) assistNext(); }, 1000); return; }
@@ -3420,7 +3422,7 @@ window.AGI = (function () {
             : state.intro['ring:server'] && desk === E.RING_DESK ? 'server'
             : state.unlocked['module:path'] && state.res.rp >= E.pushCost(state, 1).rp ? 'training'
             : E.feedOpen(state) && stock ? 'feed' : 'snare';
-        return [ASSIST_LINES['now:' + app], app === 'server' ? 'shop' : app];
+        return [ASSIST_LINES[app === 'lab' && !shopOpenable() ? 'now:labEarly' : 'now:' + app], app === 'server' ? 'shop' : app];
     }
     // "What is this?" (the owner's pick, 2026-11-15): from the orb's panel; the next tap anywhere is a question, and the AI
     // says a line about whatever is under it, ringed. Escape, or the answer, ends it. Walkthroughs are not offered yet.
@@ -4589,7 +4591,7 @@ window.AGI = (function () {
             item.classList.toggle('done', done);
             const m = E.MILESTONES.find(x => x.key === key);
             item.firstChild.textContent = done ? m.name : '???';
-            item.lastChild.textContent = done ? m.desc : '';
+            item.lastChild.textContent = done ? (E.isRing() && m.ringDesc) || m.desc : '';
         }
         // Unearned achievements keep quiet about things you haven't met yet (a `seen` rule on the achievement).
         for (const a of E.ACHIEVEMENTS) {
@@ -7251,7 +7253,7 @@ window.AGI = (function () {
                 d.goal && !d.goalDone ? ['Goal', `${goalNum(Math.min(d.goalAt, d.goal))}/${goalNum(d.goal)}`, d.goal - d.goalAt <= d.goal * 0.15 ? 'key' : ''] : null,
                 d.cleared.length ? [d.cleared.length === 1 ? 'Sector cleared' : `${d.cleared.length} sectors cleared`,
                     Array.from({ length: d.sector - d.startSector + 1 }, (_, i) => d.startSector + i).map(k => E.snareSectorName(k) + (d.cleared.includes(k) ? ' ✓' : '')).join(' → '), 'key'] : null,
-                [s.bubbles ? 'Catches' : 'Loops closed', `${s.catches}`],
+                [s.bubbles || snare.run?.opts.bubble ? 'Catches' : 'Loops closed', `${s.catches}`],   // a bubble run with no catch said "Loops closed" (the audit, 2026-11-19)
                 s.bestMult >= 1.05 ? [s.bubbles ? 'Biggest catch' : 'Biggest loop', `×${s.bestMult.toFixed(1)}`] : null,
                 s.corrupted ? ['Garbled catches', `${s.corrupted}`] : null,
                 s.snaps ? [snare.run?.opts.bubble ? 'Popped or snapped' : 'Wires snapped', `${s.snaps}`] : null,

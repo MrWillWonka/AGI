@@ -36,6 +36,15 @@ test('the finished desk puts Packet Snare online, and not before', () => ring(()
     assert.deepEqual(changes.milestones.find(m => m.key === 'module:snare').ringCallout[0], 'System');
 }));
 
+test('the milestones the ring can reach have their own Journal words, not the old game\'s recipe', () => {
+    const reach = E.MILESTONES.filter(m => m.ringCallout);
+    assert.deepEqual(reach.map(m => m.key).sort(), ['module:path', 'module:snare']);
+    for (const m of reach) {
+        assert.ok(m.ringDesc, m.key);
+        assert.doesNotMatch(m.ringDesc, /Edge Detection|Data Pipeline|Collect data|DP\b/);
+    }
+});
+
 test('under the ring the lab never offers Collect Data or Research, and training stays sealed', () => ring(() => {
     const s = E.defaultState(NOW);
     // Everything that opens them in today's game.

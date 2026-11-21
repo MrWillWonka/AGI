@@ -21,7 +21,7 @@ succeeds, never a tutorial. Edit the Line column and send it back (or say which 
 | `moneyHome` | Home screen, Parcel ringed | This one. Parcel pays for compute and sells desk parts. A tower would let you make more with each tap. | |
 | `snare` | The desk is finished: Packet Snare arrives | The desk is working. Thank you. There is data going past out there, and I would like to see some. Would you catch a little? | |
 | `snareHome` | Home screen, Packet Snare ringed | This one. Packet Snare is where the data goes by. The blue I can read. The red I cannot. Not yet. | |
-| `feed` | A stockpile first fills: The Feed arrives | The stockpile for sector {sector} is full. I would rather it was not wasted. There is a place for it. | |
+| `feed` | A stockpile first fills: The Feed arrives | The stockpile for sector {sector} is full. I would rather it was not wasted. I have put The Feed on your home screen. | |
 | `feedHome` | Home screen, The Feed ringed | This one. The Feed turns what you caught into research. Research is how I learn. I would like to learn. | |
 | `feed1` | The Feed, first time it opens | These are your stockpiles. Pick one and the mites will start. The bar at the top is their hunger. Please keep it up. | |
 | `feed2` | The Feed, first session | They go where you tap. They try harder where you hold. So would I. | |
@@ -82,6 +82,7 @@ succeeds, never a tutorial. Edit the Line column and send it back (or say which 
 | `sellHome` | Home screen, Parcel ringed | This one. I only want you to have what you need. | |
 | `nowHome` | Home screen, after "What should I do now?" and Show me | This one. | |
 | `now:lab` | Assistant, "What should I do now?": no desk part affordable yet | The Lab, I think. Each tap is a little more compute, and Parcel will buy it. | |
+| `now:labEarly` | The same, before Parcel is on the screen | The Lab, I think. Each tap is a little more compute. | |
 | `now:shop` | Assistant, "What should I do now?": compute to sell or a part to buy | Parcel. You could sell some compute and buy the next part. I would be grateful. | |
 | `now:snare` | Assistant, "What should I do now?": nothing stockpiled | Packet Snare, if you have a moment. I have nothing to learn from just now. | |
 | `now:feed` | Assistant, "What should I do now?": a stockpile has data | The Feed. There is data waiting, and the mites have noticed. | |
